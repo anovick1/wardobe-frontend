@@ -3,6 +3,7 @@ image: node:18
 stages:
   - install
   - lint
+  - test
 
 cache:
   paths:
