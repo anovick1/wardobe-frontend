@@ -1,0 +1,24 @@
+image: node:18
+
+stages:
+  - install
+  - lint
+
+cache:
+  paths:
+    - node_modules/
+
+install:
+  stage: install
+  script:
+    - npm ci || npm install
+
+lint:
+  stage: lint
+  script:
+    - npm run lint || echo "No linter configured"
+
+test:
+  stage: test
+  script:
+    - echo "No tests yet, but pipeline works!"
