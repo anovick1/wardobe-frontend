@@ -23,7 +23,7 @@ This app connects to a Flask backend (in `wardrobe-backend`) that handles the da
 ### 1. Clone the frontend
 
 ```bash
-git clone git@github.com:anovick1/wardrobe-frontend.git
+git clone git@gitlab.com:anovick1-group/wardrobe-frontend.git
 cd wardrobe-frontend
 ```
 
