@@ -1,0 +1,5 @@
+# Flask Backend
+
+FLASK_API_BASE_URL=http://<YOUR-IP-ADRESS-OR-BACKEND-URL>:5001
+
+# put in your local ip address for now, will change to actual db url when we have it
