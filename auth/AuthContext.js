@@ -2,11 +2,12 @@
 import React, { createContext, useState, useEffect } from "react";
 import { auth } from "../firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import { createOrFetchUser } from "../api/user"; // ✅ static import
 
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null); // Will hold { firebase, backend }
+  const [user, setUser] = useState(null); // { firebase, backend }
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -20,7 +21,6 @@ export const AuthProvider = ({ children }) => {
       }
 
       try {
-        const { createOrFetchUser } = await import("../api/user");
         const backendUser = await createOrFetchUser(firebaseUser);
 
         setUser({

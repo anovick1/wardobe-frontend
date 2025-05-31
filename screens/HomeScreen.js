@@ -58,7 +58,7 @@ export default function HomeScreen() {
   return (
     <View style={globalStyles.container}>
       <Text style={typography.title}>
-        👋 Hi {user?.displayName || user?.email || "there"}!
+        👋 Hi {user?.firebase?.name + " " + user?.firebase?.email || "there"}!
       </Text>
 
       {loading ? (
