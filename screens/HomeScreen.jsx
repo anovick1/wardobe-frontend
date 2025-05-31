@@ -6,6 +6,7 @@ import {
   FlatList,
   ActivityIndicator,
   StyleSheet,
+  Image,
 } from "react-native";
 import { AuthContext } from "../auth/AuthContext";
 import api from "../api";
@@ -14,13 +15,15 @@ import typography from "../styles/typography";
 import globalStyles from "../styles/global";
 
 export default function HomeScreen() {
-  const { user } = useContext(AuthContext); // 👈  grab current user
+  const { user } = useContext(AuthContext);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     api
-      .get("/items")
+      .get("/wardrobe_items", {
+        params: { user_id: user?.uid }, // only fetch logged-in user's items
+      })
       .then((res) => {
         setItems(res.data);
         setLoading(false);
@@ -29,12 +32,27 @@ export default function HomeScreen() {
         console.error(err);
         setLoading(false);
       });
-  }, []);
+  }, [user]);
 
   const renderItem = ({ item }) => (
     <View style={cardStyles.card}>
-      <Text style={typography.name}>{item.name}</Text>
-      <Text style={typography.category}>{item.category}</Text>
+      {item.image_url ? (
+        <Image
+          source={{ uri: item.image_url }}
+          style={styles.image}
+          resizeMode="cover"
+        />
+      ) : null}
+      <Text style={typography.name}>
+        {item.description || "No description"}
+      </Text>
+      <Text style={typography.category}>
+        {item.primary_color || "Unknown Color"} – {item.size || "No size"}
+      </Text>
+      <Text style={typography.meta}>
+        Times worn: {item.times_worn} • Favorite:{" "}
+        {item.is_favorite ? "Yes" : "No"}
+      </Text>
     </View>
   );
 
@@ -62,4 +80,11 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({});
+const styles = StyleSheet.create({
+  image: {
+    width: "100%",
+    height: 180,
+    borderRadius: 10,
+    marginBottom: 10,
+  },
+});
