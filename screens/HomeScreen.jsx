@@ -1,12 +1,20 @@
-// HomeScreen.jsx
-import React, { useEffect, useState } from "react";
-import { View, Text, FlatList, ActivityIndicator } from "react-native";
+// screens/HomeScreen.jsx
+import React, { useContext, useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  FlatList,
+  ActivityIndicator,
+  StyleSheet,
+} from "react-native";
+import { AuthContext } from "../auth/AuthContext";
 import api from "../api";
-import globalStyles from "../styles/global";
-import typography from "../styles/typography";
 import cardStyles from "../styles/card";
+import typography from "../styles/typography";
+import globalStyles from "../styles/global";
 
 export default function HomeScreen() {
+  const { user } = useContext(AuthContext); // 👈  grab current user
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -18,7 +26,7 @@ export default function HomeScreen() {
         setLoading(false);
       })
       .catch((err) => {
-        console.error("Error fetching items:", err);
+        console.error(err);
         setLoading(false);
       });
   }, []);
@@ -32,9 +40,16 @@ export default function HomeScreen() {
 
   return (
     <View style={globalStyles.container}>
-      <Text style={typography.title}>👕 Your Wardrobe</Text>
+      <Text style={typography.title}>
+        👋 Hi {user?.displayName || user?.email || "there"}!
+      </Text>
+
       {loading ? (
-        <ActivityIndicator size="large" color="#666" />
+        <ActivityIndicator
+          style={{ marginTop: 20 }}
+          size="large"
+          color="#666"
+        />
       ) : (
         <FlatList
           data={items}
@@ -46,3 +61,5 @@ export default function HomeScreen() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({});
