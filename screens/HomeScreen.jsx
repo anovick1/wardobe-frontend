@@ -1,4 +1,3 @@
-// screens/HomeScreen.jsx
 import React, { useContext, useEffect, useState } from "react";
 import {
   View,
@@ -22,7 +21,7 @@ export default function HomeScreen() {
   useEffect(() => {
     api
       .get("/wardrobe_items", {
-        params: { user_id: user?.uid }, // only fetch logged-in user's items
+        params: { user_id: user?.uid },
       })
       .then((res) => {
         setItems(res.data);

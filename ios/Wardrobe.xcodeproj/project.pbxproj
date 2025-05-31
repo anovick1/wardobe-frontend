@@ -7,12 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		098FDA39DD34CCAA778B3837 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = E552C05AB63AC68C95280FA5 /* ExpoModulesProvider.swift */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
+		459108B2487866D46ED41DD6 /* libPods-Wardrobe.a in Frameworks */ = {isa = PBXBuildFile; fileRef = F6F8C39718A1820378CBE592 /* libPods-Wardrobe.a */; };
+		AA3917D70FCA9CF5426697F2 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29760B0B51C186FA4D6AA8B9 /* ExpoModulesProvider.swift */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
-		C099517FF4F86466D3402BBD /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = E5644FF0F44E63E2FF58D7CE /* PrivacyInfo.xcprivacy */; };
-		E779614E12512DE6128BD7DB /* libPods-Wardrobe.a in Frameworks */ = {isa = PBXBuildFile; fileRef = D0060C41F4143828F99D58A7 /* libPods-Wardrobe.a */; };
+		EF2EF151CFC602A3BFDE3BA1 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 242430BE3F79BC103CDE7D83 /* PrivacyInfo.xcprivacy */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
 
@@ -20,16 +20,16 @@
 		13B07F961A680F5B00A75B9A /* Wardrobe.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Wardrobe.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = Wardrobe/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = Wardrobe/Info.plist; sourceTree = "<group>"; };
-		9CD70CC7973B7CA6C2FD96AF /* Pods-Wardrobe.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Wardrobe.debug.xcconfig"; path = "Target Support Files/Pods-Wardrobe/Pods-Wardrobe.debug.xcconfig"; sourceTree = "<group>"; };
+		242430BE3F79BC103CDE7D83 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = Wardrobe/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		29760B0B51C186FA4D6AA8B9 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-Wardrobe/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
+		34F9B13B1DC3ADA5E07E5390 /* Pods-Wardrobe.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Wardrobe.release.xcconfig"; path = "Target Support Files/Pods-Wardrobe/Pods-Wardrobe.release.xcconfig"; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = Wardrobe/SplashScreen.storyboard; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
-		D0060C41F4143828F99D58A7 /* libPods-Wardrobe.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-Wardrobe.a"; sourceTree = BUILT_PRODUCTS_DIR; };
-		E552C05AB63AC68C95280FA5 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-Wardrobe/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
-		E5644FF0F44E63E2FF58D7CE /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = Wardrobe/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		C21E68C15E4756F2090DA887 /* Pods-Wardrobe.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Wardrobe.debug.xcconfig"; path = "Target Support Files/Pods-Wardrobe/Pods-Wardrobe.debug.xcconfig"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = Wardrobe/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* Wardrobe-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "Wardrobe-Bridging-Header.h"; path = "Wardrobe/Wardrobe-Bridging-Header.h"; sourceTree = "<group>"; };
-		F8C6B568BDB5AC599E042074 /* Pods-Wardrobe.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Wardrobe.release.xcconfig"; path = "Target Support Files/Pods-Wardrobe/Pods-Wardrobe.release.xcconfig"; sourceTree = "<group>"; };
+		F6F8C39718A1820378CBE592 /* libPods-Wardrobe.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-Wardrobe.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -37,7 +37,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E779614E12512DE6128BD7DB /* libPods-Wardrobe.a in Frameworks */,
+				459108B2487866D46ED41DD6 /* libPods-Wardrobe.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -53,15 +53,7 @@
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
-				E5644FF0F44E63E2FF58D7CE /* PrivacyInfo.xcprivacy */,
-			);
-			name = Wardrobe;
-			sourceTree = "<group>";
-		};
-		1CF87A38D53DC9F30DBB8E34 /* Wardrobe */ = {
-			isa = PBXGroup;
-			children = (
-				E552C05AB63AC68C95280FA5 /* ExpoModulesProvider.swift */,
+				242430BE3F79BC103CDE7D83 /* PrivacyInfo.xcprivacy */,
 			);
 			name = Wardrobe;
 			sourceTree = "<group>";
@@ -70,19 +62,35 @@
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				D0060C41F4143828F99D58A7 /* libPods-Wardrobe.a */,
+				F6F8C39718A1820378CBE592 /* libPods-Wardrobe.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		3DB3DD12D6868CACE1F0761F /* Pods */ = {
+		379A856A41A9E4A966ACF938 /* Pods */ = {
 			isa = PBXGroup;
 			children = (
-				9CD70CC7973B7CA6C2FD96AF /* Pods-Wardrobe.debug.xcconfig */,
-				F8C6B568BDB5AC599E042074 /* Pods-Wardrobe.release.xcconfig */,
+				C21E68C15E4756F2090DA887 /* Pods-Wardrobe.debug.xcconfig */,
+				34F9B13B1DC3ADA5E07E5390 /* Pods-Wardrobe.release.xcconfig */,
 			);
 			name = Pods;
 			path = Pods;
+			sourceTree = "<group>";
+		};
+		39C6E2374DB05BE40F94ADB0 /* Wardrobe */ = {
+			isa = PBXGroup;
+			children = (
+				29760B0B51C186FA4D6AA8B9 /* ExpoModulesProvider.swift */,
+			);
+			name = Wardrobe;
+			sourceTree = "<group>";
+		};
+		6280EA5B8AEA585CF79C55B6 /* ExpoModulesProviders */ = {
+			isa = PBXGroup;
+			children = (
+				39C6E2374DB05BE40F94ADB0 /* Wardrobe */,
+			);
+			name = ExpoModulesProviders;
 			sourceTree = "<group>";
 		};
 		832341AE1AAA6A7D00B99B32 /* Libraries */ = {
@@ -99,8 +107,8 @@
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
-				3DB3DD12D6868CACE1F0761F /* Pods */,
-				D1D5BD145396B43664FA2729 /* ExpoModulesProviders */,
+				379A856A41A9E4A966ACF938 /* Pods */,
+				6280EA5B8AEA585CF79C55B6 /* ExpoModulesProviders */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -124,14 +132,6 @@
 			path = Wardrobe/Supporting;
 			sourceTree = "<group>";
 		};
-		D1D5BD145396B43664FA2729 /* ExpoModulesProviders */ = {
-			isa = PBXGroup;
-			children = (
-				1CF87A38D53DC9F30DBB8E34 /* Wardrobe */,
-			);
-			name = ExpoModulesProviders;
-			sourceTree = "<group>";
-		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -140,13 +140,13 @@
 			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "Wardrobe" */;
 			buildPhases = (
 				08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */,
-				039D4D008EFDC5AD7C14DD86 /* [Expo] Configure project */,
+				31BF28F206222BD2673CFEB0 /* [Expo] Configure project */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */,
-				A057C1B4E97A4DF7310FC5BA /* [CP] Embed Pods Frameworks */,
+				F09D4DE477C44A2E326C29B8 /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -196,7 +196,7 @@
 				BB2F792D24A3F905000567C9 /* Expo.plist in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
-				C099517FF4F86466D3402BBD /* PrivacyInfo.xcprivacy in Resources */,
+				EF2EF151CFC602A3BFDE3BA1 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -217,25 +217,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "if [[ -f \"$PODS_ROOT/../.xcode.env\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env\"\nfi\nif [[ -f \"$PODS_ROOT/../.xcode.env.local\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env.local\"\nfi\n\n# The project root by default is one level up from the ios directory\nexport PROJECT_ROOT=\"$PROJECT_DIR\"/..\n\nif [[ \"$CONFIGURATION\" = *Debug* ]]; then\n  export SKIP_BUNDLING=1\nfi\nif [[ -z \"$ENTRY_FILE\" ]]; then\n  # Set the entry JS file using the bundler's entry resolution.\n  export ENTRY_FILE=\"$(\"$NODE_BINARY\" -e \"require('expo/scripts/resolveAppEntry')\" \"$PROJECT_ROOT\" ios absolute | tail -n 1)\"\nfi\n\nif [[ -z \"$CLI_PATH\" ]]; then\n  # Use Expo CLI\n  export CLI_PATH=\"$(\"$NODE_BINARY\" --print \"require.resolve('@expo/cli', { paths: [require.resolve('expo/package.json')] })\")\"\nfi\nif [[ -z \"$BUNDLE_COMMAND\" ]]; then\n  # Default Expo CLI command for bundling\n  export BUNDLE_COMMAND=\"export:embed\"\nfi\n\n# Source .xcode.env.updates if it exists to allow\n# SKIP_BUNDLING to be unset if needed\nif [[ -f \"$PODS_ROOT/../.xcode.env.updates\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env.updates\"\nfi\n# Source local changes to allow overrides\n# if needed\nif [[ -f \"$PODS_ROOT/../.xcode.env.local\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env.local\"\nfi\n\n`\"$NODE_BINARY\" --print \"require('path').dirname(require.resolve('react-native/package.json')) + '/scripts/react-native-xcode.sh'\"`\n\n";
-		};
-		039D4D008EFDC5AD7C14DD86 /* [Expo] Configure project */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "[Expo] Configure project";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-Wardrobe/expo-configure-project.sh\"\n";
 		};
 		08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -258,6 +239,25 @@
 			shellPath = /bin/sh;
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
+		};
+		31BF28F206222BD2673CFEB0 /* [Expo] Configure project */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "[Expo] Configure project";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-Wardrobe/expo-configure-project.sh\"\n";
 		};
 		800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -295,7 +295,7 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Wardrobe/Pods-Wardrobe-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		A057C1B4E97A4DF7310FC5BA /* [CP] Embed Pods Frameworks */ = {
+		F09D4DE477C44A2E326C29B8 /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -321,7 +321,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
-				098FDA39DD34CCAA778B3837 /* ExpoModulesProvider.swift in Sources */,
+				AA3917D70FCA9CF5426697F2 /* ExpoModulesProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -330,7 +330,7 @@
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 9CD70CC7973B7CA6C2FD96AF /* Pods-Wardrobe.debug.xcconfig */;
+			baseConfigurationReference = C21E68C15E4756F2090DA887 /* Pods-Wardrobe.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
@@ -354,7 +354,7 @@
 					"-lc++",
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
-				PRODUCT_BUNDLE_IDENTIFIER = com.wardrobefrontend;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.averynov.wardrobe-frontend";
 				PRODUCT_NAME = Wardrobe;
 				SWIFT_OBJC_BRIDGING_HEADER = "Wardrobe/Wardrobe-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -366,7 +366,7 @@
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = F8C6B568BDB5AC599E042074 /* Pods-Wardrobe.release.xcconfig */;
+			baseConfigurationReference = 34F9B13B1DC3ADA5E07E5390 /* Pods-Wardrobe.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
@@ -385,7 +385,7 @@
 					"-lc++",
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
-				PRODUCT_BUNDLE_IDENTIFIER = com.wardrobefrontend;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.averynov.wardrobe-frontend";
 				PRODUCT_NAME = Wardrobe;
 				SWIFT_OBJC_BRIDGING_HEADER = "Wardrobe/Wardrobe-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
