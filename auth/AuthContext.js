@@ -11,6 +11,7 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      console.log("🔥 Firebase restored user:", firebaseUser?.email || null);
       setUser(firebaseUser);
       setLoading(false);
       console.log(

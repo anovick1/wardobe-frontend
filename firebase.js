@@ -1,10 +1,19 @@
 // firebase.js
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth"; // ✅ only use getAuth with Expo
+import {
+  getAuth,
+  initializeAuth,
+  getReactNativePersistence,
+} from "firebase/auth";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { firebaseConfig } from "./firebase.config";
 
-// Initialize Firebase
+// Init Firebase
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app); // ✅ memory persistence is fine for Expo
+
+// ✅ Add persistent storage
+const auth = initializeAuth(app, {
+  persistence: getReactNativePersistence(AsyncStorage),
+});
 
 export { app, auth };
