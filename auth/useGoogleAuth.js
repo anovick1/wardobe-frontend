@@ -42,7 +42,6 @@ export const useGoogleAuth = (setUser) => {
     const authenticate = async () => {
       if (response?.type === "success") {
         const { authentication } = response;
-
         if (!authentication?.idToken) {
           console.warn("❌ No ID token from Google");
           return;

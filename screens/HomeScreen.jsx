@@ -26,27 +26,30 @@ export default function HomeScreen() {
 
     try {
       const { data } = await api.get("/wardrobe_items", {
-        params: { user_id: user.firebase.uid },
+        params: { firebase_uid: user.firebase.uid },
       });
 
       const hydrated = await Promise.all(
         data.map(async (item) => {
-          // Already a full URL – no presign needed
-          if (item.original_image?.startsWith("http")) {
-            return { ...item, image_url: item.original_image };
+          const key = item.cleaned_image_url || item.original_image_url;
+
+          if (!key) return item;
+
+          // If already a full URL (e.g., from dev upload), skip signing
+          if (key.startsWith("http")) {
+            return { ...item, image_url: key };
           }
 
-          // Otherwise ask backend for a presigned URL
           try {
             const {
               data: { url },
             } = await api.get("/images/get-url", {
-              params: { key: item.original_image },
+              params: { key },
             });
 
             return { ...item, image_url: url };
-          } catch {
-            // If signing fails, just return the item as-is (image won’t show)
+          } catch (e) {
+            console.error("❌ Failed to sign image:", key, e);
             return item;
           }
         })
@@ -69,12 +72,11 @@ export default function HomeScreen() {
     <View style={cardStyles.card}>
       {item.image_url && (
         <Image
-          source={{ uri: item.image_url }}
+          source={{ uri: item.image_url }} // ← use the signed URL
           style={styles.image}
           resizeMode="cover"
         />
       )}
-
       <Text style={typography.name}>
         {item.description ?? "No description"}
       </Text>
@@ -99,8 +101,9 @@ export default function HomeScreen() {
 
   return (
     <View style={globalStyles.container}>
+      <Text style={typography.title}>👋</Text>
       <Text style={typography.title}>
-        👋 Hi {user?.backend?.name || user?.backend?.email || "there"}!
+        Hi {user?.backend?.name || user?.backend?.email || "there"}!
       </Text>
 
       {items.length === 0 ? (
