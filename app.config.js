@@ -7,8 +7,7 @@ export default {
     owner: "averynov",
     version: "1.0.0",
     sdkVersion: "53.0.0",
-    scheme:
-      "com.googleusercontent.apps.809628732165-1ed16gps96nb0agc7eagn6l2j6ef72t4", // 👈 required for native auth
+    scheme: "wardrobe", // 👈 required for native auth
     ios: {
       bundleIdentifier: "com.wardrobefrontend", // 👈 must match Google OAuth iOS client
       supportsTablet: true,
