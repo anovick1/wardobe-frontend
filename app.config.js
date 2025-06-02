@@ -2,7 +2,7 @@ import "dotenv/config";
 
 export default {
   expo: {
-    name: "Wardrobe",
+    name: "wardrobe",
     slug: "wardrobe-frontend",
     owner: "averynov",
     version: "1.0.0",
@@ -25,7 +25,8 @@ export default {
       },
     },
     android: {
-      package: "com.wardrobefrontend", // 👈 optional, for Android if needed
+      package: "com.wardrobefrontend", // 👈 optional, for Android if needed,
+      googleServicesFile: "./android/app/google-services.json",
       adaptiveIcon: {
         foregroundImage: "./assets/adaptive-icon.png",
         backgroundColor: "#ffffff",
@@ -42,6 +43,7 @@ export default {
       FIREBASE_MESSAGING_SENDER_ID: process.env.FIREBASE_MESSAGING_SENDER_ID,
       WEB_GOOGLE_CLIENT_ID: process.env.WEB_GOOGLE_CLIENT_ID,
       IOS_GOOGLE_CLIENT_ID: process.env.IOS_GOOGLE_CLIENT_ID,
+      ANDROID_GOOGLE_CLIENT_ID: process.env.ANDROID_GOOGLE_CLIENT_ID,
     },
   },
 };

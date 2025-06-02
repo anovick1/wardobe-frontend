@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useCallback, useContext, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -18,78 +18,68 @@ export default function HomeScreen() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!user?.firebase?.uid) {
-      console.log("⛔ No user UID");
-      return;
+  /* ----------------------------------
+   * Fetch wardrobe items + sign images
+   * --------------------------------- */
+  const loadItems = useCallback(async () => {
+    if (!user?.firebase?.uid) return;
+
+    try {
+      const { data } = await api.get("/wardrobe_items", {
+        params: { user_id: user.firebase.uid },
+      });
+
+      const hydrated = await Promise.all(
+        data.map(async (item) => {
+          // Already a full URL – no presign needed
+          if (item.original_image?.startsWith("http")) {
+            return { ...item, image_url: item.original_image };
+          }
+
+          // Otherwise ask backend for a presigned URL
+          try {
+            const {
+              data: { url },
+            } = await api.get("/images/get-url", {
+              params: { key: item.original_image },
+            });
+
+            return { ...item, image_url: url };
+          } catch {
+            // If signing fails, just return the item as-is (image won’t show)
+            return item;
+          }
+        })
+      );
+
+      setItems(hydrated);
+    } catch (err) {
+      console.error("Wardrobe fetch failed:", err);
+    } finally {
+      setLoading(false);
     }
+  }, [user?.firebase?.uid]);
 
-    console.log("🟡 Starting wardrobe fetch...");
+  useEffect(() => {
+    loadItems();
+  }, [loadItems]);
 
-    const fetchItems = async () => {
-      try {
-        const res = await api.get("/wardrobe_items", {
-          params: { user_id: user.firebase.uid },
-        });
-        console.log("📦 Got wardrobe items:", res.data.length);
-
-        const itemsWithUrls = await Promise.all(
-          res.data.map(async (item) => {
-            console.log("🧥 Item:", item.id);
-
-            if (!item.original_image || item.original_image.includes("http")) {
-              console.log("✅ No need to sign:", item.original_image);
-              return item;
-            }
-
-            try {
-              console.log("🔐 Signing image:", item.original_image);
-              const signedRes = await api.get("/images/get-url", {
-                params: { key: item.original_image },
-              });
-              console.log("✅ Signed URL:", signedRes.data.url);
-              return { ...item, signed_url: signedRes.data.url };
-            } catch (err) {
-              console.error(
-                "❌ Error signing:",
-                item.original_image,
-                err.message
-              );
-              return item;
-            }
-          })
-        );
-
-        setItems(itemsWithUrls);
-        console.log("✅ setItems complete");
-      } catch (err) {
-        console.error("❌ Full fetch error:", err.message);
-      } finally {
-        console.log("🧯 setLoading false");
-        setLoading(false);
-      }
-    };
-
-    fetchItems();
-  }, [user]);
-
+  /* ----------  Item card  ---------- */
   const renderItem = ({ item }) => (
     <View style={cardStyles.card}>
-      {item.signed_url ? (
+      {item.image_url && (
         <Image
-          source={{ uri: item.signed_url }}
+          source={{ uri: item.image_url }}
           style={styles.image}
           resizeMode="cover"
-          onError={() =>
-            console.warn("⚠️ Failed to load image:", item.signed_url)
-          }
         />
-      ) : null}
+      )}
+
       <Text style={typography.name}>
-        {item.description || "No description"}
+        {item.description ?? "No description"}
       </Text>
       <Text style={typography.category}>
-        {item.primary_color || "Unknown Color"} – {item.size || "No size"}
+        {item.primary_color ?? "Unknown color"} – {item.size ?? "No size"}
       </Text>
       <Text style={typography.meta}>
         Times worn: {item.times_worn} • Favorite:{" "}
@@ -98,19 +88,22 @@ export default function HomeScreen() {
     </View>
   );
 
+  /* ----------  UI  ---------- */
+  if (loading) {
+    return (
+      <View style={globalStyles.container}>
+        <ActivityIndicator size="large" color="#666" />
+      </View>
+    );
+  }
+
   return (
     <View style={globalStyles.container}>
       <Text style={typography.title}>
         👋 Hi {user?.backend?.name || user?.backend?.email || "there"}!
       </Text>
 
-      {loading ? (
-        <ActivityIndicator
-          style={{ marginTop: 20 }}
-          size="large"
-          color="#666"
-        />
-      ) : items.length === 0 ? (
+      {items.length === 0 ? (
         <Text style={[typography.meta, { marginTop: 30 }]}>
           No wardrobe items yet.
         </Text>
