@@ -72,14 +72,15 @@ export default function HomeScreen() {
     <View style={cardStyles.card}>
       {item.image_url && (
         <Image
-          source={{ uri: item.image_url }} // ← use the signed URL
+          source={{ uri: item.image_url }}
           style={styles.image}
           resizeMode="cover"
         />
       )}
-      <Text style={typography.name}>
-        {item.description ?? "No description"}
-      </Text>
+      <Text style={typography.name}>{item.name ?? "Unnamed item"}</Text>
+      {!!item.description && (
+        <Text style={typography.description}>{item.description}</Text>
+      )}
       <Text style={typography.category}>
         {item.primary_color ?? "Unknown color"} – {item.size ?? "No size"}
       </Text>
@@ -89,15 +90,6 @@ export default function HomeScreen() {
       </Text>
     </View>
   );
-
-  /* ----------  UI  ---------- */
-  if (loading) {
-    return (
-      <View style={globalStyles.container}>
-        <ActivityIndicator size="large" color="#666" />
-      </View>
-    );
-  }
 
   return (
     <View style={globalStyles.container}>
