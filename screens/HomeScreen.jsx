@@ -93,9 +93,8 @@ export default function HomeScreen() {
 
   return (
     <View style={globalStyles.container}>
-      <Text style={typography.title}>👋</Text>
       <Text style={typography.title}>
-        Hi {user?.backend?.name || user?.backend?.email || "there"}!
+        👋 Hi {user?.backend?.name || "there"}!
       </Text>
 
       {weather && (
