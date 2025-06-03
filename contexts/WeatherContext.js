@@ -29,9 +29,6 @@ export const WeatherProvider = ({ children }) => {
           lat: latitude,
           lon: longitude,
         });
-
-        console.log("✅ Weather response:", res.data);
-        setWeather(res.data);
       } catch (err) {
         console.error("❌ Weather fetch failed:", err);
         setError("Weather fetch failed");
