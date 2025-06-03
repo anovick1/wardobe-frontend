@@ -21,6 +21,8 @@ export default {
             },
           },
         },
+        NSLocationWhenInUseUsageDescription:
+          "This app needs access to your location to show weather-based outfit suggestions.",
       },
     },
     android: {

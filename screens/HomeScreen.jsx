@@ -8,6 +8,7 @@ import {
   Image,
 } from "react-native";
 import { AuthContext } from "../auth/AuthContext";
+import { useWeather } from "../contexts/WeatherContext";
 import api from "../api";
 import cardStyles from "../styles/card";
 import typography from "../styles/typography";
@@ -15,12 +16,14 @@ import globalStyles from "../styles/global";
 
 export default function HomeScreen() {
   const { user } = useContext(AuthContext);
+  const { weather, error: weatherError } = useWeather();
+
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  /* ----------------------------------
-   * Fetch wardrobe items + sign images
-   * --------------------------------- */
+  /* -----------------------------
+   * Fetch wardrobe items + images
+   * ----------------------------- */
   const loadItems = useCallback(async () => {
     if (!user?.firebase?.uid) return;
 
@@ -35,7 +38,6 @@ export default function HomeScreen() {
 
           if (!key) return item;
 
-          // If already a full URL (e.g., from dev upload), skip signing
           if (key.startsWith("http")) {
             return { ...item, image_url: key };
           }
@@ -43,9 +45,7 @@ export default function HomeScreen() {
           try {
             const {
               data: { url },
-            } = await api.get("/images/get-url", {
-              params: { key },
-            });
+            } = await api.get("/images/get-url", { params: { key } });
 
             return { ...item, image_url: url };
           } catch (e) {
@@ -67,7 +67,7 @@ export default function HomeScreen() {
     loadItems();
   }, [loadItems]);
 
-  /* ----------  Item card  ---------- */
+  /* ---------- Render item card ---------- */
   const renderItem = ({ item }) => (
     <View style={cardStyles.card}>
       {item.image_url && (
@@ -98,7 +98,26 @@ export default function HomeScreen() {
         Hi {user?.backend?.name || user?.backend?.email || "there"}!
       </Text>
 
-      {items.length === 0 ? (
+      {weather && (
+        <View style={styles.weatherCard}>
+          <Text style={typography.meta}>
+            Weather: {weather.temperature}°C – {weather.weather_description}
+          </Text>
+          <Text style={typography.meta}>
+            Clothing Tip: {weather.clothing_hint}
+          </Text>
+        </View>
+      )}
+
+      {weatherError && (
+        <Text style={[typography.meta, { marginTop: 8 }]}>
+          ⚠️ {weatherError}
+        </Text>
+      )}
+
+      {loading ? (
+        <ActivityIndicator size="large" style={{ marginTop: 40 }} />
+      ) : items.length === 0 ? (
         <Text style={[typography.meta, { marginTop: 30 }]}>
           No wardrobe items yet.
         </Text>
@@ -120,5 +139,11 @@ const styles = StyleSheet.create({
     height: 180,
     borderRadius: 10,
     marginBottom: 10,
+  },
+  weatherCard: {
+    marginVertical: 16,
+    backgroundColor: "#f0f0f0",
+    padding: 12,
+    borderRadius: 8,
   },
 });
