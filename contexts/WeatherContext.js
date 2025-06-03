@@ -20,15 +20,12 @@ export const WeatherProvider = ({ children }) => {
         const location = await Location.getCurrentPositionAsync({});
         const { latitude, longitude } = location.coords;
 
-        console.log("📡 Weather request via API:", {
-          lat: latitude,
-          lon: longitude,
-        });
-
         const res = await api.post("/weather", {
           lat: latitude,
           lon: longitude,
         });
+
+        setWeather(res.data);
       } catch (err) {
         console.error("❌ Weather fetch failed:", err);
         setError("Weather fetch failed");
