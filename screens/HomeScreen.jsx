@@ -100,7 +100,7 @@ export default function HomeScreen() {
       {weather && (
         <View style={styles.weatherCard}>
           <Text style={typography.meta}>
-            Weather: {weather.temperature}°C – {weather.weather_description}
+            Weather: {weather.temperature}°F – {weather.weather_description}
           </Text>
           <Text style={typography.meta}>
             Clothing Tip: {weather.clothing_hint}
