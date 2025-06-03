@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import * as Location from "expo-location";
-import axios from "axios";
+import api from "../api"; // ✅ use the preconfigured Axios instance
 
 const WeatherContext = createContext();
 
@@ -20,14 +20,20 @@ export const WeatherProvider = ({ children }) => {
         const location = await Location.getCurrentPositionAsync({});
         const { latitude, longitude } = location.coords;
 
-        const res = await axios.post(
-          `${process.env.EXPO_PUBLIC_FLASK_API_BASE_URL}/weather`,
-          { lat: latitude, lon: longitude }
-        );
+        console.log("📡 Weather request via API:", {
+          lat: latitude,
+          lon: longitude,
+        });
 
+        const res = await api.post("/weather", {
+          lat: latitude,
+          lon: longitude,
+        });
+
+        console.log("✅ Weather response:", res.data);
         setWeather(res.data);
       } catch (err) {
-        console.error("Weather fetch failed:", err);
+        console.error("❌ Weather fetch failed:", err);
         setError("Weather fetch failed");
       }
     })();

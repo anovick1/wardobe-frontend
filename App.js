@@ -9,13 +9,14 @@ function AppContent() {
   const { user, loading } = useContext(AuthContext);
 
   if (loading) return null;
-  return user ? <HomeScreen /> : <LoginScreen />;
+  return user ? <HomeScreen /> : <Text>Loading...</Text>; // ✅
 }
 
 export default function App() {
   return (
     <AuthProvider>
-      <WeatherProvider> {/* ✅ Wrap in weather context */}
+      <WeatherProvider>
+        {/* ✅ Wrap in weather context */}
         <AppContent />
         <StatusBar style="auto" />
       </WeatherProvider>
