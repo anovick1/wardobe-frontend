@@ -7,9 +7,10 @@ import { StatusBar } from "expo-status-bar";
 
 function AppContent() {
   const { user, loading } = useContext(AuthContext);
+  console.log("🧠 AppContent state →", { loading, user });
 
   if (loading) return null;
-  return user ? <HomeScreen /> : <Text>Loading...</Text>; // ✅
+  return user ? <HomeScreen /> : <LoginScreen />;
 }
 
 export default function App() {
