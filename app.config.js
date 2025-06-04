@@ -7,7 +7,18 @@ export default {
     owner: "averynov",
     version: "1.0.0",
     sdkVersion: "53.0.0",
-    scheme: "wardrobe", // 👈 required for native auth
+    scheme: [
+      "wardrobe",
+      `com.googleusercontent.apps.${
+        process.env.IOS_GOOGLE_CLIENT_ID.split(".apps")[0]
+      }`,
+      `com.googleusercontent.apps.${
+        process.env.ANDROID_GOOGLE_CLIENT_ID.split(".apps")[0]
+      }`,
+    ], // 👈 required for native auth
+    facebookAppId: `fb${process.env.FACEBOOK_APP_ID}`,
+    facebookDisplayName: "Wardrobe",
+    facebookScheme: `fb${process.env.FACEBOOK_APP_ID}`,
     ios: {
       bundleIdentifier: "com.wardrobefrontend", // 👈 must match Google OAuth iOS client
       supportsTablet: true,
@@ -45,6 +56,7 @@ export default {
       WEB_GOOGLE_CLIENT_ID: process.env.WEB_GOOGLE_CLIENT_ID,
       IOS_GOOGLE_CLIENT_ID: process.env.IOS_GOOGLE_CLIENT_ID,
       ANDROID_GOOGLE_CLIENT_ID: process.env.ANDROID_GOOGLE_CLIENT_ID,
+      FACEBOOK_APP_ID: process.env.FACEBOOK_APP_ID,
     },
   },
 };

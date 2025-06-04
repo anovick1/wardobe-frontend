@@ -7,6 +7,7 @@ import { auth } from "../firebase";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
 import { makeRedirectUri } from "expo-auth-session";
+import { createOrFetchUser } from "../api/user";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -29,7 +30,6 @@ export const useGoogleAuth = (setUser) => {
   const clientId = isAndroid
     ? Constants.expoConfig.extra.ANDROID_GOOGLE_CLIENT_ID
     : Constants.expoConfig.extra.IOS_GOOGLE_CLIENT_ID;
-  console.log("🔁 Google client ID:", clientId);
 
   const [request, response, promptAsync] = Google.useAuthRequest({
     clientId,
@@ -52,10 +52,8 @@ export const useGoogleAuth = (setUser) => {
             authentication.idToken
           );
           const userCred = await signInWithCredential(auth, credential);
-          console.log("✅ Firebase signed in as:", userCred.user?.email);
 
           const backendUser = await createOrFetchUser(userCred.user);
-          console.log("✅ Backend user:", backendUser);
 
           setUser({ firebase: userCred.user, backend: backendUser });
         } catch (err) {
