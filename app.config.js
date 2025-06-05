@@ -15,6 +15,7 @@ export default {
       `com.googleusercontent.apps.${
         process.env.ANDROID_GOOGLE_CLIENT_ID.split(".apps")[0]
       }`,
+       `fb${process.env.FACEBOOK_APP_ID}`,
     ], // 👈 required for native auth
     facebookAppId: `fb${process.env.FACEBOOK_APP_ID}`,
     facebookDisplayName: "Wardrobe",
@@ -38,7 +39,7 @@ export default {
     },
     android: {
       package: "com.wardrobefrontend", // 👈 optional, for Android if needed,
-      googleServicesFile: "./android/app/google-services.json",
+      googleServicesFile: "./google-services.json",
       adaptiveIcon: {
         foregroundImage: "./assets/adaptive-icon.png",
         backgroundColor: "#ffffff",

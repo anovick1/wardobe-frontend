@@ -22,6 +22,7 @@ export const AuthProvider = ({ children }) => {
 
       try {
         const idToken = await firebaseUser.getIdToken(); // ← get token explicitly
+        console.log(idToken)
         const backendUser = await createOrFetchUser(firebaseUser);
 
         setUser({
