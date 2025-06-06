@@ -15,7 +15,7 @@ export default {
       `com.googleusercontent.apps.${
         process.env.ANDROID_GOOGLE_CLIENT_ID.split(".apps")[0]
       }`,
-       `fb${process.env.FACEBOOK_APP_ID}`,
+      `fb${process.env.FACEBOOK_APP_ID}`,
     ], // 👈 required for native auth
     facebookAppId: `fb${process.env.FACEBOOK_APP_ID}`,
     facebookDisplayName: "Wardrobe",
@@ -44,6 +44,10 @@ export default {
         foregroundImage: "./assets/adaptive-icon.png",
         backgroundColor: "#ffffff",
       },
+      permissions: [
+        "CAMERA", // for launchCameraAsync
+        "READ_MEDIA_IMAGES", // scoped storage on Android 13+
+      ],
       edgeToEdgeEnabled: true,
     },
     extra: {
