@@ -7,13 +7,7 @@ export default function AddNewModal({
   onClose,
   onImagePicked,
   navigation,
-  setProcessing,
 }) {
-  const handleResult = async (res) => {
-    if (res.canceled) return;
-    onImagePicked(res.assets[0].uri); // Triggers upload in parent
-  };
-
   const launchCamera = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {

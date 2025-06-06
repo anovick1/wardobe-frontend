@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { InteractionManager } from "react-native";
-
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import ClothingItems from "../components/wardrobe/ClothingItems";
 import Outfits from "../components/wardrobe/Outfits";
@@ -8,7 +7,6 @@ import VisionBoards from "../components/wardrobe/VisionBoards";
 import Capsules from "../components/wardrobe/Capsules";
 import Recommendations from "../components/wardrobe/Recommendations";
 import AddNewButton from "../components/wardrobe/AddNewButton";
-import ProcessingModal from "../components/common/ProcessingModal";
 import { getAuth } from "firebase/auth";
 import api from "../api";
 import ProcessingOverlay from "../components/common/ProcessingOverlay";
@@ -21,10 +19,6 @@ const WardrobeScreen = ({ navigation }) => {
   console.log(processing);
 
   const [refreshFlag, setRefreshFlag] = useState(0);
-
-  const handleRefresh = () => {
-    setRefreshFlag((prev) => prev + 1);
-  };
 
   const handleImagePicked = (uri) => {
     // 1️⃣ show spinner IMMEDIATELY
