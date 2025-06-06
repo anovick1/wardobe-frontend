@@ -1,116 +1,55 @@
 import React, { useState } from "react";
-import {
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  Alert,
-} from "react-native";
-import * as ImagePicker from "expo-image-picker";
-import * as Linking from "expo-linking"; // keep if you’ll open URLs
+import { TouchableOpacity, StyleSheet, Text } from "react-native";
+import AddNewModal from "./AddNewModal";
 
-export default function AddNewButton({ navigation }) {
-  const [visible, setVisible] = useState(false);
+export default function AddNewButton({
+  navigation,
+  onStartUpload,
+  setProcessing,
+}) {
+  const [modalVisible, setModalVisible] = useState(false);
 
-  /* ----- helpers ----- */
-  const launchCamera = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("Camera permission denied");
-      return;
-    }
-    const res = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 1,
-    });
-    handleResult(res);
+  const handleImagePicked = (uri) => {
+    setModalVisible(false);
+    onStartUpload(uri); // triggers upload + modal outside
   };
 
-  const launchGallery = async () => {
-    const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 1,
-    });
-    handleResult(res);
-  };
-
-  const handleResult = (res) => {
-    setVisible(false);
-    if (res.canceled) return;
-    const uri = res.assets[0].uri;
-    console.log("Picked image URI:", uri);
-    // navigation.navigate("Upload", { uri });
-  };
-
-  const handleProductLink = () => {
-    setVisible(false);
-    // navigation.navigate("AddLink")  OR  prompt here
-    console.log("Paste product link flow");
-  };
-
-  /* ----- ui ----- */
   return (
     <>
-      <TouchableOpacity style={styles.fab} onPress={() => setVisible(true)}>
-        <Text style={styles.fabIcon}>＋</Text>
+      <TouchableOpacity
+        style={styles.button}
+        onPress={() => setModalVisible(true)}
+      >
+        <Text style={styles.buttonText}>＋</Text>
       </TouchableOpacity>
 
-      <Modal
-        transparent
-        visible={visible}
-        animationType="fade"
-        onRequestClose={() => setVisible(false)}
-      >
-        <View style={styles.overlay}>
-          <View style={styles.sheet}>
-            <Pressable style={styles.opt} onPress={launchCamera}>
-              <Text style={styles.optText}>📷 Take Photo</Text>
-            </Pressable>
-            <Pressable style={styles.opt} onPress={launchGallery}>
-              <Text style={styles.optText}>🖼️ Upload Photo</Text>
-            </Pressable>
-            <Pressable style={styles.opt} onPress={handleProductLink}>
-              <Text style={styles.optText}>🔗 Paste Product Link</Text>
-            </Pressable>
-
-            <Pressable onPress={() => setVisible(false)}>
-              <Text style={[styles.optText, { color: "#888" }]}>Cancel</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
+      <AddNewModal
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        onImagePicked={handleImagePicked}
+        setProcessing={setProcessing} // ✅ forward this
+        navigation={navigation}
+      />
     </>
   );
 }
 
-/* ----- styles ----- */
 const styles = StyleSheet.create({
-  fab: {
+  button: {
     position: "absolute",
     bottom: 25,
     right: 25,
-    backgroundColor: "#000",
-    borderRadius: 30,
     width: 60,
     height: 60,
-    alignItems: "center",
+    borderRadius: 30,
+    backgroundColor: "#000",
     justifyContent: "center",
+    alignItems: "center",
     elevation: 5,
   },
-  fabIcon: { color: "#fff", fontSize: 28 },
-  overlay: {
-    flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: "rgba(0,0,0,0.4)",
+  buttonText: {
+    color: "#fff",
+    fontSize: 30,
+    marginBottom: 2,
   },
-  sheet: {
-    backgroundColor: "#fff",
-    padding: 20,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-  },
-  opt: { paddingVertical: 12 },
-  optText: { fontSize: 16 },
 });
