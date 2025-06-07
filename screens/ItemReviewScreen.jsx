@@ -9,6 +9,8 @@ import {
   Alert,
 } from "react-native";
 import DropDownPicker from "react-native-dropdown-picker";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
+
 import api from "../api";
 
 export default function ItemReviewScreen({ route, navigation }) {
@@ -18,12 +20,18 @@ export default function ItemReviewScreen({ route, navigation }) {
   const [name, setName] = useState(item.name || "");
   const [brand, setBrand] = useState(item.brand || null);
   const [brandOptions, setBrandOptions] = useState([]);
-  const [description, setDescription] = useState(item.description || item.gpt_metadata?.raw || "");
-  const [primaryColor, setPrimaryColor] = useState(item.primary_color || item.color || "");
+  const [description, setDescription] = useState(
+    item.description || item.gpt_metadata?.raw || ""
+  );
+  const [primaryColor, setPrimaryColor] = useState(
+    item.primary_color || item.color || ""
+  );
   const [price, setPrice] = useState(item.price ? String(item.price) : "");
   const [productLink, setProductLink] = useState(item.product_link || "");
   const [tags, setTags] = useState(
-    Array.isArray(item.tags) ? item.tags.join(", ") : item.gpt_metadata?.tags?.join(", ") || ""
+    Array.isArray(item.tags)
+      ? item.tags.join(", ")
+      : item.gpt_metadata?.tags?.join(", ") || ""
   );
   const [newBrand, setNewBrand] = useState(item.gpt_metadata?.brand || "");
 
@@ -99,7 +107,7 @@ export default function ItemReviewScreen({ route, navigation }) {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <KeyboardAwareScrollView contentContainerStyle={styles.container}>
       <Text style={styles.label}>Name</Text>
       <TextInput style={styles.input} value={name} onChangeText={setName} />
 
@@ -112,6 +120,7 @@ export default function ItemReviewScreen({ route, navigation }) {
         setValue={setBrand}
         searchable={true}
         placeholder="Select brand"
+        mode="MODAL"
         style={styles.dropdown}
         containerStyle={{ marginBottom: brandDropdownOpen ? 150 : 20 }}
       />
@@ -164,7 +173,7 @@ export default function ItemReviewScreen({ route, navigation }) {
       <View style={{ marginTop: 20 }}>
         <Button title="CONFIRM AND SAVE" onPress={handleSave} />
       </View>
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }
 
