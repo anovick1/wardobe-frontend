@@ -1,66 +1,26 @@
 import React, { useState } from "react";
-import { InteractionManager } from "react-native";
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
-import ClothingItems from "../components/wardrobe/ClothingItems";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+
+import WardrobeItems from "../components/wardrobe/WardrobeItems";
 import Outfits from "../components/wardrobe/Outfits";
 import VisionBoards from "../components/wardrobe/VisionBoards";
 import Capsules from "../components/wardrobe/Capsules";
 import Recommendations from "../components/wardrobe/Recommendations";
-import AddNewButton from "../components/wardrobe/AddNewButton";
-import { getAuth } from "firebase/auth";
-import api from "../api";
+import AddNewModal from "../components/wardrobe/AddNewModal";
 import ProcessingOverlay from "../components/common/ProcessingOverlay";
 
 const tabs = ["Wardrobe", "Outfits", "Boards", "Capsules", "Smart"];
 
-const WardrobeScreen = ({ navigation }) => {
+export default function WardrobeScreen({ navigation }) {
   const [activeTab, setActiveTab] = useState("Wardrobe");
   const [processing, setProcessing] = useState(false);
-  console.log(processing);
-
   const [refreshFlag, setRefreshFlag] = useState(0);
-
-  const handleImagePicked = (uri) => {
-    // 1️⃣ show spinner IMMEDIATELY
-    setProcessing(true);
-
-    // 2️⃣ wait until camera / gallery sheet is completely gone
-    InteractionManager.runAfterInteractions(async () => {
-      try {
-        const auth = getAuth();
-        const idToken = await auth.currentUser?.getIdToken();
-        if (!idToken) throw new Error("Not signed in");
-
-        const filename = uri.split("/").pop();
-        const ext = filename.split(".").pop();
-        const mime = `image/${ext === "jpg" ? "jpeg" : ext}`;
-
-        const formData = new FormData();
-        formData.append("file", { uri, name: filename, type: mime });
-
-        await api.post("/wardrobe_items/upload_and_process", formData, {
-          headers: {
-            "Content-Type": "multipart/form-data",
-            Authorization: `Bearer ${idToken}`,
-          },
-        });
-
-        // refresh list + jump to Wardrobe tab
-        setActiveTab("Wardrobe");
-        setRefreshFlag((f) => f + 1);
-      } catch (err) {
-        Alert.alert("Upload failed", err?.response?.data?.error || err.message);
-      } finally {
-        // 3️⃣ hide spinner
-        setProcessing(false);
-      }
-    });
-  };
+  const [modalVisible, setModalVisible] = useState(false);
 
   const renderTabContent = () => {
     switch (activeTab) {
       case "Wardrobe":
-        return <ClothingItems refreshFlag={refreshFlag} />;
+        return <WardrobeItems refreshFlag={refreshFlag} />;
       case "Outfits":
         return <Outfits />;
       case "Boards":
@@ -85,9 +45,7 @@ const WardrobeScreen = ({ navigation }) => {
             onPress={() => setActiveTab(tab)}
             style={[styles.tab, activeTab === tab && styles.activeTab]}
           >
-            <Text
-              style={activeTab === tab ? styles.activeText : styles.tabText}
-            >
+            <Text style={activeTab === tab ? styles.activeText : styles.tabText}>
               {tab}
             </Text>
           </TouchableOpacity>
@@ -97,15 +55,23 @@ const WardrobeScreen = ({ navigation }) => {
       <View style={{ flex: 1 }}>{renderTabContent()}</View>
 
       {!processing && (
-        <AddNewButton
-          navigation={navigation}
-          onStartUpload={handleImagePicked}
-          setProcessing={setProcessing}
-        />
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => setModalVisible(true)}
+        >
+          <Text style={styles.fabText}>＋</Text>
+        </TouchableOpacity>
       )}
+
+      <AddNewModal
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        navigation={navigation}
+        setProcessing={setProcessing}
+      />
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   tabRow: {
@@ -128,6 +94,21 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#000",
   },
+  fab: {
+    position: "absolute",
+    bottom: 25,
+    right: 25,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "#000",
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 5,
+  },
+  fabText: {
+    color: "#fff",
+    fontSize: 30,
+    marginBottom: 2,
+  },
 });
-
-export default WardrobeScreen;

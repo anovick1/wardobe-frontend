@@ -6,10 +6,15 @@ import api from "../api";
 export async function handleImageUploadFlow(
   pickFn,
   navigation,
-  requirePermission = false
+  requirePermission = false,
+  setProcessing // ✅ optional state hook
 ) {
   try {
-    // If permission is required (camera), request it
+    if (setProcessing) {
+      setProcessing(true);                // ✅ show spinner
+      await new Promise((r) => setTimeout(r, 50)); // 🔄 flush render cycle
+    }
+
     if (requirePermission) {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== "granted") {
@@ -18,10 +23,7 @@ export async function handleImageUploadFlow(
       }
     }
 
-    const res = await pickFn({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 1,
-    });
+    const res = await pickFn();
 
     if (res.canceled) return;
 
@@ -48,9 +50,18 @@ export async function handleImageUploadFlow(
       }
     );
 
-    navigation.navigate("ItemReview", { item: data });
+    console.log("✅ navigating to ItemReview with item:", data);
+
+    setTimeout(() => {
+      navigation.navigate("Wardrobe", {
+        screen: "ItemReview",
+        params: { item: data },
+      });
+    }, 100); // ⏱️ allow time for spinner to render
   } catch (e) {
     console.error("Upload failed:", e);
     Alert.alert("Upload failed", e?.response?.data?.error || e.message);
+  } finally {
+    if (setProcessing) setProcessing(false); // ✅ always stop spinner
   }
 }

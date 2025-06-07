@@ -3,7 +3,7 @@ import { StatusBar } from "expo-status-bar";
 import { AuthProvider, AuthContext } from "./auth/AuthContext";
 import { WeatherProvider } from "./contexts/WeatherContext";
 import LoginScreen from "./screens/LoginScreen";
-import AppNavigator from "./navigation/AppNavigator";
+import RootNavigator from "./navigation/RootNavigator"; // ✅ use this instead
 
 function AppContent() {
   const { user, loading } = useContext(AuthContext);
@@ -11,7 +11,7 @@ function AppContent() {
 
   if (loading) return null;
 
-  return user ? <AppNavigator /> : <LoginScreen />;
+  return user ? <RootNavigator /> : <LoginScreen />; // ✅ this changed
 }
 
 export default function App() {
@@ -24,6 +24,7 @@ export default function App() {
     </AuthProvider>
   );
 }
+
 
 // import React, { useContext } from "react";
 // import { AuthProvider, AuthContext } from "./auth/AuthContext";
