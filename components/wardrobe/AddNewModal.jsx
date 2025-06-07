@@ -1,13 +1,9 @@
 import React from "react";
 import { Modal, View, Text, Pressable, StyleSheet, Alert } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import { handleImageUploadFlow } from "../../flows/handleImageUploadFlow";
 
-export default function AddNewModal({
-  visible,
-  onClose,
-  onImagePicked,
-  navigation,
-}) {
+export default function AddNewModal({ visible, onClose, navigation, setProcessing }) {
   const launchCamera = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
@@ -21,7 +17,9 @@ export default function AddNewModal({
     });
 
     if (!res.canceled) {
-      onImagePicked(res.assets[0].uri); // 🚀 triggers upload
+      setProcessing(true);
+      onClose();
+      await handleImageUploadFlow(() => Promise.resolve(res), navigation, false, setProcessing);
     }
   };
 
@@ -32,7 +30,9 @@ export default function AddNewModal({
     });
 
     if (!res.canceled) {
-      onImagePicked(res.assets[0].uri); // 🚀 triggers upload
+      setProcessing(true);
+      onClose();
+      await handleImageUploadFlow(() => Promise.resolve(res), navigation, false, setProcessing);
     }
   };
 

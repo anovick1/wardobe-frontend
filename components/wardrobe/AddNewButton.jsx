@@ -1,33 +1,25 @@
-import React, { useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { TouchableOpacity, StyleSheet, Text } from "react-native";
 import AddNewModal from "./AddNewModal";
 
-export default function AddNewButton({
-  navigation,
-  onStartUpload,
-  setProcessing,
-}) {
+export default function AddNewButton({ navigation, handleImagePicked }) {
   const [modalVisible, setModalVisible] = useState(false);
 
-  const handleImagePicked = (uri) => {
+  const handleModalImagePicked = (uri) => {
     setModalVisible(false);
-    onStartUpload(uri); // triggers upload + modal outside
+    handleImagePicked(uri);
   };
 
   return (
     <>
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => setModalVisible(true)}
-      >
+      <TouchableOpacity style={styles.button} onPress={() => setModalVisible(true)}>
         <Text style={styles.buttonText}>＋</Text>
       </TouchableOpacity>
 
       <AddNewModal
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
-        onImagePicked={handleImagePicked}
-        setProcessing={setProcessing} // ✅ forward this
+        onImagePicked={handleModalImagePicked}
         navigation={navigation}
       />
     </>
