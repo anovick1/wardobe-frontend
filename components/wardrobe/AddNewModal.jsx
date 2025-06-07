@@ -17,7 +17,7 @@ export default function AddNewModal({ visible, onClose, navigation, setProcessin
     });
 
     if (!res.canceled) {
-      setProcessing(true); // 👈 immediately show spinner
+      setProcessing(true);
       onClose();
       await handleImageUploadFlow(() => Promise.resolve(res), navigation, false, setProcessing);
     }
@@ -30,7 +30,7 @@ export default function AddNewModal({ visible, onClose, navigation, setProcessin
     });
 
     if (!res.canceled) {
-      setProcessing(true); // 👈 immediately show spinner
+      setProcessing(true);
       onClose();
       await handleImageUploadFlow(() => Promise.resolve(res), navigation, false, setProcessing);
     }
