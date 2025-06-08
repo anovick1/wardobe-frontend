@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import DropDownPicker from "react-native-dropdown-picker";
 import api from "../api";
@@ -15,6 +17,7 @@ import { useWardrobe } from "../contexts/WardrobeContext";
 export default function ItemReviewScreen({ route, navigation }) {
   const { item } = route.params || {};
   const { fetchWardrobeItems } = useWardrobe();
+  const scrollRef = useRef();
 
   const resolvedItemId = item?.item_id || item?.id;
 
@@ -28,7 +31,9 @@ export default function ItemReviewScreen({ route, navigation }) {
     item?.primary_color || item?.color || ""
   );
   const [price, setPrice] = useState(item?.price ? String(item.price) : "");
-  const [productLink, setProductLink] = useState(item?.product_link || "");
+  const [productLink, setProductLink] = useState(
+    item?.product_link || item?.product_link || ""
+  );
   const [tags, setTags] = useState(
     Array.isArray(item?.tags)
       ? item.tags.join(", ")
@@ -36,6 +41,10 @@ export default function ItemReviewScreen({ route, navigation }) {
   );
   const [newBrand, setNewBrand] = useState(item?.gpt_metadata?.brand || "");
   const [brandDropdownOpen, setBrandDropdownOpen] = useState(false);
+
+  const scrollToEnd = () => {
+    scrollRef.current?.scrollToEnd({ animated: true });
+  };
 
   useEffect(() => {
     loadBrands();
@@ -58,7 +67,9 @@ export default function ItemReviewScreen({ route, navigation }) {
   const resolveBrandId = async () => {
     if (newBrand?.trim()) {
       try {
-        const res = await api.post("/brands/add_brand", { name: newBrand.trim() });
+        const res = await api.post("/brands/add_brand", {
+          name: newBrand.trim(),
+        });
         return res.data.id;
       } catch (err) {
         if (err.response?.status === 409) {
@@ -88,7 +99,7 @@ export default function ItemReviewScreen({ route, navigation }) {
         .map((t) => t.trim())
         .filter(Boolean);
 
-      await api.put(`/wardrobe_items/${resolvedItemId}`, {
+      const payload = {
         name,
         brand_id,
         description,
@@ -96,12 +107,15 @@ export default function ItemReviewScreen({ route, navigation }) {
         price: price ? parseFloat(price) : null,
         product_link: productLink,
         tags: parsedTags,
-      });
+      };
 
+      console.log("📤 PUT payload:", payload);
+
+      await api.put(`/wardrobe_items/${resolvedItemId}`, payload);
       await fetchWardrobeItems();
 
       Alert.alert("Success", "Item updated successfully");
-      navigation.goBack();
+      navigation.navigate("WardrobeMain");
     } catch (err) {
       console.error("❌ Save failed:", err);
       Alert.alert("Error", err.message || "Failed to save item. Try again.");
@@ -109,54 +123,75 @@ export default function ItemReviewScreen({ route, navigation }) {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <LabeledInput label="Name" value={name} setValue={setName} />
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <ScrollView
+        ref={scrollRef}
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+      >
+        <LabeledInput label="Name" value={name} setValue={setName} />
 
-      <Text style={styles.label}>Brand</Text>
-      <DropDownPicker
-        open={brandDropdownOpen}
-        setOpen={setBrandDropdownOpen}
-        items={brandOptions}
-        value={brand}
-        setValue={setBrand}
-        searchable
-        placeholder="Select brand"
-        style={styles.dropdown}
-        containerStyle={{ marginBottom: brandDropdownOpen ? 150 : 20 }}
-      />
-      <Text style={styles.small}>or enter new brand</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="New Brand"
-        value={newBrand}
-        onChangeText={setNewBrand}
-      />
+        <Text style={styles.label}>Brand</Text>
+        <DropDownPicker
+          open={brandDropdownOpen}
+          setOpen={(open) => {
+            setBrandDropdownOpen(open);
+            if (open) scrollToEnd();
+          }}
+          items={brandOptions}
+          value={brand}
+          setValue={setBrand}
+          searchable
+          placeholder="Select brand"
+          style={styles.dropdown}
+          containerStyle={{ marginBottom: brandDropdownOpen ? 150 : 20 }}
+        />
+        <Text style={styles.small}>or enter new brand</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="New Brand"
+          value={newBrand}
+          onChangeText={setNewBrand}
+          onFocus={scrollToEnd}
+        />
 
-      <LabeledInput label="Description" value={description} setValue={setDescription} />
-      <LabeledInput label="Primary Color" value={primaryColor} setValue={setPrimaryColor} />
-      <LabeledInput
-        label="Price"
-        value={price}
-        setValue={setPrice}
-        keyboardType="numeric"
-      />
-      <LabeledInput
-        label="Product Link"
-        value={productLink}
-        setValue={setProductLink}
-        autoCapitalize="none"
-      />
-      <LabeledInput
-        label="Tags (comma separated)"
-        value={tags}
-        setValue={setTags}
-        placeholder="e.g. casual, summer, vacation"
-      />
+        <LabeledInput
+          label="Description"
+          value={description}
+          setValue={setDescription}
+        />
+        <LabeledInput
+          label="Primary Color"
+          value={primaryColor}
+          setValue={setPrimaryColor}
+        />
+        <LabeledInput
+          label="Price"
+          value={price}
+          setValue={setPrice}
+          keyboardType="numeric"
+        />
+        <LabeledInput
+          label="Product Link"
+          value={productLink}
+          setValue={setProductLink}
+          autoCapitalize="none"
+        />
+        <LabeledInput
+          label="Tags (comma separated)"
+          value={tags}
+          setValue={setTags}
+          placeholder="e.g. casual, summer, vacation"
+        />
 
-      <View style={{ marginTop: 20 }}>
-        <Button title="CONFIRM AND SAVE" onPress={handleSave} />
-      </View>
-    </ScrollView>
+        <View style={{ marginTop: 20 }}>
+          <Button title="CONFIRM AND SAVE" onPress={handleSave} />
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

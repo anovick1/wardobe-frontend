@@ -15,7 +15,11 @@ import typography from "../../styles/typography";
 import globalStyles from "../../styles/global";
 
 export default function WardrobeItems() {
-  const { wardrobeItems, loadingWardrobe } = useWardrobe();
+  const { wardrobeItems: rawItems, loadingWardrobe } = useWardrobe();
+  const wardrobeItems = [...rawItems].sort(
+    (a, b) => new Date(b.created_at) - new Date(a.created_at)
+  );
+
   const navigation = useNavigation();
 
   const renderItem = ({ item }) => (

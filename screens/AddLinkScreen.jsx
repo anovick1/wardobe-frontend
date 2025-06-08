@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -7,17 +7,17 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
-} from 'react-native';
-import { auth } from '../firebase';
-import api from '../api';
+} from "react-native";
+import { auth } from "../firebase";
+import api from "../api";
 
 const AddLinkScreen = ({ navigation }) => {
-  const [link, setLink] = useState('');
+  const [product_link, setProduct_link] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
-    if (!link.trim()) {
-      Alert.alert('Missing Link', 'Please paste a product URL.');
+    if (!product_link.trim()) {
+      Alert.alert("Missing product_link", "Please paste a product URL.");
       return;
     }
 
@@ -26,43 +26,47 @@ const AddLinkScreen = ({ navigation }) => {
       const token = await auth.currentUser.getIdToken();
 
       const response = await api.post(
-        '/wardrobe_items/scrape_and_process',
-        { url: link },
+        "/wardrobe_items/scrape_and_process",
+        { url: product_link },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
       const item = response?.data;
       if (!item || !item.item_id || !item.image_urls?.cleaned) {
-        throw new Error('Invalid item data returned from server');
+        throw new Error("Invalid item data returned from server");
       }
 
       // 🔍 Optional: Debug the image URLs
-      console.log('✅ Scraped Item:', item);
-      console.log('🖼️ Cleaned URL:', item.image_urls.cleaned);
+      console.log("✅ Scraped Item:", item);
+      console.log("🖼️ Cleaned URL:", item.image_urls.cleaned);
 
-      navigation.navigate('ItemReview', {
-        item_id: item.item_id,
-        name: item.name,
-        brand: item.brand,
-        price: item.price,
-        color: item.primary_color,
-        gpt_metadata: {
-          tags: item.tags,
-          raw: item.name,
+      navigation.navigate("ItemReview", {
+        item: {
+          item_id: item.item_id,
+          name: item.name,
           brand: item.brand,
-        },
-        presigned_urls: {
-          original: item.image_urls.original,
-          cleaned: item.image_urls.cleaned,
+          price: item.price,
+          primary_color: item.primary_color,
+          description: item.description || item.name,
+          product_link: item.product_link,
+          tags: item.tags,
+          gpt_metadata: {
+            tags: item.tags,
+            raw: item.name,
+            brand: item.brand,
+          },
+          image_urls: item.image_urls,
         },
       });
 
-      setLink(''); // optional: clear field after success
+      setProduct_link(""); // optional: clear field after success
     } catch (err) {
-      console.error('❌ Scrape failed:', err);
+      console.error("❌ Scrape failed:", err);
       Alert.alert(
-        'Error',
-        err?.response?.data?.error || err.message || 'Something went wrong. Please try again.'
+        "Error",
+        err?.response?.data?.error ||
+          err.message ||
+          "Something went wrong. Please try again."
       );
     } finally {
       setLoading(false);
@@ -75,8 +79,8 @@ const AddLinkScreen = ({ navigation }) => {
       <TextInput
         style={styles.input}
         placeholder="https://example.com"
-        value={link}
-        onChangeText={setLink}
+        value={product_link}
+        onChangeText={setProduct_link}
         autoCapitalize="none"
         keyboardType="url"
       />
@@ -93,17 +97,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
-    justifyContent: 'center',
-    backgroundColor: '#fff',
+    justifyContent: "center",
+    backgroundColor: "#fff",
   },
   label: {
     fontSize: 18,
     marginBottom: 10,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: "#ccc",
     padding: 12,
     borderRadius: 8,
     marginBottom: 20,
