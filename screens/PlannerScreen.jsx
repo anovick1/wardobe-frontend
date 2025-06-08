@@ -19,28 +19,39 @@ export default function PlannerScreen() {
 
   useEffect(() => {
     requestCalendarPermissions();
+    const today = new Date();
+    const isoDate = today.toISOString().split("T")[0];
+    setSelectedDate(isoDate);
+    fetchEventsForSelectedDate(isoDate);
   }, []);
 
   const requestCalendarPermissions = async () => {
-    const { status } = await Calendar.requestCalendarPermissionsAsync();
-    if (status === "granted") {
-      setPermissionGranted(true);
-      setStatus("✅ Calendar access granted.");
-    } else {
-      setPermissionGranted(false);
-      setStatus("❌ Calendar permission denied.");
+    try {
+      const { status } = await Calendar.requestCalendarPermissionsAsync();
+      console.log("📆 Calendar permission status:", status);
+
+      if (status === "granted") {
+        setPermissionGranted(true);
+        setStatus("✅ Calendar access granted.");
+      } else {
+        setPermissionGranted(false);
+        setStatus("❌ Calendar permission denied.");
+      }
+    } catch (err) {
+      console.error("❌ Permission error:", err);
+      setStatus("❌ Error requesting calendar permission.");
     }
   };
 
-  const getDefaultCalendarSource = async () => {
-    if (Platform.OS === "ios") {
-      const sources = await Calendar.getSourcesAsync();
-      const defaultSource = sources.find((s) => s.name === "Default");
-      return defaultSource || sources[0];
-    } else {
-      const calendars = await Calendar.getCalendarsAsync();
-      return calendars[0].source;
-    }
+  const getWritableCalendarId = async () => {
+    if (!permissionGranted) throw new Error("Calendar permission not granted");
+    const calendars = await Calendar.getCalendarsAsync(
+      Calendar.EntityTypes.EVENT
+    );
+
+    const writable = calendars.find((c) => c.allowsModifications);
+    if (!writable) throw new Error("No writable calendar found");
+    return writable.id;
   };
 
   const createTestEvent = async () => {
@@ -50,27 +61,16 @@ export default function PlannerScreen() {
     }
 
     try {
-      const source = await getDefaultCalendarSource();
-      const calendarId = await Calendar.createCalendarAsync({
-        title: "Wardrobe Planner",
-        color: "#00AAFF",
-        entityType: Calendar.EntityTypes.EVENT,
-        sourceId: Platform.OS === "ios" ? source.id : undefined,
-        source,
-        name: "Wardrobe",
-        ownerAccount: "personal",
-        accessLevel: Calendar.CalendarAccessLevel.OWNER,
-      });
-
+      const calendarId = await getWritableCalendarId();
       const [year, month, day] = selectedDate.split("-").map(Number);
-      const startDate = new Date(year, month - 1, day, 10, 0); // 10 AM
-      const endDate = new Date(year, month - 1, day, 11, 0); // 11 AM
+      const startDate = new Date(year, month - 1, day, 10, 0);
+      const endDate = new Date(year, month - 1, day, 11, 0);
 
       await Calendar.createEventAsync(calendarId, {
         title: "Test Outfit Plan",
         startDate,
         endDate,
-        timeZone: "local",
+        // timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         alarms: [{ relativeOffset: -10 }],
       });
 
@@ -89,6 +89,8 @@ export default function PlannerScreen() {
   };
 
   const fetchEventsForSelectedDate = async (dateStr) => {
+    if (!permissionGranted) return;
+
     try {
       const calendars = await Calendar.getCalendarsAsync(
         Calendar.EntityTypes.EVENT
@@ -126,6 +128,7 @@ export default function PlannerScreen() {
 
       <RNCalendar
         onDayPress={(day) => {
+          console.log("📅 Selected date:", day.dateString);
           setSelectedDate(day.dateString);
           fetchEventsForSelectedDate(day.dateString);
         }}
@@ -141,6 +144,12 @@ export default function PlannerScreen() {
             : {}
         }
       />
+
+      {!selectedDate && (
+        <Text style={{ textAlign: "center", marginTop: 10 }}>
+          📅 Tap a date to view or add events
+        </Text>
+      )}
 
       {permissionGranted && selectedDate && (
         <View style={{ marginTop: 20 }}>
