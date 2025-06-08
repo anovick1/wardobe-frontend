@@ -7,11 +7,11 @@ import FeedScreen from "../screens/FeedScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import WardrobeStackNavigator from "./WardrobeStackNavigator"; // ✅ stack wrapper
 
-const Tab = createBottomTabNavigator(); // ✅ this must exist
+const Tab = createBottomTabNavigator();
 
 export default function AppNavigator() {
   return (
-    <Tab.Navigator>
+    <Tab.Navigator screenOptions={{ headerShown: false }}>
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Wardrobe" component={WardrobeStackNavigator} />
       <Tab.Screen name="Planner" component={PlannerScreen} />

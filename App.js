@@ -2,8 +2,9 @@ import React, { useContext } from "react";
 import { StatusBar } from "expo-status-bar";
 import { AuthProvider, AuthContext } from "./auth/AuthContext";
 import { WeatherProvider } from "./contexts/WeatherContext";
+import { WardrobeProvider } from "./contexts/WardrobeContext"; // ✅ Add this line
 import LoginScreen from "./screens/LoginScreen";
-import RootNavigator from "./navigation/RootNavigator"; // ✅ use this instead
+import RootNavigator from "./navigation/RootNavigator";
 
 function AppContent() {
   const { user, loading } = useContext(AuthContext);
@@ -11,20 +12,21 @@ function AppContent() {
 
   if (loading) return null;
 
-  return user ? <RootNavigator /> : <LoginScreen />; // ✅ this changed
+  return user ? <RootNavigator /> : <LoginScreen />;
 }
 
 export default function App() {
   return (
     <AuthProvider>
       <WeatherProvider>
-        <AppContent />
-        <StatusBar style="auto" />
+        <WardrobeProvider>
+          <AppContent />
+          <StatusBar style="auto" />
+        </WardrobeProvider>
       </WeatherProvider>
     </AuthProvider>
   );
 }
-
 
 // import React, { useContext } from "react";
 // import { AuthProvider, AuthContext } from "./auth/AuthContext";

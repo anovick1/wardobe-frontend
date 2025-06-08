@@ -1,5 +1,11 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import WardrobeItems from "../components/wardrobe/WardrobeItems";
 import Outfits from "../components/wardrobe/Outfits";
@@ -35,7 +41,7 @@ export default function WardrobeScreen({ navigation }) {
   };
 
   return (
-    <View style={{ flex: 1 }}>
+    <SafeAreaView style={{ flex: 1 }}>
       {processing && <ProcessingOverlay />}
 
       <View style={styles.tabRow}>
@@ -69,7 +75,7 @@ export default function WardrobeScreen({ navigation }) {
         navigation={navigation}
         setProcessing={setProcessing}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
