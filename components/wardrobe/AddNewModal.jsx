@@ -1,39 +1,59 @@
 import React from "react";
-import { Modal, View, Text, Pressable, StyleSheet, Alert } from "react-native";
+import {
+  Modal,
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  Alert,
+} from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { handleImageUploadFlow } from "../../flows/handleImageUploadFlow";
+import { useWardrobe } from "../../contexts/WardrobeContext";
 
-export default function AddNewModal({ visible, onClose, navigation, setProcessing }) {
+export default function AddNewModal({
+  visible,
+  onClose,
+  navigation,
+  setProcessing,
+}) {
+  const { addWardrobeItem } = useWardrobe();
+
+  const handleUpload = async (launchFn) => {
+    const res = await launchFn({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 1,
+    });
+
+    if (!res.canceled) {
+      setProcessing(true);
+      onClose();
+      await handleImageUploadFlow(
+        () => Promise.resolve(res),
+        navigation,
+        false,
+        setProcessing,
+        addWardrobeItem
+      );
+    }
+  };
+
   const launchCamera = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
       Alert.alert("Camera permission denied");
       return;
     }
-
-    const res = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 1,
-    });
-
-    if (!res.canceled) {
-      setProcessing(true);
-      onClose();
-      await handleImageUploadFlow(() => Promise.resolve(res), navigation, false, setProcessing);
-    }
+    await handleUpload(ImagePicker.launchCameraAsync);
   };
 
   const launchGallery = async () => {
-    const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 1,
-    });
+    await handleUpload(ImagePicker.launchImageLibraryAsync);
+  };
 
-    if (!res.canceled) {
-      setProcessing(true);
-      onClose();
-      await handleImageUploadFlow(() => Promise.resolve(res), navigation, false, setProcessing);
-    }
+  const handleLinkUpload = () => {
+    onClose();
+    navigation.navigate("AddLink", { addWardrobeItem });
   };
 
   return (
@@ -53,13 +73,7 @@ export default function AddNewModal({ visible, onClose, navigation, setProcessin
             <Text style={styles.optText}>🖼️ Upload Photo</Text>
           </Pressable>
 
-          <Pressable
-            style={styles.opt}
-            onPress={() => {
-              onClose();
-              navigation.navigate("AddLink");
-            }}
-          >
+          <Pressable style={styles.opt} onPress={handleLinkUpload}>
             <Text style={styles.optText}>🔗 Paste Product Link</Text>
           </Pressable>
 

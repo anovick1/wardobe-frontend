@@ -7,12 +7,12 @@ export async function handleImageUploadFlow(
   pickFn,
   navigation,
   requirePermission = false,
-  setProcessing // ✅ optional state hook
+  setProcessing
 ) {
   try {
     if (setProcessing) {
-      setProcessing(true);                // ✅ show spinner
-      await new Promise((r) => setTimeout(r, 50)); // 🔄 flush render cycle
+      setProcessing(true);
+      await new Promise((r) => setTimeout(r, 50));
     }
 
     if (requirePermission) {
@@ -24,7 +24,6 @@ export async function handleImageUploadFlow(
     }
 
     const res = await pickFn();
-
     if (res.canceled) return;
 
     const uri = res.assets[0].uri;
@@ -52,16 +51,14 @@ export async function handleImageUploadFlow(
 
     console.log("✅ navigating to ItemReview with item:", data);
 
+    // ✅ Navigate directly to the screen inside the stack
     setTimeout(() => {
-      navigation.navigate("Wardrobe", {
-        screen: "ItemReview",
-        params: { item: data },
-      });
-    }, 100); // ⏱️ allow time for spinner to render
+      navigation.navigate("ItemReview", { item: data });
+    }, 100);
   } catch (e) {
     console.error("Upload failed:", e);
     Alert.alert("Upload failed", e?.response?.data?.error || e.message);
   } finally {
-    if (setProcessing) setProcessing(false); // ✅ always stop spinner
+    if (setProcessing) setProcessing(false);
   }
 }
