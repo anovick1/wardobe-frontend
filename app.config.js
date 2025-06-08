@@ -35,6 +35,8 @@ export default {
         },
         NSLocationWhenInUseUsageDescription:
           "This app needs access to your location to show weather-based outfit suggestions.",
+        NSCalendarsUsageDescription:
+          "This app needs calendar access to add outfit plans to your schedule.",
       },
     },
     android: {
@@ -47,6 +49,8 @@ export default {
       permissions: [
         "CAMERA", // for launchCameraAsync
         "READ_MEDIA_IMAGES", // scoped storage on Android 13+
+        "READ_CALENDAR",
+        "WRITE_CALENDAR",
       ],
       edgeToEdgeEnabled: true,
     },
