@@ -6,12 +6,13 @@ import {
   ScrollView,
   Image,
   Button,
+  Alert,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import api from "../api";
 
-export default function WardrobeItemDetail({ route }) {
-  const { item } = route.params;
-  const navigation = useNavigation();
+export default function WardrobeItemDetail({ route, navigation }) {
+  const { item, onDelete } = route.params;
 
   const {
     name,
@@ -28,9 +29,7 @@ export default function WardrobeItemDetail({ route }) {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      {image_url && (
-        <Image source={{ uri: image_url }} style={styles.image} />
-      )}
+      {image_url && <Image source={{ uri: image_url }} style={styles.image} />}
 
       <Text style={styles.label}>Name:</Text>
       <Text style={styles.value}>{name}</Text>
@@ -68,6 +67,36 @@ export default function WardrobeItemDetail({ route }) {
             })
           }
         />
+        <View style={{ marginTop: 12 }}>
+          <Button
+            title="Delete Item"
+            color="#d32f2f"
+            onPress={async () => {
+              Alert.alert(
+                "Delete Item",
+                "Are you sure you want to delete this item?",
+                [
+                  { text: "Cancel", style: "cancel" },
+                  {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: async () => {
+                      try {
+                        await api.delete(`/wardrobe_items/${item.id}`);
+                        Alert.alert("Item deleted");
+                        if (onDelete) onDelete();
+                        navigation.goBack();
+                      } catch (err) {
+                        Alert.alert("Error", "Failed to delete item.");
+                        console.error(err);
+                      }
+                    },
+                  },
+                ]
+              );
+            }}
+          />
+        </View>
       </View>
     </ScrollView>
   );
