@@ -1,7 +1,8 @@
 {
   "expo": {
-    "name": "wardobe-frontend",
-    "slug": "wardobe-frontend",
+    "name": "wardrobe",
+    "slug": "wardrobe-frontend",
+    "owner": "averynov",
     "version": "1.0.0",
     "sdkVersion": "53.0.0",
     "orientation": "portrait",
