@@ -13,6 +13,8 @@ import { useWardrobe } from "../../contexts/WardrobeContext";
 import cardStyles from "../../styles/card";
 import typography from "../../styles/typography";
 import globalStyles from "../../styles/global";
+import Icon from "react-native-vector-icons/MaterialIcons";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function WardrobeItems() {
   const { wardrobeItems: rawItems, loadingWardrobe } = useWardrobe();
@@ -27,6 +29,7 @@ export default function WardrobeItems() {
     if (deletedItemIds.includes(item.id)) return null;
     return (
       <TouchableOpacity
+        style={styles.cardTouchable}
         onPress={() =>
           navigation.navigate("WardrobeItemDetail", {
             item,
@@ -36,36 +39,46 @@ export default function WardrobeItems() {
       >
         <View style={cardStyles.card}>
           {item.image_url && (
-            <Image source={{ uri: item.image_url }} style={styles.image} />
+            <Image source={{ uri: item.image_url }} style={cardStyles.image} />
           )}
-
-          {item.brand && (
-            <Text style={typography.meta}>
-              Brand: <Text style={{ fontWeight: "bold" }}>{item.brand}</Text>
+          {/* Info section below image */}
+          <View style={cardStyles.infoSection}>
+            <Text
+              style={typography.name}
+              numberOfLines={2}
+              ellipsizeMode="tail"
+            >
+              {item.name || "Unnamed item"}
             </Text>
-          )}
-
-          <Text style={typography.name}>{item.name || "Unnamed item"}</Text>
-
-          {!!item.description && (
-            <Text style={typography.description}>{item.description}</Text>
-          )}
-
-          <Text style={typography.category}>
-            {item.primary_color || "Unknown color"} – {item.size || "No size"}
-          </Text>
-
-          <Text style={typography.meta}>
-            Times worn: {item.times_worn ?? 0} • Favorite:{" "}
-            {item.is_favorite ? "Yes" : "No"}
-          </Text>
+            {item.brand && (
+              <Text style={typography.brand} numberOfLines={1}>
+                {item.brand}
+              </Text>
+            )}
+            {item.price && (
+              <Text style={typography.price} numberOfLines={1}>
+                ${item.price}
+              </Text>
+            )}
+            {item.tags && item.tags.length > 0 && (
+              <View style={cardStyles.tagsRow}>
+                {item.tags.map((tag, idx) => (
+                  <View key={idx} style={[cardStyles.tag, tagColorStyle(tag)]}>
+                    <Text style={cardStyles.tagText} numberOfLines={1}>
+                      {tag}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
         </View>
       </TouchableOpacity>
     );
   };
 
   return (
-    <View style={globalStyles.container}>
+    <SafeAreaView style={globalStyles.container} edges={["left", "right"]}>
       {loadingWardrobe ? (
         <ActivityIndicator
           testID="wardrobe-loading"
@@ -73,27 +86,52 @@ export default function WardrobeItems() {
           style={{ marginTop: 40 }}
         />
       ) : wardrobeItems.length === 0 ? (
-        <Text style={[typography.meta, { marginTop: 30 }]}>
-          No wardrobe items yet.
-        </Text>
+        <Text style={[styles.emptyText]}>No wardrobe items yet.</Text>
       ) : (
         <FlatList
           data={wardrobeItems}
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderItem}
-          contentContainerStyle={globalStyles.list}
+          numColumns={2}
+          columnWrapperStyle={styles.columnWrapper}
+          contentContainerStyle={styles.listContent}
           extraData={deletedItemIds}
         />
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
+const tagColorStyle = (tag) => {
+  // Simple color mapping for demo; you can expand this
+  if (/work/i.test(tag)) return { backgroundColor: "#e0f2fe" };
+  if (/elegant/i.test(tag)) return { backgroundColor: "#fce7f3" };
+  if (/casual/i.test(tag)) return { backgroundColor: "#e0e7ff" };
+  if (/basics?/i.test(tag)) return { backgroundColor: "#ccfbf1" };
+  if (/cozy/i.test(tag)) return { backgroundColor: "#fef3c7" };
+  if (/winter/i.test(tag)) return { backgroundColor: "#e5e7eb" };
+  return { backgroundColor: "#f1f5f9" };
+};
+
 const styles = StyleSheet.create({
-  image: {
-    width: "100%",
-    height: 180,
-    borderRadius: 10,
-    marginBottom: 10,
+  cardTouchable: {
+    width: "48%",
+    margin: "1%",
+    minWidth: 0,
+  },
+  columnWrapper: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  listContent: {
+    paddingHorizontal: 4,
+    paddingTop: 0,
+    paddingBottom: 16,
+  },
+  emptyText: {
+    color: "#6a7681",
+    textAlign: "center",
+    marginTop: 30,
+    fontSize: 15,
   },
 });
