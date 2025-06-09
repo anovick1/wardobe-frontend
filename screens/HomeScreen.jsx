@@ -4,13 +4,17 @@ import { AuthContext } from "../auth/AuthContext";
 import { useWeather } from "../contexts/WeatherContext";
 import typography from "../styles/typography";
 import globalStyles from "../styles/global";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function HomeScreen() {
   const { user } = useContext(AuthContext);
   const { weather, error: weatherError } = useWeather();
 
   return (
-    <View style={globalStyles.container}>
+    <SafeAreaView
+      style={globalStyles.container}
+      edges={["top", "left", "right"]}
+    >
       <Text style={typography.title}>
         👋 Hi {user?.backend?.name || "there"}!
       </Text>
@@ -33,7 +37,7 @@ export default function HomeScreen() {
       )}
 
       {/* Future: outfit suggestions, upcoming events, feed, etc. */}
-    </View>
+    </SafeAreaView>
   );
 }
 
