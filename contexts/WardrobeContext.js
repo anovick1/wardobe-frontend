@@ -1,20 +1,19 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import api from "../api";
-import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { AuthContext } from "./../auth/AuthContext";
 
 const WardrobeContext = createContext();
 
 export function WardrobeProvider({ children }) {
   const [wardrobeItems, setWardrobeItems] = useState([]);
   const [loadingWardrobe, setLoadingWardrobe] = useState(true);
+  const { user, loading: authLoading } = useContext(AuthContext);
 
   const fetchWardrobeItems = async () => {
-    const user = getAuth().currentUser;
-    if (!user) return;
-
+    if (!user?.firebase) return;
     try {
       setLoadingWardrobe(true);
-      const token = await user.getIdToken();
+      const token = await user.firebase.getIdToken();
       const res = await api.get("/wardrobe_items", {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -27,17 +26,16 @@ export function WardrobeProvider({ children }) {
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(getAuth(), (user) => {
-      if (user) {
-        fetchWardrobeItems(); // load items after login
+    if (!authLoading) {
+      if (user?.firebase) {
+        fetchWardrobeItems();
       } else {
         setWardrobeItems([]);
         setLoadingWardrobe(false);
       }
-    });
-
-    return () => unsubscribe();
-  }, []);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, authLoading]);
 
   const addItemToWardrobe = (newItem) => {
     setWardrobeItems((prev) => [newItem, ...prev]);
