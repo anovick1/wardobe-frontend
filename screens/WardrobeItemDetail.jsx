@@ -16,6 +16,7 @@ import Icon from "react-native-vector-icons/MaterialIcons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import cardStyles from "../styles/card";
 import typography from "../styles/typography";
+import CachedImage from "../components/common/CachedImage";
 
 export default function WardrobeItemDetail({ route, navigation }) {
   const { item, onDelete } = route.params;
@@ -61,7 +62,11 @@ export default function WardrobeItemDetail({ route, navigation }) {
         {/* Image */}
         {image_url && (
           <View style={styles.imageContainer}>
-            <Image source={{ uri: image_url }} style={styles.image} />
+            <CachedImage
+              imageUrl={image_url}
+              itemId={item.id}
+              style={styles.image}
+            />
           </View>
         )}
         {/* Main Card */}

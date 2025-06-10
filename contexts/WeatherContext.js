@@ -7,6 +7,7 @@ const WeatherContext = createContext();
 export const WeatherProvider = ({ children }) => {
   const [weather, setWeather] = useState(null);
   const [error, setError] = useState(null);
+  const [city, setCity] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -20,21 +21,40 @@ export const WeatherProvider = ({ children }) => {
         const location = await Location.getCurrentPositionAsync({});
         const { latitude, longitude } = location.coords;
 
-        const res = await api.post("/weather", {
-          lat: latitude,
-          lon: longitude,
+        // Reverse geocode to get city
+        const placemarks = await Location.reverseGeocodeAsync({
+          latitude,
+          longitude,
         });
+        if (placemarks && placemarks.length > 0) {
+          setCity(
+            placemarks[0].city ||
+              placemarks[0].region ||
+              placemarks[0].country ||
+              null
+          );
+        }
 
-        setWeather(res.data);
+        // Only make the request if both are valid numbers
+        if (typeof latitude === "number" && typeof longitude === "number") {
+          console.log("Requesting weather for:", latitude, longitude);
+          const res = await api.post("/weather", {
+            lat: latitude,
+            lon: longitude,
+          });
+          setWeather(res.data);
+        } else {
+          setError("Invalid location data");
+        }
       } catch (err) {
-        console.error("❌ Weather fetch failed:", err);
+        console.error("❌ Weather fetch failed:", err.response?.data || err);
         setError("Weather fetch failed");
       }
     })();
   }, []);
 
   return (
-    <WeatherContext.Provider value={{ weather, error }}>
+    <WeatherContext.Provider value={{ weather, error, city }}>
       {children}
     </WeatherContext.Provider>
   );
