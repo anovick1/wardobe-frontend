@@ -115,7 +115,14 @@ export default function ItemReviewScreen({ route, navigation }) {
       await fetchWardrobeItems();
 
       Alert.alert("Success", "Item updated successfully");
-      navigation.navigate("WardrobeMain");
+
+      // Call onSave callback if provided (for multi-upload flow)
+      if (route.params?.onSave) {
+        route.params.onSave();
+        navigation.goBack();
+      } else {
+        navigation.navigate("WardrobeMain");
+      }
     } catch (err) {
       console.error("❌ Save failed:", err);
       Alert.alert("Error", err.message || "Failed to save item. Try again.");

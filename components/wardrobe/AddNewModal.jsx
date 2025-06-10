@@ -1,7 +1,6 @@
 import React from "react";
 import { Modal, View, Text, Pressable, StyleSheet, Alert } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import { handleImageUploadFlow } from "../../flows/handleImageUploadFlow";
 import { useWardrobe } from "../../contexts/WardrobeContext";
 import cardStyles from "../../styles/card";
 import typography from "../../styles/typography";
@@ -18,18 +17,14 @@ export default function AddNewModal({
     const res = await launchFn({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 1,
+      allowsMultipleSelection: true,
+      selectionLimit: 10,
     });
 
     if (!res.canceled) {
       setProcessing(true);
       onClose();
-      await handleImageUploadFlow(
-        () => Promise.resolve(res),
-        navigation,
-        false,
-        setProcessing,
-        addWardrobeItem
-      );
+      navigation.navigate("MultiUpload", { images: res.assets });
     }
   };
 
@@ -65,7 +60,7 @@ export default function AddNewModal({
           </Pressable>
           <View style={styles.divider} />
           <Pressable onPress={launchGallery}>
-            <Text style={typography.modalOption}>🖼️ Upload Photo</Text>
+            <Text style={typography.modalOption}>🖼️ Upload Photos</Text>
           </Pressable>
           <View style={styles.divider} />
           <Pressable onPress={handleLinkUpload}>

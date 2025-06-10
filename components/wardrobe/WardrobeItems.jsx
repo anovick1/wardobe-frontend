@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -15,67 +15,126 @@ import typography from "../../styles/typography";
 import globalStyles from "../../styles/global";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import { SafeAreaView } from "react-native-safe-area-context";
+import useCachedImage from "../../hooks/useCachedImage";
+import * as FileSystem from "expo-file-system";
 
-export default function WardrobeItems() {
-  const { wardrobeItems: rawItems, loadingWardrobe } = useWardrobe();
-  const wardrobeItems = [...rawItems].sort(
-    (a, b) => new Date(b.created_at) - new Date(a.created_at)
+function WardrobeItemCard({ item, navigation, onItemDeleted }) {
+  const { uri, loading, error } = useCachedImage(item.image_url, item.id);
+  return (
+    <TouchableOpacity
+      style={styles.cardTouchable}
+      onPress={() =>
+        navigation.navigate("WardrobeItemDetail", {
+          item,
+          onDelete: () => {
+            onItemDeleted?.(item.id);
+          },
+        })
+      }
+    >
+      <View style={cardStyles.card}>
+        <View style={cardStyles.image}>
+          {loading ? (
+            <ActivityIndicator style={{ flex: 1 }} />
+          ) : error ? (
+            <View
+              style={{
+                flex: 1,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Icon name="error" size={36} color="#dc2626" />
+            </View>
+          ) : (
+            <Image source={{ uri }} style={cardStyles.image} />
+          )}
+        </View>
+        {/* Info section below image */}
+        <View style={cardStyles.infoSection}>
+          <Text style={typography.name} numberOfLines={2} ellipsizeMode="tail">
+            {item.name || "Unnamed item"}
+          </Text>
+          {item.brand && (
+            <Text style={typography.brand} numberOfLines={1}>
+              {item.brand}
+            </Text>
+          )}
+          {item.price && (
+            <Text style={typography.price} numberOfLines={1}>
+              ${item.price}
+            </Text>
+          )}
+          {item.tags && item.tags.length > 0 && (
+            <View style={cardStyles.tagsRow}>
+              {item.tags.map((tag, idx) => (
+                <View key={idx} style={[cardStyles.tag, tagColorStyle(tag)]}>
+                  <Text style={cardStyles.tagText} numberOfLines={1}>
+                    {tag}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+      </View>
+    </TouchableOpacity>
   );
+}
+
+export default function WardrobeItems({
+  refreshFlag = 0,
+  onItemDeleted = () => {},
+}) {
+  const { wardrobeItems: rawItems, loadingWardrobe } = useWardrobe();
+  const [items, setItems] = React.useState([]);
+
+  React.useEffect(() => {
+    setItems(
+      [...rawItems].sort(
+        (a, b) => new Date(b.created_at) - new Date(a.created_at)
+      )
+    );
+  }, [rawItems]);
+
+  // Cleanup unused cached images
+  useEffect(() => {
+    async function cleanupCache() {
+      try {
+        const files = await FileSystem.readDirectoryAsync(
+          FileSystem.cacheDirectory
+        );
+        const validIds = new Set(items.map((i) => `wardrobe-${i.id}.jpg`));
+        await Promise.all(
+          files
+            .filter((f) => f.startsWith("wardrobe-") && !validIds.has(f))
+            .map((f) =>
+              FileSystem.deleteAsync(FileSystem.cacheDirectory + f, {
+                idempotent: true,
+              })
+            )
+        );
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+    }
+    if (items.length > 0) cleanupCache();
+  }, [items]);
 
   const navigation = useNavigation();
-  const [deletedItemIds, setDeletedItemIds] = React.useState([]);
 
-  const renderItem = ({ item }) => {
-    if (deletedItemIds.includes(item.id)) return null;
-    return (
-      <TouchableOpacity
-        style={styles.cardTouchable}
-        onPress={() =>
-          navigation.navigate("WardrobeItemDetail", {
-            item,
-            onDelete: () => setDeletedItemIds((ids) => [...ids, item.id]),
-          })
-        }
-      >
-        <View style={cardStyles.card}>
-          {item.image_url && (
-            <Image source={{ uri: item.image_url }} style={cardStyles.image} />
-          )}
-          {/* Info section below image */}
-          <View style={cardStyles.infoSection}>
-            <Text
-              style={typography.name}
-              numberOfLines={2}
-              ellipsizeMode="tail"
-            >
-              {item.name || "Unnamed item"}
-            </Text>
-            {item.brand && (
-              <Text style={typography.brand} numberOfLines={1}>
-                {item.brand}
-              </Text>
-            )}
-            {item.price && (
-              <Text style={typography.price} numberOfLines={1}>
-                ${item.price}
-              </Text>
-            )}
-            {item.tags && item.tags.length > 0 && (
-              <View style={cardStyles.tagsRow}>
-                {item.tags.map((tag, idx) => (
-                  <View key={idx} style={[cardStyles.tag, tagColorStyle(tag)]}>
-                    <Text style={cardStyles.tagText} numberOfLines={1}>
-                      {tag}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            )}
-          </View>
-        </View>
-      </TouchableOpacity>
-    );
+  const handleItemDeleted = (id) => {
+    setItems((prev) => prev.filter((i) => i.id !== id));
+    if (onItemDeleted) onItemDeleted();
   };
+
+  const renderItem = ({ item }) => (
+    <WardrobeItemCard
+      item={item}
+      navigation={navigation}
+      onItemDeleted={handleItemDeleted}
+    />
+  );
 
   return (
     <SafeAreaView style={globalStyles.container} edges={["left", "right"]}>
@@ -85,17 +144,17 @@ export default function WardrobeItems() {
           size="large"
           style={{ marginTop: 40 }}
         />
-      ) : wardrobeItems.length === 0 ? (
+      ) : items.length === 0 ? (
         <Text style={[styles.emptyText]}>No wardrobe items yet.</Text>
       ) : (
         <FlatList
-          data={wardrobeItems}
+          data={items}
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderItem}
           numColumns={2}
           columnWrapperStyle={styles.columnWrapper}
           contentContainerStyle={styles.listContent}
-          extraData={deletedItemIds}
+          extraData={refreshFlag}
         />
       )}
     </SafeAreaView>

@@ -26,10 +26,19 @@ export default function WardrobeScreen({ navigation }) {
   const [refreshFlag, setRefreshFlag] = useState(0);
   const [modalVisible, setModalVisible] = useState(false);
 
+  const handleItemDeleted = () => {
+    setRefreshFlag((prev) => prev + 1);
+  };
+
   const renderTabContent = () => {
     switch (activeTab) {
       case "Wardrobe":
-        return <WardrobeItems refreshFlag={refreshFlag} />;
+        return (
+          <WardrobeItems
+            refreshFlag={refreshFlag}
+            onItemDeleted={handleItemDeleted}
+          />
+        );
       case "Outfits":
         return <Outfits />;
       case "Boards":

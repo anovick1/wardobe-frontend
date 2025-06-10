@@ -3,8 +3,9 @@ import { createStackNavigator } from "@react-navigation/stack";
 
 import WardrobeScreen from "../screens/WardrobeScreen";
 import ItemReviewScreen from "../screens/ItemReviewScreen";
-import AddLinkScreen from '../screens/AddLinkScreen';
+import AddLinkScreen from "../screens/AddLinkScreen";
 import WardrobeItemDetail from "../screens/WardrobeItemDetail";
+import MultiUploadScreen from "../screens/MultiUploadScreen";
 
 const Stack = createStackNavigator();
 
@@ -14,7 +15,8 @@ export default function WardrobeStackNavigator() {
       <Stack.Screen name="WardrobeMain" component={WardrobeScreen} />
       <Stack.Screen name="ItemReview" component={ItemReviewScreen} />
       <Stack.Screen name="WardrobeItemDetail" component={WardrobeItemDetail} />
-       <Stack.Screen name="AddLink" component={AddLinkScreen} />
+      <Stack.Screen name="AddLink" component={AddLinkScreen} />
+      <Stack.Screen name="MultiUpload" component={MultiUploadScreen} />
     </Stack.Navigator>
   );
 }
