@@ -127,7 +127,6 @@ export default function PlannerScreen() {
   };
 
   const handleMonthChange = (newDateStr) => {
-    console.log("handleMonthChange called with:", newDateStr);
     setViewDate(newDateStr);
     setSelectedDate(newDateStr);
     fetchEventsForSelectedDate(newDateStr);
