@@ -79,10 +79,10 @@ export default function MonthView({
             styles.arrowBtn,
             { position: "absolute", right: 0, zIndex: 1 },
           ]}
-          onPress={() => {
-            const newDateStr = format(addMonths(monthStart, 1), "yyyy-MM-dd");
-            onMonthChange && onMonthChange(newDateStr);
-          }}
+          onPress={() =>
+            onMonthChange &&
+            onMonthChange(format(addMonths(monthStart, 2), "yyyy-MM-dd"))
+          }
         >
           <Icon name="chevron-right" size={24} color="#121416" />
         </TouchableOpacity>

@@ -57,7 +57,7 @@ export default function WeekView({
           style={styles.arrowBtn}
           onPress={() =>
             onWeekChange &&
-            onWeekChange(format(addWeeks(weekStartDate, 1), "yyyy-MM-dd"))
+            onWeekChange(format(addWeeks(weekStartDate, 2), "yyyy-MM-dd"))
           }
         >
           <Icon name="chevron-right" size={24} color="#121416" />
