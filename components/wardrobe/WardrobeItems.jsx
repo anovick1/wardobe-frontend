@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   listContent: {
-    paddingHorizontal: 4,
+    paddingHorizontal: 15,
     paddingTop: 0,
     paddingBottom: 16,
   },

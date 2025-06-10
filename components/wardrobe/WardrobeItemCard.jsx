@@ -47,17 +47,16 @@ export default function WardrobeItemCard({ item, onItemDeleted }) {
           )}
         </View>
         <View style={cardStyles.infoSection}>
-          <Text style={typography.name} numberOfLines={2} ellipsizeMode="tail">
+          <Text style={typography.name} numberOfLines={1} adjustsFontSizeToFit>
             {item.name || "Unnamed item"}
           </Text>
           {item.brand && (
-            <Text style={typography.brand} numberOfLines={1}>
+            <Text
+              style={typography.brand}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
               {item.brand}
-            </Text>
-          )}
-          {item.price && (
-            <Text style={typography.price} numberOfLines={1}>
-              ${item.price}
             </Text>
           )}
           {item.tags && item.tags.length > 0 && (

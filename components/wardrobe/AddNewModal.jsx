@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useState } from "react";
 import { Modal, View, Text, Pressable, StyleSheet, Alert } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { useWardrobe } from "../../contexts/WardrobeContext";
 import cardStyles from "../../styles/card";
 import typography from "../../styles/typography";
+import AddLinkModal from "./AddLinkModal";
 
 export default function AddNewModal({
   visible,
@@ -12,6 +13,7 @@ export default function AddNewModal({
   setProcessing,
 }) {
   const { addWardrobeItem } = useWardrobe();
+  const [linkModalVisible, setLinkModalVisible] = useState(false);
 
   const handleUpload = async (launchFn) => {
     const res = await launchFn({
@@ -42,8 +44,11 @@ export default function AddNewModal({
   };
 
   const handleLinkUpload = () => {
-    onClose();
-    navigation.navigate("AddLink", { addWardrobeItem });
+    setLinkModalVisible(true);
+  };
+
+  const handleCloseLinkModal = () => {
+    setLinkModalVisible(false);
   };
 
   return (
@@ -54,23 +59,30 @@ export default function AddNewModal({
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        <View style={cardStyles.modalSheet}>
-          <Pressable onPress={launchCamera}>
-            <Text style={typography.modalOption}>📷 Take Photo</Text>
-          </Pressable>
-          <View style={styles.divider} />
-          <Pressable onPress={launchGallery}>
-            <Text style={typography.modalOption}>🖼️ Upload Photos</Text>
-          </Pressable>
-          <View style={styles.divider} />
-          <Pressable onPress={handleLinkUpload}>
-            <Text style={typography.modalOption}>🔗 Paste Product Link</Text>
-          </Pressable>
-          <View style={styles.divider} />
-          <Pressable onPress={onClose}>
-            <Text style={typography.modalOptionCancel}>Cancel</Text>
-          </Pressable>
-        </View>
+        {!linkModalVisible && (
+          <View style={cardStyles.modalSheet}>
+            <Pressable onPress={launchCamera}>
+              <Text style={typography.modalOption}>📷 Take Photo</Text>
+            </Pressable>
+            <View style={styles.divider} />
+            <Pressable onPress={launchGallery}>
+              <Text style={typography.modalOption}>🖼️ Upload Photos</Text>
+            </Pressable>
+            <View style={styles.divider} />
+            <Pressable onPress={handleLinkUpload}>
+              <Text style={typography.modalOption}>🔗 Paste Product Link</Text>
+            </Pressable>
+            <View style={styles.divider} />
+            <Pressable onPress={onClose}>
+              <Text style={typography.modalOptionCancel}>Cancel</Text>
+            </Pressable>
+          </View>
+        )}
+        <AddLinkModal
+          visible={linkModalVisible}
+          onClose={handleCloseLinkModal}
+          navigation={navigation}
+        />
       </View>
     </Modal>
   );
