@@ -17,70 +17,7 @@ import Icon from "react-native-vector-icons/MaterialIcons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import useCachedImage from "../../hooks/useCachedImage";
 import * as FileSystem from "expo-file-system";
-
-function WardrobeItemCard({ item, navigation, onItemDeleted }) {
-  const { uri, loading, error } = useCachedImage(item.image_url, item.id);
-  return (
-    <TouchableOpacity
-      style={styles.cardTouchable}
-      onPress={() =>
-        navigation.navigate("WardrobeItemDetail", {
-          item,
-          onDelete: () => {
-            onItemDeleted?.(item.id);
-          },
-        })
-      }
-    >
-      <View style={cardStyles.card}>
-        <View style={cardStyles.image}>
-          {loading ? (
-            <ActivityIndicator style={{ flex: 1 }} />
-          ) : error ? (
-            <View
-              style={{
-                flex: 1,
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Icon name="error" size={36} color="#dc2626" />
-            </View>
-          ) : (
-            <Image source={{ uri }} style={cardStyles.image} />
-          )}
-        </View>
-        {/* Info section below image */}
-        <View style={cardStyles.infoSection}>
-          <Text style={typography.name} numberOfLines={2} ellipsizeMode="tail">
-            {item.name || "Unnamed item"}
-          </Text>
-          {item.brand && (
-            <Text style={typography.brand} numberOfLines={1}>
-              {item.brand}
-            </Text>
-          )}
-          {item.price && (
-            <Text style={typography.price} numberOfLines={1}>
-              ${item.price}
-            </Text>
-          )}
-          {item.tags && item.tags.length > 0 && (
-            <View style={cardStyles.tagsRow}>
-              {item.tags.map((tag, idx) => (
-                <View key={idx} style={[cardStyles.tag, tagColorStyle(tag)]}>
-                  <Text style={cardStyles.tagText} numberOfLines={1}>
-                    {tag}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          )}
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-}
+import WardrobeItemCard from "./WardrobeItemCard";
 
 export default function WardrobeItems({
   refreshFlag = 0,

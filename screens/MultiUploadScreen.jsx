@@ -13,6 +13,7 @@ import { getAuth } from "firebase/auth";
 import api from "../api";
 import typography from "../styles/typography";
 import CachedImage from "../components/common/CachedImage";
+import * as FileSystem from "expo-file-system";
 
 export default function MultiUploadScreen({ route, navigation }) {
   const { images } = route.params;
@@ -54,6 +55,16 @@ export default function MultiUploadScreen({ route, navigation }) {
           },
         }
       );
+
+      // Immediately cache the cleaned image
+      const cleanedUrl = data.presigned_urls.cleaned;
+      const itemId = data.item_id;
+      const cachePath = `${FileSystem.cacheDirectory}wardrobe-${itemId}.jpg`;
+      try {
+        await FileSystem.downloadAsync(cleanedUrl, cachePath);
+      } catch (e) {
+        // Optionally handle error
+      }
 
       setUploadStatus((prev) =>
         prev.map((item, i) =>
@@ -109,21 +120,17 @@ export default function MultiUploadScreen({ route, navigation }) {
     const status = uploadStatus[index];
     const image = images[index];
 
+    // Decide which image to show: original (pending/uploading) or cleaned (completed/saved)
+    const showCleaned =
+      status.status === "completed" || status.status === "saved";
+    const imageUrl = showCleaned
+      ? status.item.presigned_urls.cleaned
+      : image.uri;
+    const itemId = showCleaned ? status.item.item_id : `upload-${index}`;
+
     return (
       <View style={styles.itemContainer}>
-        <CachedImage
-          imageUrl={
-            status.status === "completed" || status.status === "saved"
-              ? status.item.presigned_urls.cleaned
-              : image.uri
-          }
-          itemId={
-            status.status === "completed" || status.status === "saved"
-              ? status.item.item_id
-              : `upload-${index}`
-          }
-          style={styles.thumbnail}
-        />
+        <Image source={{ uri: imageUrl }} style={styles.thumbnail} />
         <View style={styles.statusContainer}>
           {status.status === "pending" && (
             <Text style={styles.statusText}>Waiting...</Text>

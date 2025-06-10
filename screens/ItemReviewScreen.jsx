@@ -13,6 +13,8 @@ import {
 import DropDownPicker from "react-native-dropdown-picker";
 import api from "../api";
 import { useWardrobe } from "../contexts/WardrobeContext";
+import { SafeAreaView } from "react-native-safe-area-context";
+import CachedImage from "../components/common/CachedImage";
 
 export default function ItemReviewScreen({ route, navigation }) {
   const { item } = route.params || {};
@@ -130,81 +132,96 @@ export default function ItemReviewScreen({ route, navigation }) {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <ScrollView
-        ref={scrollRef}
-        contentContainerStyle={styles.container}
-        keyboardShouldPersistTaps="handled"
+    <SafeAreaView style={{ flex: 1 }} edges={["top", "left", "right"]}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <LabeledInput label="Name" value={name} setValue={setName} />
+        <ScrollView
+          ref={scrollRef}
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.card}>
+            {item?.image_url && (
+              <View style={styles.imageContainer}>
+                <CachedImage
+                  imageUrl={item.image_url}
+                  itemId={item.item_id || item.id}
+                  style={styles.image}
+                />
+              </View>
+            )}
+            <View style={styles.infoSection}>
+              <LabeledInput label="Name" value={name} setValue={setName} />
 
-        <Text style={styles.label}>Brand</Text>
-        <DropDownPicker
-          open={brandDropdownOpen}
-          setOpen={(open) => {
-            setBrandDropdownOpen(open);
-            if (open) scrollToEnd();
-          }}
-          items={brandOptions}
-          value={brand}
-          setValue={setBrand}
-          searchable
-          placeholder="Select brand"
-          style={styles.dropdown}
-          containerStyle={{ marginBottom: brandDropdownOpen ? 150 : 20 }}
-        />
-        <Text style={styles.small}>or enter new brand</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="New Brand"
-          value={newBrand}
-          onChangeText={setNewBrand}
-          onFocus={scrollToEnd}
-        />
+              <Text style={styles.label}>Brand</Text>
+              <DropDownPicker
+                open={brandDropdownOpen}
+                setOpen={(open) => {
+                  setBrandDropdownOpen(open);
+                  if (open) scrollToEnd();
+                }}
+                items={brandOptions}
+                value={brand}
+                setValue={setBrand}
+                searchable
+                placeholder="Select brand"
+                style={styles.dropdown}
+                containerStyle={{ marginBottom: brandDropdownOpen ? 150 : 20 }}
+              />
+              <Text style={styles.small}>or enter new brand</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="New Brand"
+                value={newBrand}
+                onChangeText={setNewBrand}
+                onFocus={scrollToEnd}
+              />
 
-        <LabeledInput
-          label="Description"
-          value={description}
-          setValue={setDescription}
-        />
-        <LabeledInput
-          label="Primary Color"
-          value={primaryColor}
-          setValue={setPrimaryColor}
-        />
-        <LabeledInput
-          label="Price"
-          value={price}
-          setValue={setPrice}
-          keyboardType="numeric"
-        />
-        <LabeledInput
-          label="Product Link"
-          value={productLink}
-          setValue={setProductLink}
-          autoCapitalize="none"
-        />
-        <LabeledInput
-          label="Tags (comma separated)"
-          value={tags}
-          setValue={setTags}
-          placeholder="e.g. casual, summer, vacation"
-        />
+              <LabeledInput
+                label="Description"
+                value={description}
+                setValue={setDescription}
+              />
+              <LabeledInput
+                label="Primary Color"
+                value={primaryColor}
+                setValue={setPrimaryColor}
+              />
+              <LabeledInput
+                label="Price"
+                value={price}
+                setValue={setPrice}
+                keyboardType="numeric"
+              />
+              <LabeledInput
+                label="Product Link"
+                value={productLink}
+                setValue={setProductLink}
+                autoCapitalize="none"
+              />
+              <LabeledInput
+                label="Tags (comma separated)"
+                value={tags}
+                setValue={setTags}
+                placeholder="e.g. casual, summer, vacation"
+              />
 
-        <View style={{ marginTop: 20 }}>
-          <Button title="CONFIRM AND SAVE" onPress={handleSave} />
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+              <View style={{ marginTop: 20 }}>
+                <Button title="CONFIRM AND SAVE" onPress={handleSave} />
+              </View>
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 function LabeledInput({ label, value, setValue, ...props }) {
   return (
-    <>
+    <View style={{ marginBottom: 12 }}>
       <Text style={styles.label}>{label}</Text>
       <TextInput
         style={styles.input}
@@ -212,19 +229,44 @@ function LabeledInput({ label, value, setValue, ...props }) {
         onChangeText={setValue}
         {...props}
       />
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
-    paddingBottom: 60,
+    alignItems: "center",
+  },
+  card: {
+    width: "100%",
+    maxWidth: 420,
+    borderRadius: 18,
+    padding: 0,
+    overflow: "hidden",
+  },
+  imageContainer: {
+    width: "100%",
+    aspectRatio: 1,
+    maxHeight: 220,
+    alignSelf: "center",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  image: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
+  infoSection: {
+    padding: 22,
   },
   label: {
     fontWeight: "bold",
     marginBottom: 6,
-    marginTop: 14,
+    marginTop: 8,
+    fontSize: 14,
+    color: "#121416",
   },
   small: {
     fontSize: 12,
@@ -233,13 +275,18 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: "#e5e7eb",
     padding: 10,
-    borderRadius: 6,
-    marginBottom: 10,
+    borderRadius: 8,
+    marginBottom: 2,
+    fontSize: 15,
+    backgroundColor: "#f8fafc",
+    color: "#121416",
   },
   dropdown: {
-    borderColor: "#ccc",
+    borderColor: "#e5e7eb",
     marginBottom: 10,
+    borderRadius: 8,
+    backgroundColor: "#f8fafc",
   },
 });
