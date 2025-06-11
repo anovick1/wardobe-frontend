@@ -6,6 +6,7 @@ export default StyleSheet.create({
     overflow: "hidden",
     marginBottom: 2,
     flexDirection: "column",
+    width: 150,
   },
   infoSection: {
     flex: 1,
@@ -51,5 +52,10 @@ export default StyleSheet.create({
     shadowOffset: { width: 0, height: -2 },
     elevation: 8,
     minHeight: 180,
+  },
+  modalSheetCentered: {
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    padding: 24,
+    borderRadius: 24,
   },
 });

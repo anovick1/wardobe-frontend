@@ -116,8 +116,6 @@ export default function ItemReviewScreen({ route, navigation }) {
       await api.put(`/wardrobe_items/${resolvedItemId}`, payload);
       await fetchWardrobeItems();
 
-      Alert.alert("Success", "Item updated successfully");
-
       // Call onSave callback if provided (for multi-upload flow)
       if (route.params?.onSave) {
         route.params.onSave();
@@ -143,10 +141,14 @@ export default function ItemReviewScreen({ route, navigation }) {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.card}>
-            {item?.image_url && (
+            {(item?.image_url || item?.presigned_urls?.cleaned) && (
               <View style={styles.imageContainer}>
                 <CachedImage
-                  imageUrl={item.image_url}
+                  imageUrl={
+                    item.image_url
+                      ? item.image_url
+                      : item.presigned_urls?.cleaned
+                  }
                   itemId={item.item_id || item.id}
                   style={styles.image}
                 />

@@ -1,30 +1,56 @@
 import React, { useContext } from "react";
-import { View, TouchableOpacity, Text, StyleSheet } from "react-native";
+import { View, TouchableOpacity, Text, StyleSheet, Image } from "react-native";
 import { useGoogleAuth } from "../auth/useGoogleAuth";
 import { useFacebookAuth } from "../auth/useFacebookAuth";
 import { AuthContext } from "../auth/AuthContext";
+import { SafeAreaView } from "react-native-safe-area-context";
+import typography from "../styles/typography";
+import globalStyles from "../styles/global";
+import Icon from "react-native-vector-icons/MaterialCommunityIcons";
+// If you have a local Google G icon, import it here:
+// import GoogleG from "../assets/google_g.png";
 
 export default function LoginScreen() {
   const { setUser } = useContext(AuthContext);
 
   const { login: loginWithGoogle } = useGoogleAuth(setUser);
-  const { login: loginWithFacebook } = useFacebookAuth(setUser); // make sure this is returned
+  const { login: loginWithFacebook } = useFacebookAuth(setUser);
 
   return (
-    <View style={styles.container}>
-      <TouchableOpacity style={styles.button} onPress={loginWithGoogle}>
-        <Text style={styles.buttonText}>Sign in with Google</Text>
+    <SafeAreaView
+      style={[globalStyles.container, styles.container]}
+      edges={["top", "left", "right"]}
+    >
+      <Text style={[typography.title, { marginBottom: 40 }]}>
+        Sign in to Wardrobe
+      </Text>
+      <TouchableOpacity
+        style={[styles.button, styles.googleButton]}
+        onPress={loginWithGoogle}
+      >
+        {/* Use local Google G icon if available, else fallback to icon */}
+        {/* <Image source={GoogleG} style={styles.googleIcon} /> */}
+        <Icon
+          name="google"
+          size={22}
+          color="#4285F4"
+          style={styles.googleIcon}
+        />
+        <Text style={styles.googleButtonText}>Sign in with Google</Text>
       </TouchableOpacity>
       <TouchableOpacity
-        style={styles.button}
-        onPress={() => {
-          console.log("👉 Facebook Login Pressed");
-          loginWithFacebook();
-        }}
+        style={[styles.button, styles.facebookButton]}
+        onPress={loginWithFacebook}
       >
+        <Icon
+          name="facebook"
+          size={22}
+          color="#fff"
+          style={styles.buttonIcon}
+        />
         <Text style={styles.buttonText}>Sign in with Facebook</Text>
       </TouchableOpacity>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -33,18 +59,51 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: "#f8fafc",
   },
   button: {
-    backgroundColor: "#007aff",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
+    paddingHorizontal: 28,
+    borderRadius: 24,
     marginVertical: 10,
+    width: 260,
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 2,
+  },
+  googleButton: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#dadce0",
+  },
+  googleButtonText: {
+    color: "#3c4043",
+    fontSize: 16,
+    fontWeight: "500",
+    marginLeft: 10,
+    letterSpacing: 0.2,
+  },
+  googleIcon: {
+    marginRight: 2,
+    marginLeft: -4,
+  },
+  facebookButton: {
+    backgroundColor: "#1877f3",
+    borderWidth: 0,
+    borderColor: "transparent",
   },
   buttonText: {
     color: "#fff",
     fontSize: 16,
     fontWeight: "bold",
+    marginLeft: 10,
+  },
+  buttonIcon: {
+    marginRight: 2,
   },
 });
