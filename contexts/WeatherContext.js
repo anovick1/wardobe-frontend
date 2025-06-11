@@ -37,7 +37,6 @@ export const WeatherProvider = ({ children }) => {
 
         // Only make the request if both are valid numbers
         if (typeof latitude === "number" && typeof longitude === "number") {
-          console.log("Requesting weather for:", latitude, longitude);
           const res = await api.post("/weather", {
             lat: latitude,
             lon: longitude,
