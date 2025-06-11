@@ -1,6 +1,6 @@
 import axios from "axios";
 import Constants from "expo-constants";
-import { getAuth } from "firebase/auth";
+import { getAuth, getIdToken } from "firebase/auth";
 
 const { FLASK_API_BASE_URL } = Constants.expoConfig.extra;
 
@@ -11,12 +11,10 @@ const api = axios.create({
 api.interceptors.request.use(async (config) => {
   const auth = getAuth();
   const user = auth.currentUser;
-
   if (user) {
     const token = await user.getIdToken();
-    config.headers.Authorization = `Bearer ${token}`;
+    config.headers["Authorization"] = `Bearer ${token}`;
   }
-
   return config;
 });
 

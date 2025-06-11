@@ -59,29 +59,13 @@ export default function WardrobeItemCard({ item, onItemDeleted }) {
               {item.brand}
             </Text>
           )}
-          {item.tags && item.tags.length > 0 && (
-            <View style={cardStyles.tagsRow}>
-              {item.tags.map((tag, idx) => (
-                <View key={idx} style={[cardStyles.tag, tagColorStyle(tag)]}>
-                  <Text style={cardStyles.tagText} numberOfLines={1}>
-                    {tag}
-                  </Text>
-                </View>
-              ))}
-            </View>
+          {item.wardrobe_item_type && (
+            <Text style={cardStyles.tagText} numberOfLines={1}>
+              {item.wardrobe_item_type}
+            </Text>
           )}
         </View>
       </View>
     </TouchableOpacity>
   );
-}
-
-function tagColorStyle(tag) {
-  if (/work/i.test(tag)) return { backgroundColor: "#e0f2fe" };
-  if (/elegant/i.test(tag)) return { backgroundColor: "#fce7f3" };
-  if (/casual/i.test(tag)) return { backgroundColor: "#e0e7ff" };
-  if (/basics?/i.test(tag)) return { backgroundColor: "#ccfbf1" };
-  if (/cozy/i.test(tag)) return { backgroundColor: "#fef3c7" };
-  if (/winter/i.test(tag)) return { backgroundColor: "#e5e7eb" };
-  return { backgroundColor: "#f1f5f9" };
 }

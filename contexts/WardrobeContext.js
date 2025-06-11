@@ -13,10 +13,7 @@ export function WardrobeProvider({ children }) {
     if (!user?.firebase) return;
     try {
       setLoadingWardrobe(true);
-      const token = await user.firebase.getIdToken();
-      const res = await api.get("/wardrobe_items", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await api.get("/wardrobe_items");
       setWardrobeItems(res.data);
     } catch (err) {
       console.error("⚠️ Failed to fetch wardrobe items:", err);
