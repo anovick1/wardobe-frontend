@@ -5,6 +5,7 @@ import { useWeather } from "../contexts/WeatherContext";
 import typography from "../styles/typography";
 import globalStyles from "../styles/global";
 import { SafeAreaView } from "react-native-safe-area-context";
+import DailyOutfitGenerator from "../components/homescreen/outfits/DailyOutfitGenerator";
 
 export default function HomeScreen() {
   const { user } = useContext(AuthContext);
@@ -52,6 +53,8 @@ export default function HomeScreen() {
           ⚠️ {weatherError}
         </Text>
       )}
+
+      <DailyOutfitGenerator />
 
       {/* Future: outfit suggestions, upcoming events, feed, etc. */}
     </SafeAreaView>

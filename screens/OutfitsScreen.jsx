@@ -13,16 +13,12 @@ import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { AuthContext } from "../auth/AuthContext";
 import api from "../api";
-import { useWeather } from "../contexts/WeatherContext";
 
 const OutfitsScreen = () => {
   const [outfits, setOutfits] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [generatingDaily, setGeneratingDaily] = useState(false);
   const navigation = useNavigation();
   const { user } = useContext(AuthContext);
-  const { weather } = useWeather();
-  console.log("🔍 Weather:", weather);
 
   const fetchOutfits = async () => {
     try {
@@ -49,58 +45,6 @@ const OutfitsScreen = () => {
       );
     } catch (error) {
       console.error("Failed to delete outfit:", error);
-    }
-  };
-
-  const handleGenerateDailyOutfit = async () => {
-    if (!user) {
-      Alert.alert("Error", "You must be logged in to generate outfits.");
-      return;
-    }
-
-    setGeneratingDaily(true);
-    try {
-      const wardrobeResponse = await api.get("/wardrobe_items");
-      const wardrobe = wardrobeResponse.data.map((item) => ({
-        id: item.id,
-        name: item.name,
-        category: item.category,
-        color: item.primary_color,
-        tags: item.tags,
-        image_url: item.image_url,
-      }));
-
-      if (wardrobe.length === 0) {
-        Alert.alert(
-          "Error",
-          "You need items in your wardrobe to generate an outfit."
-        );
-        setGeneratingDaily(false);
-        return;
-      }
-
-      const payload = {
-        wardrobe: wardrobe,
-        weather: weather, // Placeholder for daily
-        calendar_events: [], // Placeholder for daily
-        focus_type: "daily",
-        daily_routine: "typical daily activities", // Placeholder
-      };
-
-      const response = await api.post("/outfits/ai_generate", payload);
-      Alert.alert("Success", response.data.message);
-      fetchOutfits(); // Refresh outfits after generating
-    } catch (error) {
-      console.error(
-        "Error generating daily outfit:",
-        error.response?.data || error.message
-      );
-      Alert.alert(
-        "Error",
-        error.response?.data?.error || "Failed to generate daily outfit."
-      );
-    } finally {
-      setGeneratingDaily(false);
     }
   };
 
@@ -165,23 +109,6 @@ const OutfitsScreen = () => {
           </TouchableOpacity>
         </View>
       </View>
-
-      <TouchableOpacity
-        style={[
-          styles.dailyGenerateButton,
-          generatingDaily && styles.dailyGenerateButtonDisabled,
-        ]}
-        onPress={handleGenerateDailyOutfit}
-        disabled={generatingDaily}
-      >
-        {generatingDaily ? (
-          <ActivityIndicator size="small" color="#fff" />
-        ) : (
-          <Text style={styles.dailyGenerateButtonText}>
-            Generate Daily Outfit
-          </Text>
-        )}
-      </TouchableOpacity>
 
       <FlatList
         data={outfits}
@@ -249,24 +176,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "bold",
     marginLeft: 4,
-  },
-  dailyGenerateButton: {
-    backgroundColor: "#007AFF",
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  dailyGenerateButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  dailyGenerateButtonDisabled: {
-    opacity: 0.5,
   },
   listContainer: {
     padding: 16,
