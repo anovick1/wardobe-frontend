@@ -42,17 +42,12 @@ export default function WardrobeItemDetail({ route, navigation }) {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.headerIcon}
-            onPress={() => navigation.popToTop()}
+            onPress={() => navigation.goBack()}
           >
             <Icon name="arrow-back-ios" size={24} color="#121416" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Item Details</Text>
-          <TouchableOpacity
-            style={styles.headerIcon}
-            onPress={() => navigation.navigate("ItemReview", { item })}
-          >
-            <Icon name="edit" size={24} color="#121416" />
-          </TouchableOpacity>
+          <View style={styles.headerIcon} />
         </View>
       </SafeAreaView>
       <ScrollView
@@ -131,47 +126,63 @@ export default function WardrobeItemDetail({ route, navigation }) {
               ))}
             </View>
           )}
-          {/* Delete Button */}
-          <TouchableOpacity
-            style={styles.deleteButton}
-            onPress={async () => {
-              Alert.alert(
-                "Delete Item",
-                "Are you sure you want to delete this item?",
-                [
-                  { text: "Cancel", style: "cancel" },
-                  {
-                    text: "Delete",
-                    style: "destructive",
-                    onPress: async () => {
-                      try {
-                        await api.delete(`/wardrobe_items/${item.id}`);
-                        Alert.alert("Item deleted");
-                        if (onDelete) onDelete();
-                        navigation.goBack();
-                      } catch (err) {
-                        Alert.alert("Error", "Failed to delete item.");
-                        console.error(err);
-                      }
+          {/* Action Buttons */}
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              style={styles.editButton}
+              onPress={() => navigation.navigate("ItemReview", { item })}
+              activeOpacity={0.7}
+            >
+              <Icon name="edit" size={20} color="#007AFF" style={{ marginRight: 6 }} />
+              <Text style={styles.editButtonText}>Edit Item</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={async () => {
+                Alert.alert(
+                  "Delete Item",
+                  "Are you sure you want to delete this item?",
+                  [
+                    { text: "Cancel", style: "cancel" },
+                    {
+                      text: "Delete",
+                      style: "destructive",
+                      onPress: async () => {
+                        try {
+                          await api.delete(`/wardrobe_items/${item.id}`);
+                          Alert.alert("Success", "Item deleted successfully");
+                          if (onDelete) onDelete();
+                          navigation.goBack();
+                        } catch (err) {
+                          Alert.alert("Error", "Failed to delete item.");
+                          console.error(err);
+                        }
+                      },
                     },
-                  },
-                ]
-              );
-            }}
-          >
-            <Icon
-              name="delete"
-              size={20}
-              color="#e11d48"
-              style={{ marginRight: 6 }}
-            />
-            <Text style={styles.deleteButtonText}>Delete Item</Text>
-          </TouchableOpacity>
+                  ]
+                );
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={styles.deleteButtonContent}>
+                <Icon
+                  name="delete"
+                  size={20}
+                  color="#e11d48"
+                  style={{ marginRight: 6 }}
+                />
+                <Text style={styles.deleteButtonText}>Delete Item</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
       {/* Sticky Add to Outfit Button */}
       <View style={styles.addToOutfitBar}>
-        <TouchableOpacity style={styles.addToOutfitButton}>
+        <TouchableOpacity 
+          style={styles.addToOutfitButton}
+          onPress={() => navigation.navigate('CreateOutfit', { selectedItem: item })}
+        >
           <Icon
             name="add-shopping-cart"
             size={22}
@@ -198,28 +209,24 @@ const tagColorStyle = (tag) => {
 const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
-    paddingTop: 10,
-    paddingBottom: 8,
-    paddingHorizontal: 8,
+    alignItems: "center",
+    padding: 16,
     backgroundColor: "#fff",
     borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
-    zIndex: 10,
+    borderBottomColor: "#e0e0e0",
+    zIndex: 1,
   },
   headerIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
+    padding: 8,
+    minWidth: 44,
+    minHeight: 44,
     justifyContent: "center",
+    alignItems: "center",
   },
   headerTitle: {
-    flex: 1,
-    textAlign: "center",
-    fontWeight: "bold",
-    fontSize: 20,
+    fontSize: 18,
+    fontWeight: "600",
     color: "#121416",
   },
   scrollContent: {
@@ -299,14 +306,40 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     lineHeight: 18,
   },
+  actionButtons: {
+    marginTop: 16,
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+  },
+  editButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f0f9ff",
+    borderRadius: 10,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    justifyContent: "center",
+    minHeight: 56,
+  },
+  editButtonText: {
+    color: "#007AFF",
+    fontWeight: "bold",
+    fontSize: 15,
+  },
   deleteButton: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#fef2f2",
     borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 0,
-    marginTop: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    justifyContent: "center",
+    minHeight: 56,
+  },
+  deleteButtonContent: {
+    flexDirection: "row",
+    alignItems: "center",
     justifyContent: "center",
   },
   deleteButtonText: {
