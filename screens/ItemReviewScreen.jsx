@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 import {
   View,
   Text,
@@ -9,14 +9,20 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
+  TouchableOpacity,
 } from "react-native";
 import DropDownPicker from "react-native-dropdown-picker";
 import api from "../api";
 import { useWardrobe } from "../contexts/WardrobeContext";
 import { SafeAreaView } from "react-native-safe-area-context";
 import CachedImage from "../components/common/CachedImage";
+import { Shadow } from "react-native-shadow-2";
+import Icon from "react-native-vector-icons/MaterialIcons";
+import { useNavigation } from "@react-navigation/native";
 
-export default function ItemReviewScreen({ route, navigation }) {
+export default function ItemReviewScreen({ route, navigation: navFromProps }) {
+  const navigation = useNavigation();
   const { item } = route.params || {};
   const { fetchWardrobeItems } = useWardrobe();
   const scrollRef = useRef();
@@ -43,6 +49,7 @@ export default function ItemReviewScreen({ route, navigation }) {
   );
   const [newBrand, setNewBrand] = useState(item?.gpt_metadata?.brand || "");
   const [brandDropdownOpen, setBrandDropdownOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const scrollToEnd = () => {
     scrollRef.current?.scrollToEnd({ animated: true });
@@ -93,6 +100,7 @@ export default function ItemReviewScreen({ route, navigation }) {
 
   const handleSave = async () => {
     try {
+      setSaving(true);
       if (!resolvedItemId) throw new Error("No item ID provided");
 
       const brand_id = await resolveBrandId();
@@ -116,7 +124,6 @@ export default function ItemReviewScreen({ route, navigation }) {
       await api.put(`/wardrobe_items/${resolvedItemId}`, payload);
       await fetchWardrobeItems();
 
-      // Call onSave callback if provided (for multi-upload flow)
       if (route.params?.onSave) {
         route.params.onSave();
         navigation.goBack();
@@ -126,98 +133,151 @@ export default function ItemReviewScreen({ route, navigation }) {
     } catch (err) {
       console.error("❌ Save failed:", err);
       Alert.alert("Error", err.message || "Failed to save item. Try again.");
+    } finally {
+      setSaving(false);
     }
   };
 
+  // Restore tab bar when entering this screen
+  useLayoutEffect(() => {
+    const parent = navigation.getParent();
+    if (parent) {
+      parent.setOptions({ tabBarStyle: undefined });
+    }
+  }, [navigation]);
+
   return (
-    <SafeAreaView style={{ flex: 1 }} edges={["top", "left", "right"]}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+    <View style={{ flex: 1 }}>
+      <SafeAreaView edges={["top"]} style={{ backgroundColor: "#fff" }}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.headerIcon}
+            onPress={() => navigation.goBack()}
+          >
+            <Icon name="arrow-back-ios" size={24} color="#121416" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Review Item</Text>
+          <View style={styles.headerIcon} />
+        </View>
+      </SafeAreaView>
+
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
       >
-        <ScrollView
-          ref={scrollRef}
-          contentContainerStyle={styles.container}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={styles.card}>
-            {(item?.image_url || item?.presigned_urls?.cleaned) && (
-              <View style={styles.imageContainer}>
-                <CachedImage
-                  imageUrl={
-                    item.image_url
-                      ? item.image_url
-                      : item.presigned_urls?.cleaned
-                  }
-                  itemId={item.item_id || item.id}
-                  style={styles.image}
-                />
+        <SafeAreaView style={{ flex: 1 }} edges={["top", "left", "right"]}>
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+          >
+            <ScrollView
+              ref={scrollRef}
+              contentContainerStyle={styles.container}
+              keyboardShouldPersistTaps="handled"
+            >
+              <View style={styles.card}>
+                {(item?.image_url || item?.presigned_urls?.cleaned) && (
+                  <View style={styles.imageContainer}>
+                    <CachedImage
+                      imageUrl={
+                        item.image_url
+                          ? item.image_url
+                          : item.presigned_urls?.cleaned
+                      }
+                      itemId={item.item_id || item.id}
+                      style={styles.image}
+                    />
+                  </View>
+                )}
+                <View style={styles.infoSection}>
+                  <LabeledInput label="Name" value={name} setValue={setName} />
+
+                  <Text style={styles.label}>Brand</Text>
+                  <DropDownPicker
+                    open={brandDropdownOpen}
+                    setOpen={(open) => {
+                      setBrandDropdownOpen(open);
+                      if (open) scrollToEnd();
+                    }}
+                    items={brandOptions}
+                    value={brand}
+                    setValue={setBrand}
+                    searchable
+                    placeholder="Select brand"
+                    style={styles.dropdown}
+                    containerStyle={{
+                      marginBottom: brandDropdownOpen ? 150 : 20,
+                    }}
+                  />
+                  <Text style={styles.small}>or enter new brand</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="New Brand"
+                    value={newBrand}
+                    onChangeText={setNewBrand}
+                    onFocus={scrollToEnd}
+                  />
+
+                  <LabeledInput
+                    label="Description"
+                    value={description}
+                    setValue={setDescription}
+                  />
+                  <LabeledInput
+                    label="Primary Color"
+                    value={primaryColor}
+                    setValue={setPrimaryColor}
+                  />
+                  <LabeledInput
+                    label="Price"
+                    value={price}
+                    setValue={setPrice}
+                    keyboardType="numeric"
+                  />
+                  <LabeledInput
+                    label="Product Link"
+                    value={productLink}
+                    setValue={setProductLink}
+                    autoCapitalize="none"
+                  />
+                  <LabeledInput
+                    label="Tags (comma separated)"
+                    value={tags}
+                    setValue={setTags}
+                    placeholder="e.g. casual, summer, vacation"
+                  />
+                </View>
               </View>
-            )}
-            <View style={styles.infoSection}>
-              <LabeledInput label="Name" value={name} setValue={setName} />
+              {saving && (
+                <View style={styles.savingOverlay}>
+                  <ActivityIndicator size="large" color="#000" />
+                </View>
+              )}
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      </ScrollView>
 
-              <Text style={styles.label}>Brand</Text>
-              <DropDownPicker
-                open={brandDropdownOpen}
-                setOpen={(open) => {
-                  setBrandDropdownOpen(open);
-                  if (open) scrollToEnd();
-                }}
-                items={brandOptions}
-                value={brand}
-                setValue={setBrand}
-                searchable
-                placeholder="Select brand"
-                style={styles.dropdown}
-                containerStyle={{ marginBottom: brandDropdownOpen ? 150 : 20 }}
-              />
-              <Text style={styles.small}>or enter new brand</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="New Brand"
-                value={newBrand}
-                onChangeText={setNewBrand}
-                onFocus={scrollToEnd}
-              />
-
-              <LabeledInput
-                label="Description"
-                value={description}
-                setValue={setDescription}
-              />
-              <LabeledInput
-                label="Primary Color"
-                value={primaryColor}
-                setValue={setPrimaryColor}
-              />
-              <LabeledInput
-                label="Price"
-                value={price}
-                setValue={setPrice}
-                keyboardType="numeric"
-              />
-              <LabeledInput
-                label="Product Link"
-                value={productLink}
-                setValue={setProductLink}
-                autoCapitalize="none"
-              />
-              <LabeledInput
-                label="Tags (comma separated)"
-                value={tags}
-                setValue={setTags}
-                placeholder="e.g. casual, summer, vacation"
-              />
-
-              <View style={{ marginTop: 20 }}>
-                <Button title="CONFIRM AND SAVE" onPress={handleSave} />
-              </View>
-            </View>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      {!saving && (
+        <View style={styles.floatingFooter}>
+          <Shadow
+            distance={15}
+            startColor={"#00000010"}
+            offset={[0, 0]}
+            radius={18}
+            containerViewStyle={{ width: 250, alignSelf: "center" }}
+          >
+            <TouchableOpacity
+              style={styles.submitButton}
+              onPress={handleSave}
+              disabled={saving}
+            >
+              <Text style={styles.submitButtonText}>Confirm and Save</Text>
+            </TouchableOpacity>
+          </Shadow>
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -290,5 +350,52 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderRadius: 8,
     backgroundColor: "#f8fafc",
+  },
+  savingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(255,255,255,0.7)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 999,
+  },
+  floatingFooter: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: 16,
+    zIndex: 20,
+    alignItems: "center",
+  },
+  submitButton: {
+    backgroundColor: "rgba(230, 250, 255, 0.9)",
+    borderRadius: 15,
+    paddingVertical: 14,
+    alignItems: "center",
+    paddingHorizontal: 16,
+    width: 250,
+    // maxWidth: 250,
+  },
+  submitButtonText: {
+    color: "#000",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+  },
+  headerIcon: {
+    padding: 8,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginLeft: 16,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 140,
   },
 });

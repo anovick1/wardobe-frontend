@@ -3,14 +3,14 @@ import { createStackNavigator } from "@react-navigation/stack";
 
 import WardrobeScreen from "../screens/WardrobeScreen";
 import ItemReviewScreen from "../screens/ItemReviewScreen";
-import AddLinkScreen from "../screens/AddLinkScreen";
+import WebViewScreen from "../screens/WebViewScreen";
 import WardrobeItemDetail from "../screens/WardrobeItemDetail";
 import MultiUploadScreen from "../screens/MultiUploadScreen";
-import OutfitsScreen from '../screens/OutfitsScreen';
-import OutfitDetail from '../screens/OutfitDetail';
-import CreateOutfit from '../screens/CreateOutfit';
-import EditOutfit from '../screens/EditOutfit';
-import GenerateOutfitScreen from '../screens/GenerateOutfitScreen';
+import OutfitsScreen from "../screens/OutfitsScreen";
+import OutfitDetail from "../screens/OutfitDetail";
+import CreateOutfit from "../screens/CreateOutfit";
+import EditOutfit from "../screens/EditOutfit";
+import GenerateOutfitScreen from "../screens/GenerateOutfitScreen";
 
 const Stack = createStackNavigator();
 
@@ -24,7 +24,7 @@ const WardrobeStackNavigator = () => {
       <Stack.Screen name="WardrobeHome" component={WardrobeScreen} />
       <Stack.Screen name="ItemReview" component={ItemReviewScreen} />
       <Stack.Screen name="WardrobeItemDetail" component={WardrobeItemDetail} />
-      <Stack.Screen name="AddLink" component={AddLinkScreen} />
+      <Stack.Screen name="AddLink" component={WebViewScreen} />
       <Stack.Screen name="MultiUpload" component={MultiUploadScreen} />
       <Stack.Screen name="Outfits" component={OutfitsScreen} />
       <Stack.Screen name="OutfitDetail" component={OutfitDetail} />
