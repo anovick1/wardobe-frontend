@@ -74,9 +74,7 @@ const CreateOutfit = () => {
       });
 
       Alert.alert("Success", "Outfit created successfully");
-      navigation.navigate("OutfitDetail", {
-        outfitId: response.data.outfit.id,
-      });
+      navigation.navigate("Wardrobe", { screen: "Outfits" });
     } catch (error) {
       Alert.alert("Error", "Failed to create outfit");
       console.error(error);

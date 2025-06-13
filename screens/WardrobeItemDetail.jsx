@@ -19,7 +19,7 @@ import typography from "../styles/typography";
 import CachedImage from "../components/common/CachedImage";
 
 export default function WardrobeItemDetail({ route, navigation }) {
-  const { item, onDelete } = route.params;
+  const { item } = route.params;
 
   const {
     name,
@@ -151,7 +151,6 @@ export default function WardrobeItemDetail({ route, navigation }) {
                         try {
                           await api.delete(`/wardrobe_items/${item.id}`);
                           Alert.alert("Success", "Item deleted successfully");
-                          if (onDelete) onDelete();
                           navigation.goBack();
                         } catch (err) {
                           Alert.alert("Error", "Failed to delete item.");

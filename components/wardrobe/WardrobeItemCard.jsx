@@ -22,9 +22,6 @@ export default function WardrobeItemCard({ item, onItemDeleted }) {
       onPress={() =>
         navigation.navigate("WardrobeItemDetail", {
           item,
-          onDelete: () => {
-            onItemDeleted?.(item.id);
-          },
         })
       }
     >

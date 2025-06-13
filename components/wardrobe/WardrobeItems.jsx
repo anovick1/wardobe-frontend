@@ -8,7 +8,7 @@ import {
   View,
   TouchableOpacity,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useWardrobe } from "../../contexts/WardrobeContext";
 import cardStyles from "../../styles/card";
 import typography from "../../styles/typography";
@@ -21,9 +21,8 @@ import WardrobeItemCard from "./WardrobeItemCard";
 
 export default function WardrobeItems({
   refreshFlag = 0,
-  onItemDeleted = () => {},
 }) {
-  const { wardrobeItems: rawItems, loadingWardrobe } = useWardrobe();
+  const { wardrobeItems: rawItems, loadingWardrobe, fetchWardrobeItems } = useWardrobe();
   const [items, setItems] = React.useState([]);
 
   React.useEffect(() => {
@@ -58,18 +57,19 @@ export default function WardrobeItems({
     if (items.length > 0) cleanupCache();
   }, [items]);
 
-  const navigation = useNavigation();
+  // Refetch items when the screen gains focus
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchWardrobeItems();
+    }, [fetchWardrobeItems])
+  );
 
-  const handleItemDeleted = (id) => {
-    setItems((prev) => prev.filter((i) => i.id !== id));
-    if (onItemDeleted) onItemDeleted();
-  };
+  const navigation = useNavigation();
 
   const renderItem = ({ item }) => (
     <WardrobeItemCard
       item={item}
       navigation={navigation}
-      onItemDeleted={handleItemDeleted}
     />
   );
 

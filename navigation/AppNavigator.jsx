@@ -43,7 +43,7 @@ export default function AppNavigator() {
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Wardrobe" component={WardrobeStackNavigator} />
+      <Tab.Screen name="Wardrobe" component={WardrobeStackNavigator} options={{ unmountOnBlur: true }} />
       <Tab.Screen name="Planner" component={PlannerScreen} />
       <Tab.Screen name="Feed" component={FeedScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
