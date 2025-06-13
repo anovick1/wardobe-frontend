@@ -81,7 +81,7 @@ const EditOutfit = () => {
       });
 
       Alert.alert("Success", "Outfit updated successfully");
-      navigation.goBack();
+      navigation.navigate("Wardrobe", { screen: "Outfits" });
     } catch (error) {
       Alert.alert("Error", "Failed to update outfit");
       console.error(error);

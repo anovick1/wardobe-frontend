@@ -17,25 +17,52 @@ import api from "../api";
 const OutfitsScreen = () => {
   const [outfits, setOutfits] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [refreshing, setRefreshing] = useState(false);
   const navigation = useNavigation();
   const { user } = useContext(AuthContext);
 
-  const fetchOutfits = async () => {
+  const fetchOutfits = async (page = 1, forceRefresh = false) => {
+    if (outfits.length > 0 && page === 1 && !forceRefresh) {
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
     try {
-      const response = await api.get("/outfits/");
-      setOutfits(response.data);
+      const response = await api.get(`/outfits/?page=${page}`);
+      if (page === 1) {
+        setOutfits(response.data.outfits);
+      } else {
+        setOutfits(prevOutfits => [...prevOutfits, ...response.data.outfits]);
+      }
+      setTotalPages(response.data.pagination.pages);
+      setCurrentPage(response.data.pagination.current_page);
     } catch (error) {
       console.error("Failed to fetch outfits:", error);
+      Alert.alert("Error", "Failed to load outfits");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
   useEffect(() => {
     if (user) {
-      fetchOutfits();
+      fetchOutfits(1);
     }
   }, [user]);
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchOutfits(1, true);
+  };
+
+  const handleLoadMore = () => {
+    if (currentPage < totalPages) {
+      fetchOutfits(currentPage + 1);
+    }
+  };
 
   const handleDeleteOutfit = async (outfitId) => {
     try {
@@ -45,6 +72,7 @@ const OutfitsScreen = () => {
       );
     } catch (error) {
       console.error("Failed to delete outfit:", error);
+      Alert.alert("Error", "Failed to delete outfit");
     }
   };
 
@@ -54,22 +82,19 @@ const OutfitsScreen = () => {
       onPress={() => navigation.navigate("OutfitDetail", { outfitId: item.id })}
     >
       <View style={styles.outfitImages}>
-        {item.wardrobe_items.slice(0, 3).map((wardrobeItem, index) => (
+        {item.thumbnail_url && (
           <Image
-            key={wardrobeItem.id}
-            source={{ uri: wardrobeItem.image_url }}
-            style={[
-              styles.outfitImage,
-              { zIndex: 3 - index },
-              index > 0 && { marginLeft: -20 },
-            ]}
+            source={{ uri: item.thumbnail_url }}
+            style={styles.outfitImage}
           />
-        ))}
+        )}
       </View>
       <View style={styles.outfitInfo}>
-        <Text style={styles.outfitName}>{item.name}</Text>
         <Text style={styles.outfitDate}>
           {new Date(item.created_at).toLocaleDateString()}
+        </Text>
+        <Text style={styles.outfitItems}>
+          {item.item_count} {item.item_count === 1 ? 'item' : 'items'}
         </Text>
       </View>
       <TouchableOpacity
@@ -115,6 +140,21 @@ const OutfitsScreen = () => {
         renderItem={renderOutfitItem}
         keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={styles.listContainer}
+        refreshing={refreshing}
+        onRefresh={handleRefresh}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.5}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No outfits yet</Text>
+            <TouchableOpacity
+              style={styles.createButton}
+              onPress={() => navigation.navigate("CreateOutfit")}
+            >
+              <Text style={styles.createButtonText}>Create Your First Outfit</Text>
+            </TouchableOpacity>
+          </View>
+        }
       />
     </View>
   );
@@ -197,7 +237,6 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   outfitImages: {
-    flexDirection: "row",
     marginRight: 16,
   },
   outfitImage: {
@@ -210,17 +249,39 @@ const styles = StyleSheet.create({
   outfitInfo: {
     flex: 1,
   },
-  outfitName: {
+  outfitDate: {
     fontSize: 16,
     fontWeight: "500",
     marginBottom: 4,
   },
-  outfitDate: {
+  outfitItems: {
     fontSize: 14,
     color: "#666",
   },
   deleteButton: {
     padding: 8,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  emptyText: {
+    fontSize: 18,
+    color: "#666",
+    marginBottom: 16,
+  },
+  createButton: {
+    backgroundColor: "#007AFF",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  createButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "500",
   },
 });
 

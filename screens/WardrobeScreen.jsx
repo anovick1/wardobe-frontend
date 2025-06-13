@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/MaterialIcons";
+import { useFocusEffect } from '@react-navigation/native';
 
 import WardrobeItems from "../components/wardrobe/WardrobeItems";
 import Outfits from "../components/wardrobe/Outfits";
@@ -25,6 +26,15 @@ export default function WardrobeScreen({ navigation }) {
   const [processing, setProcessing] = useState(false);
   const [refreshFlag, setRefreshFlag] = useState(0);
   const [modalVisible, setModalVisible] = useState(false);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      // Reset active tab to 'Wardrobe' when the screen comes into focus
+      setActiveTab("Wardrobe");
+      // Navigate to the initial route of the Wardrobe stack
+      navigation.navigate('WardrobeHome');
+    }, [navigation])
+  );
 
   const handleItemDeleted = () => {
     setRefreshFlag((prev) => prev + 1);

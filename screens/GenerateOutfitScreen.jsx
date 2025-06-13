@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   TextInput,
   Alert,
@@ -106,9 +105,7 @@ const GenerateOutfitScreen = () => {
 
       const response = await api.post("/outfits/ai_generate", payload);
       Alert.alert("Success", response.data.message);
-      navigation.navigate("OutfitDetail", {
-        outfitId: response.data.outfit.id,
-      });
+      navigation.navigate("Wardrobe", { screen: "Outfits" });
     } catch (error) {
       console.error(
         "Error generating outfit:",
@@ -136,7 +133,7 @@ const GenerateOutfitScreen = () => {
         <View style={{ width: 44 }} />
       </View>
 
-      <ScrollView style={styles.content}>
+      <View style={styles.content}>
         <View style={styles.section}>
           <Text style={styles.label}>Generation Focus</Text>
           <DropDownPicker
@@ -231,7 +228,7 @@ const GenerateOutfitScreen = () => {
             <Text style={styles.generateButtonText}>Generate Outfit</Text>
           )}
         </TouchableOpacity>
-      </ScrollView>
+      </View>
     </View>
   );
 };

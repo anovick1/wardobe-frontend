@@ -55,7 +55,7 @@ const DailyOutfitGenerator = () => {
 
       const response = await api.post("/outfits/ai_generate", payload);
       Alert.alert("Success", response.data.message);
-      navigation.navigate("Outfits");
+      navigation.navigate("Wardrobe", { screen: "Outfits" });
     } catch (error) {
       console.error(
         "Error generating daily outfit:",
@@ -73,19 +73,14 @@ const DailyOutfitGenerator = () => {
   return (
     <View style={styles.container}>
       <TouchableOpacity
-        style={[
-          styles.dailyGenerateButton,
-          generatingDaily && styles.dailyGenerateButtonDisabled,
-        ]}
+        style={styles.card}
         onPress={handleGenerateDailyOutfit}
         disabled={generatingDaily}
       >
         {generatingDaily ? (
-          <ActivityIndicator size="small" color="#fff" />
+          <ActivityIndicator size="small" color="#000" />
         ) : (
-          <Text style={styles.dailyGenerateButtonText}>
-            Generate Daily Outfit
-          </Text>
+          <Text style={styles.cardText}>Generate Daily Outfit</Text>
         )}
       </TouchableOpacity>
     </View>
@@ -94,24 +89,26 @@ const DailyOutfitGenerator = () => {
 
 const styles = StyleSheet.create({
   container: {
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 8,
+    // Styles for the container if needed
   },
-  dailyGenerateButton: {
-    backgroundColor: "#007AFF",
-    paddingVertical: 14,
+  card: {
+    backgroundColor: "#fff",
     borderRadius: 12,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
     alignItems: "center",
     justifyContent: "center",
+    minHeight: 80,
+    marginHorizontal: 16,
   },
-  dailyGenerateButtonText: {
-    color: "#fff",
-    fontSize: 16,
+  cardText: {
+    fontSize: 18,
     fontWeight: "bold",
-  },
-  dailyGenerateButtonDisabled: {
-    opacity: 0.5,
+    color: "#121416",
   },
 });
 
