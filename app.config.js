@@ -72,4 +72,13 @@ export default {
       FACEBOOK_APP_ID: process.env.FACEBOOK_APP_ID,
     },
   },
+  plugins: [
+    [
+      "expo-image-picker",
+      {
+        photosPermission:
+          "This app accesses your photos to let you crop and upload product screenshots.",
+      },
+    ],
+  ],
 };
