@@ -121,7 +121,7 @@ export default function ItemReviewScreen({ route, navigation }) {
         route.params.onSave();
         navigation.goBack();
       } else {
-        navigation.navigate("WardrobeMain");
+        navigation.navigate("WardrobeHome");
       }
     } catch (err) {
       console.error("❌ Save failed:", err);
