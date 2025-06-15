@@ -113,7 +113,7 @@ export default function MultiUploadScreen({ route, navigation }) {
   };
 
   const handleConfirmAll = () => {
-    navigation.navigate("WardrobeMain");
+    navigation.navigate("WardrobeHome");
   };
 
   const renderItem = ({ item, index }) => {

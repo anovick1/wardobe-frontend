@@ -49,8 +49,6 @@ export async function handleImageUploadFlow(
       }
     );
 
-    console.log("✅ navigating to ItemReview with item:", data);
-
     // ✅ Navigate directly to the screen inside the stack
     setTimeout(() => {
       navigation.navigate("ItemReview", { item: data });

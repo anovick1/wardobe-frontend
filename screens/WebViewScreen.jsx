@@ -189,7 +189,7 @@ const WebViewScreen = ({}) => {
 
       await uploadProductImage(cropped.uri, itemId);
     } catch (err) {
-      console.error("❌ Image crop failed:", err);
+      console.error("Image crop failed:", err);
       Alert.alert(
         "Error",
         "Failed to crop image. Please try again. Error: " + err.message
@@ -268,7 +268,7 @@ const WebViewScreen = ({}) => {
       // Start polling
       pollStatus();
     } catch (err) {
-      console.error("❌ Image upload failed:", err);
+      console.error("Image upload failed:", err);
       Alert.alert("Error", "Failed to upload image. Please try again.");
     }
   };

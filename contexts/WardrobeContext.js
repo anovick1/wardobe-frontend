@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+} from "react";
 import api from "../api";
 import { AuthContext } from "./../auth/AuthContext";
 
@@ -9,22 +15,25 @@ export function WardrobeProvider({ children }) {
   const [loadingWardrobe, setLoadingWardrobe] = useState(true);
   const { user, loading: authLoading } = useContext(AuthContext);
 
-  const fetchWardrobeItems = useCallback(async (forceRefresh = false) => {
-    if (!user?.firebase) return;
-    if (wardrobeItems.length > 0 && !forceRefresh && !loadingWardrobe) {
+  const fetchWardrobeItems = useCallback(
+    async (forceRefresh = false) => {
+      if (!user?.firebase) return;
+      if (wardrobeItems.length > 0 && !forceRefresh && !loadingWardrobe) {
         // Items are already loaded, and no force refresh is requested
         return;
-    }
-    try {
-      setLoadingWardrobe(true);
-      const res = await api.get("/wardrobe_items");
-      setWardrobeItems(res.data);
-    } catch (err) {
-      console.error("⚠️ Failed to fetch wardrobe items:", err);
-    } finally {
-      setLoadingWardrobe(false);
-    }
-  }, [user, wardrobeItems.length, loadingWardrobe]);
+      }
+      try {
+        setLoadingWardrobe(true);
+        const res = await api.get("/wardrobe_items");
+        setWardrobeItems(res.data);
+      } catch (err) {
+        console.error("⚠️ Failed to fetch wardrobe items:", err);
+      } finally {
+        setLoadingWardrobe(false);
+      }
+    },
+    [user, wardrobeItems.length, loadingWardrobe]
+  );
 
   useEffect(() => {
     if (!authLoading) {
@@ -42,6 +51,16 @@ export function WardrobeProvider({ children }) {
     setWardrobeItems((prev) => [newItem, ...prev]);
   };
 
+  const updateWardrobeItem = (updatedItem) => {
+    setWardrobeItems((prev) =>
+      prev.map((item) => (item.id === updatedItem.id ? updatedItem : item))
+    );
+  };
+
+  const removeWardrobeItem = (itemId) => {
+    setWardrobeItems((prev) => prev.filter((item) => item.id !== itemId));
+  };
+
   return (
     <WardrobeContext.Provider
       value={{
@@ -49,6 +68,8 @@ export function WardrobeProvider({ children }) {
         loadingWardrobe,
         fetchWardrobeItems,
         addItemToWardrobe,
+        updateWardrobeItem,
+        removeWardrobeItem,
       }}
     >
       {children}

@@ -17,9 +17,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import cardStyles from "../styles/card";
 import typography from "../styles/typography";
 import CachedImage from "../components/common/CachedImage";
+import { useWardrobe } from "../contexts/WardrobeContext";
 
 export default function WardrobeItemDetail({ route, navigation }) {
   const { item } = route.params;
+  const { removeWardrobeItem } = useWardrobe();
 
   const {
     name,
@@ -33,6 +35,8 @@ export default function WardrobeItemDetail({ route, navigation }) {
     image_url,
     tags = [],
     product_link,
+    category,
+    subcategory,
   } = item;
 
   return (
@@ -97,6 +101,16 @@ export default function WardrobeItemDetail({ route, navigation }) {
           </View>
           {/* Details Grid */}
           <View style={styles.detailsGrid}>
+            {(category || subcategory) && (
+              <View style={styles.detailCol}>
+                <Text style={styles.detailLabel}>Category</Text>
+                <Text style={styles.detailValue}>
+                  {category && subcategory
+                    ? `${category} - ${subcategory}`
+                    : category || subcategory}
+                </Text>
+              </View>
+            )}
             <View style={styles.detailCol}>
               <Text style={styles.detailLabel}>Primary Color</Text>
               <Text style={styles.detailValue}>{primary_color || "N/A"}</Text>
@@ -133,7 +147,12 @@ export default function WardrobeItemDetail({ route, navigation }) {
               onPress={() => navigation.navigate("ItemReview", { item })}
               activeOpacity={0.7}
             >
-              <Icon name="edit" size={20} color="#007AFF" style={{ marginRight: 6 }} />
+              <Icon
+                name="edit"
+                size={20}
+                color="#007AFF"
+                style={{ marginRight: 6 }}
+              />
               <Text style={styles.editButtonText}>Edit Item</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -150,6 +169,7 @@ export default function WardrobeItemDetail({ route, navigation }) {
                       onPress: async () => {
                         try {
                           await api.delete(`/wardrobe_items/${item.id}`);
+                          removeWardrobeItem(item.id);
                           Alert.alert("Success", "Item deleted successfully");
                           navigation.goBack();
                         } catch (err) {
@@ -178,9 +198,11 @@ export default function WardrobeItemDetail({ route, navigation }) {
       </ScrollView>
       {/* Sticky Add to Outfit Button */}
       <View style={styles.addToOutfitBar}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.addToOutfitButton}
-          onPress={() => navigation.navigate('CreateOutfit', { selectedItem: item })}
+          onPress={() =>
+            navigation.navigate("CreateOutfit", { selectedItem: item })
+          }
         >
           <Icon
             name="add-shopping-cart"

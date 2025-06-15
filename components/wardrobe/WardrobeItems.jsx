@@ -19,10 +19,12 @@ import useCachedImage from "../../hooks/useCachedImage";
 import * as FileSystem from "expo-file-system";
 import WardrobeItemCard from "./WardrobeItemCard";
 
-export default function WardrobeItems({
-  refreshFlag = 0,
-}) {
-  const { wardrobeItems: rawItems, loadingWardrobe, fetchWardrobeItems } = useWardrobe();
+export default function WardrobeItems() {
+  const {
+    wardrobeItems: rawItems,
+    loadingWardrobe,
+    fetchWardrobeItems,
+  } = useWardrobe();
   const [items, setItems] = React.useState([]);
 
   React.useEffect(() => {
@@ -67,10 +69,7 @@ export default function WardrobeItems({
   const navigation = useNavigation();
 
   const renderItem = ({ item }) => (
-    <WardrobeItemCard
-      item={item}
-      navigation={navigation}
-    />
+    <WardrobeItemCard item={item} navigation={navigation} />
   );
 
   return (
@@ -91,7 +90,6 @@ export default function WardrobeItems({
           numColumns={2}
           columnWrapperStyle={styles.columnWrapper}
           contentContainerStyle={styles.listContent}
-          extraData={refreshFlag}
         />
       )}
     </SafeAreaView>

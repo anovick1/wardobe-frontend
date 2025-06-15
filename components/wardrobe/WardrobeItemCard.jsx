@@ -12,7 +12,7 @@ import useCachedImage from "../../hooks/useCachedImage";
 import cardStyles from "../../styles/card";
 import typography from "../../styles/typography";
 
-export default function WardrobeItemCard({ item, onItemDeleted }) {
+export default function WardrobeItemCard({ item }) {
   const navigation = useNavigation();
   const { uri, loading, error } = useCachedImage(item.image_url, item.id);
 
@@ -56,9 +56,11 @@ export default function WardrobeItemCard({ item, onItemDeleted }) {
               {item.brand}
             </Text>
           )}
-          {item.wardrobe_item_type && (
+          {(item.category || item.subcategory) && (
             <Text style={cardStyles.tagText} numberOfLines={1}>
-              {item.wardrobe_item_type}
+              {item.category && item.subcategory
+                ? `${item.category} - ${item.subcategory}`
+                : item.category || item.subcategory}
             </Text>
           )}
         </View>

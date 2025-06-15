@@ -24,6 +24,9 @@ const mockItems = [
     times_worn: 2,
     is_favorite: false,
     image_url: "",
+    category: "Clothing",
+    subcategory: "Tops",
+    created_at: "2024-01-01T00:00:00Z",
   },
   {
     id: 2,
@@ -35,6 +38,9 @@ const mockItems = [
     times_worn: 5,
     is_favorite: true,
     image_url: "",
+    category: "Clothing",
+    subcategory: "Bottoms",
+    created_at: "2024-01-02T00:00:00Z",
   },
 ];
 

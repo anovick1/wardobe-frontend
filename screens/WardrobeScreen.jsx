@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/MaterialIcons";
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from "@react-navigation/native";
 
 import WardrobeItems from "../components/wardrobe/WardrobeItems";
 import Outfits from "../components/wardrobe/Outfits";
@@ -24,7 +24,6 @@ const tabs = ["Wardrobe", "Outfits", "Boards", "Capsules", "Smart"];
 export default function WardrobeScreen({ navigation }) {
   const [activeTab, setActiveTab] = useState("Wardrobe");
   const [processing, setProcessing] = useState(false);
-  const [refreshFlag, setRefreshFlag] = useState(0);
   const [modalVisible, setModalVisible] = useState(false);
 
   useFocusEffect(
@@ -32,23 +31,14 @@ export default function WardrobeScreen({ navigation }) {
       // Reset active tab to 'Wardrobe' when the screen comes into focus
       setActiveTab("Wardrobe");
       // Navigate to the initial route of the Wardrobe stack
-      navigation.navigate('WardrobeHome');
+      navigation.navigate("WardrobeHome");
     }, [navigation])
   );
-
-  const handleItemDeleted = () => {
-    setRefreshFlag((prev) => prev + 1);
-  };
 
   const renderTabContent = () => {
     switch (activeTab) {
       case "Wardrobe":
-        return (
-          <WardrobeItems
-            refreshFlag={refreshFlag}
-            onItemDeleted={handleItemDeleted}
-          />
-        );
+        return <WardrobeItems />;
       case "Outfits":
         return <Outfits />;
       case "Boards":

@@ -24,7 +24,7 @@ import { useNavigation } from "@react-navigation/native";
 export default function ItemReviewScreen({ route, navigation: navFromProps }) {
   const navigation = useNavigation();
   const { item } = route.params || {};
-  const { fetchWardrobeItems } = useWardrobe();
+  const { updateWardrobeItem } = useWardrobe();
   const scrollRef = useRef();
 
   const resolvedItemId = item?.item_id || item?.id;
@@ -32,6 +32,15 @@ export default function ItemReviewScreen({ route, navigation: navFromProps }) {
   const [name, setName] = useState(item?.name || "");
   const [brand, setBrand] = useState(item?.brand || null);
   const [brandOptions, setBrandOptions] = useState([]);
+  const [category, setCategory] = useState(item?.category || null);
+  const [categoryOptions, setCategoryOptions] = useState([]);
+  const [subcategory, setSubcategory] = useState(item?.subcategory || null);
+  const [subcategoryOptions, setSubcategoryOptions] = useState([]);
+  const [filteredSubcategoryOptions, setFilteredSubcategoryOptions] = useState(
+    []
+  );
+  const [newCategory, setNewCategory] = useState("");
+  const [newSubcategory, setNewSubcategory] = useState("");
   const [description, setDescription] = useState(
     item?.description || item?.gpt_metadata?.raw || ""
   );
@@ -49,6 +58,10 @@ export default function ItemReviewScreen({ route, navigation: navFromProps }) {
   );
   const [newBrand, setNewBrand] = useState(item?.gpt_metadata?.brand || "");
   const [brandDropdownOpen, setBrandDropdownOpen] = useState(false);
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
+  const [subcategoryDropdownOpen, setSubcategoryDropdownOpen] = useState(false);
+  const [loadingCategories, setLoadingCategories] = useState(false);
+  const [loadingSubcategories, setLoadingSubcategories] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const scrollToEnd = () => {
@@ -57,7 +70,58 @@ export default function ItemReviewScreen({ route, navigation: navFromProps }) {
 
   useEffect(() => {
     loadBrands();
+    loadCategories();
+    loadSubcategories();
   }, []);
+
+  // Filter subcategories based on selected category
+  useEffect(() => {
+    if (
+      category &&
+      subcategoryOptions.length > 0 &&
+      categoryOptions.length > 0
+    ) {
+      // Find the category ID for the selected category name
+      const selectedCategoryOption = categoryOptions.find(
+        (c) => c.value === category
+      );
+
+      if (selectedCategoryOption) {
+        const filtered = subcategoryOptions.filter(
+          (s) => s.category_id === selectedCategoryOption.id
+        );
+        setFilteredSubcategoryOptions(filtered);
+      } else {
+        setFilteredSubcategoryOptions([]);
+      }
+    } else {
+      setFilteredSubcategoryOptions([]);
+    }
+  }, [category, subcategoryOptions, categoryOptions]);
+
+  // Clear subcategory when category changes (unless it's still valid for the new category)
+  useEffect(() => {
+    if (
+      category &&
+      subcategory &&
+      subcategoryOptions.length > 0 &&
+      categoryOptions.length > 0
+    ) {
+      const selectedCategoryOption = categoryOptions.find(
+        (c) => c.value === category
+      );
+      if (selectedCategoryOption) {
+        const subcategoryStillValid = subcategoryOptions.some(
+          (s) =>
+            s.value === subcategory &&
+            s.category_id === selectedCategoryOption.id
+        );
+        if (!subcategoryStillValid) {
+          setSubcategory(null);
+        }
+      }
+    }
+  }, [category, subcategory, subcategoryOptions, categoryOptions]);
 
   const loadBrands = async () => {
     try {
@@ -69,7 +133,73 @@ export default function ItemReviewScreen({ route, navigation: navFromProps }) {
       }));
       setBrandOptions(formatted);
     } catch (err) {
-      console.error("❌ Failed to load brands", err);
+      console.error("Failed to load brands", err);
+    }
+  };
+
+  const loadCategories = async () => {
+    try {
+      setLoadingCategories(true);
+      const { data } = await api.get("/wardrobe_categories");
+      const formatted = data.map((c) => ({
+        label: c.category,
+        value: c.category,
+        id: c.id,
+      }));
+      setCategoryOptions(formatted);
+    } catch (err) {
+      console.error("Failed to load categories", err);
+
+      // Temporary fallback for debugging
+      const fallbackCategories = [
+        { label: "Clothing", value: "Clothing", id: "temp-clothing" },
+        { label: "Footwear", value: "Footwear", id: "temp-footwear" },
+        { label: "Accessories", value: "Accessories", id: "temp-accessories" },
+      ];
+      setCategoryOptions(fallbackCategories);
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
+
+  const loadSubcategories = async () => {
+    try {
+      setLoadingSubcategories(true);
+      const { data } = await api.get("/wardrobe_subcategories");
+      const formatted = data.map((s) => ({
+        label: s.subcategory,
+        value: s.subcategory,
+        id: s.id,
+        category_id: s.category_id,
+      }));
+      setSubcategoryOptions(formatted);
+    } catch (err) {
+      console.error("Failed to load subcategories", err);
+
+      // Temporary fallback for debugging
+      const fallbackSubcategories = [
+        {
+          label: "Tops",
+          value: "Tops",
+          id: "temp-tops",
+          category_id: "temp-clothing",
+        },
+        {
+          label: "Bottoms",
+          value: "Bottoms",
+          id: "temp-bottoms",
+          category_id: "temp-clothing",
+        },
+        {
+          label: "Sneakers",
+          value: "Sneakers",
+          id: "temp-sneakers",
+          category_id: "temp-footwear",
+        },
+      ];
+      setSubcategoryOptions(fallbackSubcategories);
+    } finally {
+      setLoadingSubcategories(false);
     }
   };
 
@@ -103,11 +233,78 @@ export default function ItemReviewScreen({ route, navigation: navFromProps }) {
       setSaving(true);
       if (!resolvedItemId) throw new Error("No item ID provided");
 
+      // Validate that we have either a category selection or new category
+      if (!category && !newCategory.trim()) {
+        Alert.alert("Validation Error", "Please select or enter a category");
+        setSaving(false);
+        return;
+      }
+
+      // Validate that we have either a subcategory selection or new subcategory
+      if (!subcategory && !newSubcategory.trim()) {
+        Alert.alert("Validation Error", "Please select or enter a subcategory");
+        setSaving(false);
+        return;
+      }
+
       const brand_id = await resolveBrandId();
       const parsedTags = tags
         .split(",")
         .map((t) => t.trim())
         .filter(Boolean);
+
+      // Handle category - either existing or create new
+      let categoryId;
+      if (newCategory.trim()) {
+        // Create new category
+        try {
+          const categoryResponse = await api.post("/wardrobe_categories", {
+            category: newCategory.trim(),
+          });
+          categoryId = categoryResponse.data.id;
+          // Refresh categories list
+          await loadCategories();
+        } catch (err) {
+          console.error("Failed to create category:", err);
+          throw new Error("Failed to create new category");
+        }
+      } else if (category) {
+        // Use existing category
+        const selectedCategoryOption = categoryOptions.find(
+          (c) => c.value === category
+        );
+        categoryId = selectedCategoryOption?.id;
+      }
+
+      // Handle subcategory - either existing or create new
+      let subcategoryId;
+      if (newSubcategory.trim()) {
+        // Create new subcategory (requires category ID)
+        if (!categoryId) {
+          throw new Error("Category is required to create a new subcategory");
+        }
+        try {
+          const subcategoryResponse = await api.post(
+            "/wardrobe_subcategories",
+            {
+              subcategory: newSubcategory.trim(),
+              category_id: categoryId,
+            }
+          );
+          subcategoryId = subcategoryResponse.data.id;
+          // Refresh subcategories list
+          await loadSubcategories();
+        } catch (err) {
+          console.error("Failed to create subcategory:", err);
+          throw new Error("Failed to create new subcategory");
+        }
+      } else if (subcategory) {
+        // Use existing subcategory
+        const selectedSubcategory = subcategoryOptions.find(
+          (s) => s.value === subcategory
+        );
+        subcategoryId = selectedSubcategory?.id;
+      }
 
       const payload = {
         name,
@@ -117,12 +314,18 @@ export default function ItemReviewScreen({ route, navigation: navFromProps }) {
         price: price ? parseFloat(price) : null,
         product_link: productLink,
         tags: parsedTags,
+        subcategory_id: subcategoryId,
       };
 
-      console.log("📤 PUT payload:", payload);
+      // PUT request should return the complete updated wardrobe item
+      const response = await api.put(
+        `/wardrobe_items/${resolvedItemId}`,
+        payload
+      );
+      const updatedItem = response.data;
 
-      await api.put(`/wardrobe_items/${resolvedItemId}`, payload);
-      await fetchWardrobeItems();
+      // Update just this item in the context (much faster than refetching all items)
+      updateWardrobeItem(updatedItem);
 
       if (route.params?.onSave) {
         route.params.onSave();
@@ -131,7 +334,7 @@ export default function ItemReviewScreen({ route, navigation: navFromProps }) {
         navigation.navigate("WardrobeHome");
       }
     } catch (err) {
-      console.error("❌ Save failed:", err);
+      console.error("Save failed:", err);
       Alert.alert("Error", err.message || "Failed to save item. Try again.");
     } finally {
       setSaving(false);
@@ -215,6 +418,77 @@ export default function ItemReviewScreen({ route, navigation: navFromProps }) {
                     placeholder="New Brand"
                     value={newBrand}
                     onChangeText={setNewBrand}
+                    onFocus={scrollToEnd}
+                  />
+
+                  <Text style={styles.label}>Category</Text>
+                  <DropDownPicker
+                    open={categoryDropdownOpen}
+                    setOpen={(open) => {
+                      setCategoryDropdownOpen(open);
+                      if (open) scrollToEnd();
+                    }}
+                    items={categoryOptions}
+                    value={category}
+                    setValue={setCategory}
+                    searchable
+                    placeholder={
+                      loadingCategories
+                        ? "Loading categories..."
+                        : categoryOptions.length > 0
+                        ? `Select category (${categoryOptions.length} available)`
+                        : "No categories available"
+                    }
+                    style={styles.dropdown}
+                    containerStyle={{
+                      marginBottom: categoryDropdownOpen ? 150 : 20,
+                    }}
+                  />
+                  <Text style={styles.small}>or enter new category</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="New Category"
+                    value={newCategory}
+                    onChangeText={setNewCategory}
+                    onFocus={scrollToEnd}
+                  />
+
+                  <Text style={styles.label}>Subcategory</Text>
+                  <DropDownPicker
+                    open={subcategoryDropdownOpen}
+                    setOpen={(open) => {
+                      setSubcategoryDropdownOpen(open);
+                      if (open) scrollToEnd();
+                    }}
+                    items={filteredSubcategoryOptions}
+                    value={subcategory}
+                    setValue={setSubcategory}
+                    searchable
+                    placeholder={
+                      loadingSubcategories
+                        ? "Loading subcategories..."
+                        : !category
+                        ? "Select a category first"
+                        : filteredSubcategoryOptions.length > 0
+                        ? `Select subcategory (${filteredSubcategoryOptions.length} available)`
+                        : "No subcategories for this category"
+                    }
+                    disabled={!category || loadingSubcategories}
+                    style={[
+                      styles.dropdown,
+                      (!category || loadingSubcategories) &&
+                        styles.disabledDropdown,
+                    ]}
+                    containerStyle={{
+                      marginBottom: subcategoryDropdownOpen ? 150 : 20,
+                    }}
+                  />
+                  <Text style={styles.small}>or enter new subcategory</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="New Subcategory"
+                    value={newSubcategory}
+                    onChangeText={setNewSubcategory}
                     onFocus={scrollToEnd}
                   />
 
@@ -397,5 +671,12 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingBottom: 140,
+  },
+  readOnlyInput: {
+    backgroundColor: "#f1f5f9",
+    color: "#6b7280",
+  },
+  disabledDropdown: {
+    backgroundColor: "#f1f5f9",
   },
 });

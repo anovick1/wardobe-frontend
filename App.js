@@ -8,7 +8,6 @@ import RootNavigator from "./navigation/RootNavigator";
 
 function AppContent() {
   const { user, loading } = useContext(AuthContext);
-  // console.log("🧠 AppContent state →", { loading, user });
 
   if (loading) return null;
 
