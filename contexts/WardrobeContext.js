@@ -4,6 +4,7 @@ import React, {
   useEffect,
   useState,
   useCallback,
+  useRef,
 } from "react";
 import api from "../api";
 import { AuthContext } from "./../auth/AuthContext";
@@ -14,25 +15,29 @@ export function WardrobeProvider({ children }) {
   const [wardrobeItems, setWardrobeItems] = useState([]);
   const [loadingWardrobe, setLoadingWardrobe] = useState(true);
   const { user, loading: authLoading } = useContext(AuthContext);
+  const hasLoadedRef = useRef(false);
 
   const fetchWardrobeItems = useCallback(
     async (forceRefresh = false) => {
       if (!user?.firebase) return;
-      if (wardrobeItems.length > 0 && !forceRefresh && !loadingWardrobe) {
-        // Items are already loaded, and no force refresh is requested
+
+      // Use ref to check if we've already loaded to avoid dependency on state
+      if (hasLoadedRef.current && !forceRefresh) {
         return;
       }
+
       try {
         setLoadingWardrobe(true);
         const res = await api.get("/wardrobe_items");
         setWardrobeItems(res.data);
+        hasLoadedRef.current = true;
       } catch (err) {
         console.error("⚠️ Failed to fetch wardrobe items:", err);
       } finally {
         setLoadingWardrobe(false);
       }
     },
-    [user, wardrobeItems.length, loadingWardrobe]
+    [user?.firebase] // Only depend on user.firebase
   );
 
   useEffect(() => {
@@ -42,9 +47,9 @@ export function WardrobeProvider({ children }) {
       } else {
         setWardrobeItems([]);
         setLoadingWardrobe(false);
+        hasLoadedRef.current = false;
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, authLoading, fetchWardrobeItems]);
 
   const addItemToWardrobe = (newItem) => {
