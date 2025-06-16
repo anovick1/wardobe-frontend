@@ -327,12 +327,8 @@ export default function ItemReviewScreen({ route, navigation: navFromProps }) {
       // Update just this item in the context (much faster than refetching all items)
       updateWardrobeItem(updatedItem);
 
-      if (route.params?.onSave) {
-        route.params.onSave();
-        navigation.goBack();
-      } else {
-        navigation.navigate("WardrobeHome");
-      }
+      // Always navigate back to WardrobeHome to ensure list updates
+      navigation.navigate("WardrobeHome");
     } catch (err) {
       console.error("Save failed:", err);
       Alert.alert("Error", err.message || "Failed to save item. Try again.");

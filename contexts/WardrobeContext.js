@@ -56,10 +56,15 @@ export function WardrobeProvider({ children }) {
     setWardrobeItems((prev) => [newItem, ...prev]);
   };
 
-  const updateWardrobeItem = (updatedItem) => {
+  const updateWardrobeItem = async (updatedItem) => {
+    // First update the item in the state
     setWardrobeItems((prev) =>
       prev.map((item) => (item.id === updatedItem.id ? updatedItem : item))
     );
+
+    // Then force a refresh to ensure we have the latest data
+    hasLoadedRef.current = false;
+    await fetchWardrobeItems(true);
   };
 
   const removeWardrobeItem = (itemId) => {
