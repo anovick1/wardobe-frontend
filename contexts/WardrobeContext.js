@@ -53,18 +53,42 @@ export function WardrobeProvider({ children }) {
   }, [user, authLoading, fetchWardrobeItems]);
 
   const addItemToWardrobe = (newItem) => {
-    setWardrobeItems((prev) => [newItem, ...prev]);
+    // Check if item already exists
+    setWardrobeItems((prev) => {
+      const exists = prev.some((item) => item.id === newItem.id);
+      if (exists) {
+        // If it exists, update it
+        return prev.map((item) =>
+          item.id === newItem.id
+            ? {
+                ...item,
+                ...newItem,
+                // Preserve the original image_url if it hasn't changed
+                image_url: newItem.image_url || item.image_url,
+              }
+            : item
+        );
+      } else {
+        // If it's new, add it to the start
+        return [newItem, ...prev];
+      }
+    });
   };
 
-  const updateWardrobeItem = async (updatedItem) => {
-    // First update the item in the state
+  const updateWardrobeItem = (updatedItem) => {
+    // Update just this item in the state, preserving the order
     setWardrobeItems((prev) =>
-      prev.map((item) => (item.id === updatedItem.id ? updatedItem : item))
+      prev.map((item) =>
+        item.id === updatedItem.id
+          ? {
+              ...item,
+              ...updatedItem,
+              // Preserve the original image_url if it hasn't changed
+              image_url: updatedItem.image_url || item.image_url,
+            }
+          : item
+      )
     );
-
-    // Then force a refresh to ensure we have the latest data
-    hasLoadedRef.current = false;
-    await fetchWardrobeItems(true);
   };
 
   const removeWardrobeItem = (itemId) => {
