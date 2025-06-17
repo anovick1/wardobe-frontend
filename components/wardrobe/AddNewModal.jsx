@@ -43,7 +43,7 @@ export default function AddNewModal({
 
   const handleLinkUpload = () => {
     onClose();
-    navigation.navigate("AddLink");
+    navigation.navigate("WebView");
   };
 
   return (
