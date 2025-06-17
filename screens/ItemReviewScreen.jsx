@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useLayoutEffect,
+  useCallback,
+} from "react";
 import {
   View,
   Text,
@@ -19,12 +25,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import CachedImage from "../components/common/CachedImage";
 import { Shadow } from "react-native-shadow-2";
 import Icon from "react-native-vector-icons/MaterialIcons";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 
 export default function ItemReviewScreen({ route, navigation: navFromProps }) {
   const navigation = useNavigation();
   const { item } = route.params || {};
-  const { updateWardrobeItem } = useWardrobe();
+  const { updateWardrobeItem, refreshWardrobeItems } = useWardrobe();
   const scrollRef = useRef();
 
   const resolvedItemId = item?.item_id || item?.id;
@@ -324,10 +330,19 @@ export default function ItemReviewScreen({ route, navigation: navFromProps }) {
       );
       const updatedItem = response.data;
 
+      console.log(
+        "📝 PUT response received:",
+        updatedItem?.id,
+        updatedItem?.name
+      );
+
       // Update just this item in the context (much faster than refetching all items)
       updateWardrobeItem(updatedItem);
 
-      // Always navigate back to WardrobeHome to ensure list updates
+      // Small delay to ensure state update processes
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Navigate back to WardrobeHome to see the updates
       navigation.navigate("WardrobeHome");
     } catch (err) {
       console.error("Save failed:", err);

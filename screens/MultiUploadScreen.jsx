@@ -145,15 +145,27 @@ export default function MultiUploadScreen({ route, navigation }) {
   };
 
   const handleConfirmAll = () => {
+    console.log("🔄 Confirming all items, processing upload status...");
+
     // Add all completed items to the wardrobe
-    uploadStatus.forEach((status) => {
-      if (status.status === "completed" || status.status === "saved") {
-        addItemToWardrobe(status.item);
-      }
+    const itemsToAdd = uploadStatus.filter(
+      (status) =>
+        (status.status === "completed" || status.status === "saved") &&
+        status.item
+    );
+
+    console.log("📝 Items to add to wardrobe:", itemsToAdd.length);
+
+    itemsToAdd.forEach((status) => {
+      console.log("➕ Adding item:", status.item?.id, status.item?.name);
+      addItemToWardrobe(status.item);
     });
 
-    // Navigate back to wardrobe
-    navigation.navigate("WardrobeHome");
+    // Small delay to ensure all updates process
+    setTimeout(() => {
+      // Navigate back to wardrobe
+      navigation.navigate("WardrobeHome");
+    }, 100);
   };
 
   const renderItem = ({ item, index }) => {

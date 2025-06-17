@@ -24,11 +24,10 @@ export default function WardrobeItems() {
   const [items, setItems] = React.useState([]);
 
   React.useEffect(() => {
-    setItems(
-      [...rawItems].sort(
-        (a, b) => new Date(b.created_at) - new Date(a.created_at)
-      )
+    const sortedItems = [...rawItems].sort(
+      (a, b) => new Date(b.created_at) - new Date(a.created_at)
     );
+    setItems(sortedItems);
   }, [rawItems]);
 
   // Cleanup unused cached images

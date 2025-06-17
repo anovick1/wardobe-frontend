@@ -53,12 +53,25 @@ export function WardrobeProvider({ children }) {
   }, [user, authLoading, fetchWardrobeItems]);
 
   const addItemToWardrobe = (newItem) => {
-    // Check if item already exists
+    console.log("🔄 Adding item to wardrobe:", newItem?.id, newItem?.name);
+
+    if (!newItem || !newItem.id) {
+      console.error("❌ Cannot add item without ID:", newItem);
+      return;
+    }
+
     setWardrobeItems((prev) => {
       const exists = prev.some((item) => item.id === newItem.id);
+      console.log(
+        "📝 Item exists in wardrobe:",
+        exists,
+        "Current count:",
+        prev.length
+      );
+
       if (exists) {
         // If it exists, update it
-        return prev.map((item) =>
+        const updated = prev.map((item) =>
           item.id === newItem.id
             ? {
                 ...item,
@@ -68,32 +81,74 @@ export function WardrobeProvider({ children }) {
               }
             : item
         );
+        console.log("✅ Updated existing item in wardrobe");
+        return updated;
       } else {
         // If it's new, add it to the start
-        return [newItem, ...prev];
+        const newList = [newItem, ...prev];
+        console.log(
+          "✅ Added new item to wardrobe, new count:",
+          newList.length
+        );
+        return newList;
       }
     });
   };
 
   const updateWardrobeItem = (updatedItem) => {
-    // Update just this item in the state, preserving the order
-    setWardrobeItems((prev) =>
-      prev.map((item) =>
-        item.id === updatedItem.id
-          ? {
-              ...item,
-              ...updatedItem,
-              // Preserve the original image_url if it hasn't changed
-              image_url: updatedItem.image_url || item.image_url,
-            }
-          : item
-      )
+    console.log(
+      "🔄 Updating wardrobe item:",
+      updatedItem?.id,
+      updatedItem?.name
     );
+
+    if (!updatedItem || !updatedItem.id) {
+      console.error("❌ Cannot update item without ID:", updatedItem);
+      return;
+    }
+
+    setWardrobeItems((prev) => {
+      const itemIndex = prev.findIndex((item) => item.id === updatedItem.id);
+      console.log(
+        "📝 Item found at index:",
+        itemIndex,
+        "Current count:",
+        prev.length
+      );
+
+      if (itemIndex === -1) {
+        console.log("⚠️ Item not found in wardrobe, adding as new item");
+        return [updatedItem, ...prev];
+      }
+
+      // Force a new array reference to ensure React re-renders
+      const updated = [...prev];
+      updated[itemIndex] = {
+        ...prev[itemIndex],
+        ...updatedItem,
+        // Preserve the original image_url if it hasn't changed
+        image_url: updatedItem.image_url || prev[itemIndex].image_url,
+      };
+
+      console.log("✅ Updated item in wardrobe at index:", itemIndex);
+      return updated;
+    });
   };
 
   const removeWardrobeItem = (itemId) => {
-    setWardrobeItems((prev) => prev.filter((item) => item.id !== itemId));
+    console.log("🗑️ Removing item from wardrobe:", itemId);
+    setWardrobeItems((prev) => {
+      const filtered = prev.filter((item) => item.id !== itemId);
+      console.log("✅ Removed item, new count:", filtered.length);
+      return filtered;
+    });
   };
+
+  // Add a force refresh function as a fallback
+  const refreshWardrobeItems = useCallback(async () => {
+    console.log("🔄 Force refreshing wardrobe items...");
+    await fetchWardrobeItems(true);
+  }, [fetchWardrobeItems]);
 
   return (
     <WardrobeContext.Provider
@@ -104,6 +159,7 @@ export function WardrobeProvider({ children }) {
         addItemToWardrobe,
         updateWardrobeItem,
         removeWardrobeItem,
+        refreshWardrobeItems,
       }}
     >
       {children}
