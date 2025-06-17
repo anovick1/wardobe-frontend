@@ -10,93 +10,125 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { getAuth } from "firebase/auth";
+import { getFirestore, collection, onSnapshot, doc } from "firebase/firestore";
 import api from "../api";
 import typography from "../styles/typography";
-import CachedImage from "../components/common/CachedImage";
 import * as FileSystem from "expo-file-system";
+import { useWardrobe } from "../contexts/WardrobeContext";
 
 export default function MultiUploadScreen({ route, navigation }) {
   const { images } = route.params;
+  const { addItemToWardrobe } = useWardrobe();
   const [uploadStatus, setUploadStatus] = useState(
     images.map((_, index) => ({
       id: index,
-      status: "pending", // pending, uploading, completed, error, saved
+      client_upload_id: `${Date.now()}-${index}`, // Unique ID for this upload
+      status: "uploading",
       item: null,
       error: null,
     }))
   );
 
-  const uploadImage = async (uri, index) => {
-    try {
-      setUploadStatus((prev) =>
-        prev.map((item, i) =>
-          i === index ? { ...item, status: "uploading" } : item
-        )
-      );
-
-      const auth = getAuth();
-      const idToken = await auth.currentUser?.getIdToken();
-      if (!idToken) throw new Error("Not signed in");
-
-      const filename = uri.split("/").pop();
-      const ext = filename.split(".").pop();
-      const mime = `image/${ext === "jpg" ? "jpeg" : ext}`;
-
-      const formData = new FormData();
-      formData.append("file", { uri, name: filename, type: mime });
-
-      const { data } = await api.post(
-        "/wardrobe_items/upload_and_process",
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-            Authorization: `Bearer ${idToken}`,
-          },
-        }
-      );
-
-      // Immediately cache the cleaned image
-      const cleanedUrl = data.presigned_urls.cleaned;
-      const itemId = data.item_id;
-      const cachePath = `${FileSystem.cacheDirectory}wardrobe-${itemId}.jpg`;
-      try {
-        await FileSystem.downloadAsync(cleanedUrl, cachePath);
-      } catch (e) {
-        // Optionally handle error
-      }
-
-      setUploadStatus((prev) =>
-        prev.map((item, i) =>
-          i === index ? { ...item, status: "completed", item: data } : item
-        )
-      );
-    } catch (error) {
-      console.error("Upload failed:", error);
-      setUploadStatus((prev) =>
-        prev.map((item, i) =>
-          i === index
-            ? { ...item, status: "error", error: error.message }
-            : item
-        )
-      );
-    }
-  };
-
+  // Upload and process each image
   useEffect(() => {
     const uploadImages = async () => {
-      // Upload 2 images at a time
-      for (let i = 0; i < images.length; i += 2) {
-        const batch = images.slice(i, i + 2);
-        await Promise.all(
-          batch.map((image, batchIndex) =>
-            uploadImage(image.uri, i + batchIndex)
-          )
+      try {
+        const auth = getAuth();
+        const idToken = await auth.currentUser?.getIdToken();
+        if (!idToken) throw new Error("Not signed in");
+
+        const formData = new FormData();
+
+        images.forEach((image, index) => {
+          const filename = image.uri.split("/").pop();
+          const ext = filename.split(".").pop();
+          const mime = `image/${ext === "jpg" ? "jpeg" : ext}`;
+
+          formData.append("files", {
+            uri: image.uri,
+            name: filename,
+            type: mime,
+          });
+        });
+
+        // Add client_upload_ids after files
+        uploadStatus.forEach(({ client_upload_id }) => {
+          formData.append("client_upload_ids", client_upload_id);
+        });
+
+        const res = await api.post(
+          "/wardrobe_items/upload_and_process",
+          formData,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+              Authorization: `Bearer ${idToken}`,
+            },
+          }
+        );
+
+        console.log("✅ Upload started:", res.data);
+
+        // Update all statuses to "processing"
+        setUploadStatus((prev) =>
+          prev.map((status) => ({ ...status, status: "processing" }))
+        );
+      } catch (err) {
+        console.error("❌ Bulk upload failed:", err.message);
+        setUploadStatus((prev) =>
+          prev.map((s) => ({
+            ...s,
+            status: "error",
+            error: err.message,
+          }))
         );
       }
     };
 
     uploadImages();
+  }, [images]);
+
+  useEffect(() => {
+    const auth = getAuth();
+    const unsubscribe = onSnapshot(
+      collection(
+        getFirestore(),
+        "wardrobe_webhooks",
+        auth.currentUser.uid,
+        "completed_uploads"
+      ),
+      async (snapshot) => {
+        snapshot.docChanges().forEach(async (change) => {
+          if (change.type === "added") {
+            const data = change.doc.data();
+            const matchIndex = uploadStatus.findIndex(
+              (s) => s.client_upload_id === data.client_upload_id
+            );
+            if (matchIndex === -1) return;
+
+            // Only cache the image after we get the processed item
+            if (data.image_url) {
+              const cachePath = `${FileSystem.cacheDirectory}wardrobe-${data.id}.jpg`;
+              try {
+                await FileSystem.downloadAsync(data.image_url, cachePath);
+              } catch (e) {
+                console.error("Failed to cache image:", e);
+              }
+            }
+
+            setUploadStatus((prev) =>
+              prev.map((item, i) =>
+                i === matchIndex
+                  ? { ...item, status: "completed", item: data }
+                  : item
+              )
+            );
+          }
+        });
+      }
+    );
+
+    return () => unsubscribe();
   }, []);
 
   const handleEditItem = (item, index) => {
@@ -113,32 +145,51 @@ export default function MultiUploadScreen({ route, navigation }) {
   };
 
   const handleConfirmAll = () => {
-    navigation.navigate("WardrobeHome");
+    console.log("🔄 Confirming all items, processing upload status...");
+
+    // Add all completed items to the wardrobe
+    const itemsToAdd = uploadStatus.filter(
+      (status) =>
+        (status.status === "completed" || status.status === "saved") &&
+        status.item
+    );
+
+    console.log("📝 Items to add to wardrobe:", itemsToAdd.length);
+
+    itemsToAdd.forEach((status) => {
+      console.log("➕ Adding item:", status.item?.id, status.item?.name);
+      addItemToWardrobe(status.item);
+    });
+
+    // Small delay to ensure all updates process
+    setTimeout(() => {
+      // Navigate back to wardrobe
+      navigation.navigate("WardrobeHome");
+    }, 100);
   };
 
   const renderItem = ({ item, index }) => {
     const status = uploadStatus[index];
     const image = images[index];
 
-    // Decide which image to show: original (pending/uploading) or cleaned (completed/saved)
     const showCleaned =
       status.status === "completed" || status.status === "saved";
-    const imageUrl = showCleaned
-      ? status.item.presigned_urls.cleaned
-      : image.uri;
-    const itemId = showCleaned ? status.item.item_id : `upload-${index}`;
+    const imageUrl = showCleaned ? status.item.image_url : image.uri;
 
     return (
       <View style={styles.itemContainer}>
         <Image source={{ uri: imageUrl }} style={styles.thumbnail} />
         <View style={styles.statusContainer}>
-          {status.status === "pending" && (
-            <Text style={styles.statusText}>Waiting...</Text>
-          )}
           {status.status === "uploading" && (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="small" />
               <Text style={styles.statusText}>Uploading...</Text>
+            </View>
+          )}
+          {status.status === "processing" && (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" />
+              <Text style={styles.statusText}>Processing...</Text>
             </View>
           )}
           {status.status === "completed" && (
