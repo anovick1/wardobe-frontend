@@ -29,7 +29,7 @@ export default function WardrobeScreen({ navigation }) {
   useFocusEffect(
     React.useCallback(() => {
       // Reset active tab to 'Wardrobe' when the screen comes into focus
-      setActiveTab("Wardrobe");
+      // setActiveTab("Wardrobe");
       // Navigate to the initial route of the Wardrobe stack
       navigation.navigate("WardrobeHome");
     }, [navigation])
