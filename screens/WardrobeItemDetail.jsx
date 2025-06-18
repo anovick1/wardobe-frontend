@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
   image: {
     width: "100%",
     height: "100%",
-    // resizeMode: "cover",
+    resizeMode: "contain",
   },
   card: {
     // backgroundColor: "#f8f9fa",

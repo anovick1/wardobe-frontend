@@ -125,21 +125,44 @@ const OutfitDetail = () => {
       </View>
 
       <ScrollView style={styles.content}>
-        <View style={styles.itemsGrid}>
-          {outfit.wardrobe_items.map((item) => (
-            <View key={item.id} style={styles.itemCard}>
-              <Image
-                source={{ uri: item.image_url }}
-                style={styles.itemImage}
-              />
-              <View style={styles.itemInfo}>
-                <Text style={styles.itemName}>{item.name}</Text>
-                <Text style={styles.itemBrand}>{item.brand}</Text>
-              </View>
-            </View>
-          ))}
+        {/* Outfit Title */}
+        <View style={styles.titleContainer}>
+          <Text style={styles.outfitTitle}>
+            {outfit.title || "Untitled Outfit"}
+          </Text>
+          <Text style={styles.itemCount}>
+            {outfit.wardrobe_items.length}{" "}
+            {outfit.wardrobe_items.length === 1 ? "item" : "items"}
+          </Text>
         </View>
 
+        {/* Outfit Composite Image */}
+        <View style={styles.outfitImageContainer}>
+          {outfit.composite_image_url || outfit.thumbnail_url ? (
+            <Image
+              source={{
+                uri: outfit.composite_image_url || outfit.thumbnail_url,
+              }}
+              style={styles.outfitImage}
+              resizeMode="contain"
+            />
+          ) : (
+            <View style={styles.placeholderContainer}>
+              <Ionicons name="image-outline" size={80} color="#ccc" />
+              <Text style={styles.placeholderText}>No outfit image</Text>
+            </View>
+          )}
+        </View>
+
+        {/* AI Explanation (if available) */}
+        {outfit.explanation && (
+          <View style={styles.explanationContainer}>
+            <Text style={styles.explanationLabel}>AI Stylist Notes</Text>
+            <Text style={styles.explanationText}>{outfit.explanation}</Text>
+          </View>
+        )}
+
+        {/* Notes */}
         {outfit.notes && (
           <View style={styles.notesContainer}>
             <Text style={styles.notesLabel}>Notes</Text>
@@ -147,8 +170,63 @@ const OutfitDetail = () => {
           </View>
         )}
 
+        {/* Wardrobe Items Carousel */}
+        <View style={styles.itemsSection}>
+          <Text style={styles.itemsSectionLabel}>Items in this outfit</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.itemsCarousel}
+          >
+            {outfit.wardrobe_items.map((item, index) => (
+              <TouchableOpacity
+                key={item.id}
+                style={[styles.itemCard, { marginLeft: index === 0 ? 0 : 12 }]}
+                onPress={() =>
+                  navigation.navigate("WardrobeItemDetail", { item })
+                }
+              >
+                <Image
+                  source={{ uri: item.thumbnail_url || item.image_url }}
+                  style={styles.itemImage}
+                  resizeMode="contain"
+                />
+                <View style={styles.itemInfo}>
+                  <Text style={styles.itemName} numberOfLines={1}>
+                    {item.name}
+                  </Text>
+                  {item.brand && (
+                    <Text style={styles.itemBrand} numberOfLines={1}>
+                      {item.brand}
+                    </Text>
+                  )}
+                </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Tags Section */}
+        {outfit.tags && outfit.tags.length > 0 && (
+          <View style={styles.tagsSection}>
+            <Text style={styles.tagsSectionLabel}>Tags</Text>
+            <View style={styles.tagsContainer}>
+              {outfit.tags.map((tag, index) => (
+                <View key={index} style={styles.tagChip}>
+                  <Text style={styles.tagText}>{tag}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* Metadata */}
         <View style={styles.metadataContainer}>
-          <Text style={styles.metadataLabel}>Created</Text>
+          <Text style={styles.metadataLabel}>
+            {outfit.generated_by === "chatgpt"
+              ? "Created by AI"
+              : "Created by You"}
+          </Text>
           <Text style={styles.metadataText}>
             {new Date(outfit.created_at).toLocaleString()}
           </Text>
@@ -225,15 +303,9 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
-  itemsGrid: {
-    padding: 16,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-  },
-  itemCard: {
-    width: "48%",
+  outfitImageContainer: {
     backgroundColor: "#fff",
+    margin: 16,
     borderRadius: 12,
     overflow: "hidden",
     shadowColor: "#000",
@@ -245,26 +317,69 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  itemImage: {
+  outfitImage: {
     width: "100%",
-    height: 200,
+    height: 300,
+    backgroundColor: "#f8f9fa",
   },
-  itemInfo: {
-    padding: 12,
+  placeholderContainer: {
+    height: 300,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f8f9fa",
   },
-  itemName: {
+  placeholderText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#666",
+  },
+  metadataContainer: {
+    padding: 16,
+    backgroundColor: "#fff",
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 12,
+  },
+  metadataLabel: {
     fontSize: 16,
     fontWeight: "500",
     marginBottom: 4,
   },
-  itemBrand: {
+  metadataText: {
     fontSize: 14,
     color: "#666",
+    marginBottom: 8,
+  },
+  itemCount: {
+    fontSize: 14,
+    color: "#666",
+  },
+  explanationContainer: {
+    padding: 16,
+    backgroundColor: "#fff",
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: "#007AFF",
+  },
+  explanationLabel: {
+    fontSize: 16,
+    fontWeight: "500",
+    marginBottom: 8,
+    color: "#007AFF",
+  },
+  explanationText: {
+    fontSize: 14,
+    color: "#333",
+    lineHeight: 20,
   },
   notesContainer: {
     padding: 16,
     backgroundColor: "#fff",
-    marginTop: 16,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 12,
   },
   notesLabel: {
     fontSize: 16,
@@ -276,17 +391,81 @@ const styles = StyleSheet.create({
     color: "#333",
     lineHeight: 20,
   },
-  metadataContainer: {
-    padding: 16,
+  itemsSection: {
     backgroundColor: "#fff",
-    marginTop: 16,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 12,
+    paddingVertical: 16,
   },
-  metadataLabel: {
+  itemsSectionLabel: {
     fontSize: 16,
     fontWeight: "500",
-    marginBottom: 8,
+    marginBottom: 12,
+    paddingHorizontal: 16,
   },
-  metadataText: {
+  itemsCarousel: {
+    paddingHorizontal: 16,
+  },
+  itemCard: {
+    width: 120,
+    backgroundColor: "#f8f9fa",
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  itemImage: {
+    width: "100%",
+    height: 120,
+    resizeMode: "cover",
+  },
+  itemInfo: {
+    padding: 8,
+  },
+  itemName: {
+    fontSize: 12,
+    fontWeight: "500",
+    marginBottom: 2,
+  },
+  itemBrand: {
+    fontSize: 10,
+    color: "#666",
+  },
+  titleContainer: {
+    padding: 16,
+    paddingBottom: 8,
+  },
+  outfitTitle: {
+    fontSize: 24,
+    fontWeight: "600",
+    color: "#000",
+    marginBottom: 4,
+  },
+  tagsSection: {
+    backgroundColor: "#fff",
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 12,
+    paddingVertical: 16,
+  },
+  tagsSectionLabel: {
+    fontSize: 16,
+    fontWeight: "500",
+    marginBottom: 12,
+    paddingHorizontal: 16,
+  },
+  tagsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  tagChip: {
+    backgroundColor: "#f0f0f0",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  tagText: {
     fontSize: 14,
     color: "#666",
   },

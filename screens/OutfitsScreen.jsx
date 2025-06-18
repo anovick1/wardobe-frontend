@@ -34,7 +34,7 @@ const OutfitsScreen = () => {
       if (page === 1) {
         setOutfits(response.data.outfits);
       } else {
-        setOutfits(prevOutfits => [...prevOutfits, ...response.data.outfits]);
+        setOutfits((prevOutfits) => [...prevOutfits, ...response.data.outfits]);
       }
       setTotalPages(response.data.pagination.pages);
       setCurrentPage(response.data.pagination.current_page);
@@ -86,15 +86,16 @@ const OutfitsScreen = () => {
           <Image
             source={{ uri: item.thumbnail_url }}
             style={styles.outfitImage}
+            resizeMode="contain"
           />
         )}
       </View>
       <View style={styles.outfitInfo}>
-        <Text style={styles.outfitDate}>
-          {new Date(item.created_at).toLocaleDateString()}
+        <Text style={styles.outfitTitle}>
+          {item.title || "Untitled Outfit"}
         </Text>
         <Text style={styles.outfitItems}>
-          {item.item_count} {item.item_count === 1 ? 'item' : 'items'}
+          {item.item_count} {item.item_count === 1 ? "item" : "items"}
         </Text>
       </View>
       <TouchableOpacity
@@ -151,7 +152,9 @@ const OutfitsScreen = () => {
               style={styles.createButton}
               onPress={() => navigation.navigate("CreateOutfit")}
             >
-              <Text style={styles.createButtonText}>Create Your First Outfit</Text>
+              <Text style={styles.createButtonText}>
+                Create Your First Outfit
+              </Text>
             </TouchableOpacity>
           </View>
         }
@@ -249,10 +252,11 @@ const styles = StyleSheet.create({
   outfitInfo: {
     flex: 1,
   },
-  outfitDate: {
+  outfitTitle: {
     fontSize: 16,
-    fontWeight: "500",
+    fontWeight: "600",
     marginBottom: 4,
+    color: "#000",
   },
   outfitItems: {
     fontSize: 14,
