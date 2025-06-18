@@ -133,7 +133,7 @@ const WebViewScreen = ({}) => {
       setProcessingImage(true);
       const cropped = await ExpoImageCropTool.openCropperAsync({
         imageUri: uri,
-        aspectRatio: 1, // for a square crop
+        // aspectRatio: 1, // for a square crop
         format: "jpeg",
         compressImageQuality: 0.9,
       });

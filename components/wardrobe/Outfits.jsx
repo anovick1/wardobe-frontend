@@ -114,21 +114,20 @@ export default function Outfits() {
     );
   };
 
-  const renderHeader = () => (
-    <View style={styles.headerContainer}>
-      <TouchableOpacity
-        style={styles.generateButton}
-        onPress={() => setModalVisible(true)}
-        disabled={generating}
-      >
-        <Icon name="auto-awesome" size={24} color="#007AFF" />
-        <Text style={styles.generateButtonText}>Generate Outfit with AI</Text>
-      </TouchableOpacity>
-    </View>
-  );
-
   return (
     <SafeAreaView style={globalStyles.container} edges={["left", "right"]}>
+      {/* AI Generate Button always visible */}
+      <View style={styles.headerContainer}>
+        <TouchableOpacity
+          style={styles.generateButton}
+          onPress={() => setModalVisible(true)}
+          disabled={generating}
+        >
+          <Icon name="auto-awesome" size={24} color="#007AFF" />
+          <Text style={styles.generateButtonText}>Generate Outfit with AI</Text>
+        </TouchableOpacity>
+      </View>
+
       {loading ? (
         <ActivityIndicator
           testID="outfits-loading"
@@ -150,7 +149,6 @@ export default function Outfits() {
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.5}
           ListFooterComponent={renderFooter}
-          ListHeaderComponent={renderHeader}
         />
       )}
 
