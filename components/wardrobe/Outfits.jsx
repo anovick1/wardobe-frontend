@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -12,49 +12,26 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useFocusEffect } from "@react-navigation/native";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import OutfitCard from "./OutfitCard";
+import { useOutfits } from "../../contexts/OutfitContext";
 import api from "../../api";
 import globalStyles from "../../styles/global";
 
 export default function Outfits() {
-  const [outfits, setOutfits] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [generating, setGenerating] = useState(false);
   const navigation = useNavigation();
 
-  const fetchOutfits = async (pageNum = 1, isRefresh = false) => {
-    try {
-      if (pageNum === 1 && !isRefresh) {
-        setLoading(true);
-      } else if (pageNum > 1) {
-        setLoadingMore(true);
-      }
-
-      const response = await api.get(`/outfits/?page=${pageNum}`);
-      const { outfits: newOutfits, pagination } = response.data;
-
-      if (pageNum === 1) {
-        setOutfits(newOutfits);
-      } else {
-        setOutfits((prev) => [...prev, ...newOutfits]);
-      }
-
-      setHasMore(pagination.has_next);
-      setPage(pageNum);
-    } catch (error) {
-      console.error("Failed to fetch outfits:", error);
-    } finally {
-      setLoading(false);
-      setLoadingMore(false);
-    }
-  };
+  const {
+    outfits,
+    loadingOutfits,
+    currentPage,
+    totalPages,
+    addOutfit,
+    loadMoreOutfits,
+  } = useOutfits();
 
   const generateOutfitWithAI = async () => {
     if (!prompt.trim()) {
@@ -70,15 +47,15 @@ export default function Outfits() {
 
       const { outfit } = response.data;
 
+      // Add the new outfit to context
+      addOutfit(outfit);
+
       // Close modal and reset prompt
       setModalVisible(false);
       setPrompt("");
 
       // Navigate to outfit detail
       navigation.navigate("OutfitDetail", { outfitId: outfit.id });
-
-      // Refresh outfits list
-      fetchOutfits(1, true);
     } catch (error) {
       console.error("Failed to generate outfit:", error);
       Alert.alert(
@@ -91,22 +68,16 @@ export default function Outfits() {
     }
   };
 
-  useFocusEffect(
-    React.useCallback(() => {
-      fetchOutfits(1);
-    }, [])
-  );
-
   const handleLoadMore = () => {
-    if (!loadingMore && hasMore) {
-      fetchOutfits(page + 1);
+    if (!loadingOutfits && currentPage < totalPages) {
+      loadMoreOutfits();
     }
   };
 
   const renderItem = ({ item }) => <OutfitCard item={item} />;
 
   const renderFooter = () => {
-    if (!loadingMore) return null;
+    if (!loadingOutfits || outfits.length === 0) return null;
     return (
       <View style={styles.footerLoader}>
         <ActivityIndicator size="small" color="#0000ff" />
@@ -128,7 +99,7 @@ export default function Outfits() {
         </TouchableOpacity>
       </View>
 
-      {loading ? (
+      {loadingOutfits && outfits.length === 0 ? (
         <ActivityIndicator
           testID="outfits-loading"
           size="large"

@@ -2,7 +2,8 @@ import React, { useContext } from "react";
 import { StatusBar } from "expo-status-bar";
 import { AuthProvider, AuthContext } from "./auth/AuthContext";
 import { WeatherProvider } from "./contexts/WeatherContext";
-import { WardrobeProvider } from "./contexts/WardrobeContext"; // ✅ Add this line
+import { WardrobeProvider } from "./contexts/WardrobeContext";
+import { OutfitProvider } from "./contexts/OutfitContext";
 import LoginScreen from "./screens/LoginScreen";
 import RootNavigator from "./navigation/RootNavigator";
 
@@ -19,8 +20,10 @@ export default function App() {
     <AuthProvider>
       <WeatherProvider>
         <WardrobeProvider>
-          <AppContent />
-          <StatusBar style="auto" />
+          <OutfitProvider>
+            <AppContent />
+            <StatusBar style="auto" />
+          </OutfitProvider>
         </WardrobeProvider>
       </WeatherProvider>
     </AuthProvider>

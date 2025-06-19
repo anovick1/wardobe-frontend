@@ -1,15 +1,7 @@
-import React, {
-  useState,
-  useEffect,
-  useRef,
-  useLayoutEffect,
-  useCallback,
-} from "react";
+import React, { useState, useEffect, useLayoutEffect, useMemo } from "react";
 import {
   View,
   Text,
-  TextInput,
-  Button,
   StyleSheet,
   ScrollView,
   Alert,
@@ -17,36 +9,36 @@ import {
   Platform,
   ActivityIndicator,
   TouchableOpacity,
+  Modal,
+  FlatList,
 } from "react-native";
-import DropDownPicker from "react-native-dropdown-picker";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
+import Icon from "react-native-vector-icons/MaterialIcons";
+import { useNavigation } from "@react-navigation/native";
 import api from "../api";
 import { useWardrobe } from "../contexts/WardrobeContext";
-import { SafeAreaView } from "react-native-safe-area-context";
 import CachedImage from "../components/common/CachedImage";
-import { Shadow } from "react-native-shadow-2";
-import Icon from "react-native-vector-icons/MaterialIcons";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import SearchablePicker from "../components/common/SearchablePicker";
+import ModalTextInput from "../components/common/ModalTextInput";
+import ModalTagInput from "../components/common/ModalTagInput";
+import FormField from "../components/common/FormField";
+import ItemFormSection from "../components/itemReview/ItemFormSection";
+import TagsPreview from "../components/itemReview/TagsPreview";
+import { useItemFormData } from "../hooks/useItemFormData";
+import { validateItemData, buildSavePayload } from "../utils/itemValidation";
 
-export default function ItemReviewScreen({ route, navigation: navFromProps }) {
+export default function ItemReviewScreen({ route }) {
   const navigation = useNavigation();
   const { item } = route.params || {};
-  const { updateWardrobeItem, refreshWardrobeItems } = useWardrobe();
-  const scrollRef = useRef();
-
+  const { updateWardrobeItem } = useWardrobe();
   const resolvedItemId = item?.item_id || item?.id;
 
+  // Form state
   const [name, setName] = useState(item?.name || "");
   const [brand, setBrand] = useState(item?.brand || null);
-  const [brandOptions, setBrandOptions] = useState([]);
   const [category, setCategory] = useState(item?.category || null);
-  const [categoryOptions, setCategoryOptions] = useState([]);
   const [subcategory, setSubcategory] = useState(item?.subcategory || null);
-  const [subcategoryOptions, setSubcategoryOptions] = useState([]);
-  const [filteredSubcategoryOptions, setFilteredSubcategoryOptions] = useState(
-    []
-  );
-  const [newCategory, setNewCategory] = useState("");
-  const [newSubcategory, setNewSubcategory] = useState("");
   const [description, setDescription] = useState(
     item?.description || item?.gpt_metadata?.raw || ""
   );
@@ -58,60 +50,53 @@ export default function ItemReviewScreen({ route, navigation: navFromProps }) {
     item?.product_link || item?.product_link || ""
   );
   const [tags, setTags] = useState(
-    Array.isArray(item?.tags)
-      ? item.tags.join(", ")
-      : item?.gpt_metadata?.tags?.join(", ") || ""
+    Array.isArray(item?.tags) ? item.tags : item?.gpt_metadata?.tags || []
   );
-  const [newBrand, setNewBrand] = useState(item?.gpt_metadata?.brand || "");
-  const [brandDropdownOpen, setBrandDropdownOpen] = useState(false);
-  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
-  const [subcategoryDropdownOpen, setSubcategoryDropdownOpen] = useState(false);
-  const [loadingCategories, setLoadingCategories] = useState(false);
-  const [loadingSubcategories, setLoadingSubcategories] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const scrollToEnd = () => {
-    scrollRef.current?.scrollToEnd({ animated: true });
-  };
+  // Modal states
+  const [showBrandPicker, setShowBrandPicker] = useState(false);
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+  const [showSubcategoryPicker, setShowSubcategoryPicker] = useState(false);
+  const [showNameModal, setShowNameModal] = useState(false);
+  const [showDescriptionModal, setShowDescriptionModal] = useState(false);
+  const [showPrimaryColorModal, setShowPrimaryColorModal] = useState(false);
+  const [showPriceModal, setShowPriceModal] = useState(false);
+  const [showProductLinkModal, setShowProductLinkModal] = useState(false);
+  const [showTagModal, setShowTagModal] = useState(false);
 
-  useEffect(() => {
-    loadBrands();
-    loadCategories();
-    loadSubcategories();
-  }, []);
+  // Data from custom hook
+  const {
+    brandOptions,
+    categoryOptions,
+    subcategoryOptions,
+    loadingCategories,
+    loadingSubcategories,
+    handleBrandSelect: handleBrandSelectHook,
+  } = useItemFormData();
 
   // Filter subcategories based on selected category
-  useEffect(() => {
-    if (
-      category &&
-      subcategoryOptions.length > 0 &&
-      categoryOptions.length > 0
-    ) {
-      // Find the category ID for the selected category name
-      const selectedCategoryOption = categoryOptions.find(
-        (c) => c.value === category
-      );
-
-      if (selectedCategoryOption) {
-        const filtered = subcategoryOptions.filter(
-          (s) => s.category_id === selectedCategoryOption.id
-        );
-        setFilteredSubcategoryOptions(filtered);
-      } else {
-        setFilteredSubcategoryOptions([]);
-      }
-    } else {
-      setFilteredSubcategoryOptions([]);
+  const filteredSubcategoryOptions = useMemo(() => {
+    if (!category || !subcategoryOptions.length || !categoryOptions.length) {
+      return [];
     }
+    const selectedCategoryOption = categoryOptions.find(
+      (c) => c.value === category
+    );
+    return selectedCategoryOption
+      ? subcategoryOptions.filter(
+          (s) => s.category_id === selectedCategoryOption.id
+        )
+      : [];
   }, [category, subcategoryOptions, categoryOptions]);
 
-  // Clear subcategory when category changes (unless it's still valid for the new category)
+  // Clear subcategory when category changes
   useEffect(() => {
     if (
       category &&
       subcategory &&
-      subcategoryOptions.length > 0 &&
-      categoryOptions.length > 0
+      subcategoryOptions.length &&
+      categoryOptions.length
     ) {
       const selectedCategoryOption = categoryOptions.find(
         (c) => c.value === category
@@ -129,109 +114,11 @@ export default function ItemReviewScreen({ route, navigation: navFromProps }) {
     }
   }, [category, subcategory, subcategoryOptions, categoryOptions]);
 
-  const loadBrands = async () => {
-    try {
-      const { data } = await api.get("/brands");
-      const formatted = data.map((b) => ({
-        label: b.name,
-        value: b.name,
-        id: b.id,
-      }));
-      setBrandOptions(formatted);
-    } catch (err) {
-      console.error("Failed to load brands", err);
+  const handleBrandSelect = async (item) => {
+    const selectedBrand = await handleBrandSelectHook(item);
+    if (selectedBrand) {
+      setBrand(selectedBrand);
     }
-  };
-
-  const loadCategories = async () => {
-    try {
-      setLoadingCategories(true);
-      const { data } = await api.get("/wardrobe_categories");
-      const formatted = data.map((c) => ({
-        label: c.category,
-        value: c.category,
-        id: c.id,
-      }));
-      setCategoryOptions(formatted);
-    } catch (err) {
-      console.error("Failed to load categories", err);
-
-      // Temporary fallback for debugging
-      const fallbackCategories = [
-        { label: "Clothing", value: "Clothing", id: "temp-clothing" },
-        { label: "Footwear", value: "Footwear", id: "temp-footwear" },
-        { label: "Accessories", value: "Accessories", id: "temp-accessories" },
-      ];
-      setCategoryOptions(fallbackCategories);
-    } finally {
-      setLoadingCategories(false);
-    }
-  };
-
-  const loadSubcategories = async () => {
-    try {
-      setLoadingSubcategories(true);
-      const { data } = await api.get("/wardrobe_subcategories");
-      const formatted = data.map((s) => ({
-        label: s.subcategory,
-        value: s.subcategory,
-        id: s.id,
-        category_id: s.category_id,
-      }));
-      setSubcategoryOptions(formatted);
-    } catch (err) {
-      console.error("Failed to load subcategories", err);
-
-      // Temporary fallback for debugging
-      const fallbackSubcategories = [
-        {
-          label: "Tops",
-          value: "Tops",
-          id: "temp-tops",
-          category_id: "temp-clothing",
-        },
-        {
-          label: "Bottoms",
-          value: "Bottoms",
-          id: "temp-bottoms",
-          category_id: "temp-clothing",
-        },
-        {
-          label: "Sneakers",
-          value: "Sneakers",
-          id: "temp-sneakers",
-          category_id: "temp-footwear",
-        },
-      ];
-      setSubcategoryOptions(fallbackSubcategories);
-    } finally {
-      setLoadingSubcategories(false);
-    }
-  };
-
-  const resolveBrandId = async () => {
-    if (newBrand?.trim()) {
-      try {
-        const res = await api.post("/brands/add_brand", {
-          name: newBrand.trim(),
-        });
-        return res.data.id;
-      } catch (err) {
-        if (err.response?.status === 409) {
-          const { data } = await api.get("/brands");
-          const existing = data.find(
-            (b) => b.name.toLowerCase() === newBrand.trim().toLowerCase()
-          );
-          if (existing) return existing.id;
-          throw new Error("Brand exists but could not be retrieved.");
-        }
-        throw err;
-      }
-    } else if (brand) {
-      const match = brandOptions.find((b) => b.value === brand);
-      return match?.id || null;
-    }
-    return null;
   };
 
   const handleSave = async () => {
@@ -239,91 +126,29 @@ export default function ItemReviewScreen({ route, navigation: navFromProps }) {
       setSaving(true);
       if (!resolvedItemId) throw new Error("No item ID provided");
 
-      // Validate that we have either a category selection or new category
-      if (!category && !newCategory.trim()) {
-        Alert.alert("Validation Error", "Please select or enter a category");
+      // Validate form data
+      if (!validateItemData({ category, subcategory })) {
         setSaving(false);
         return;
       }
 
-      // Validate that we have either a subcategory selection or new subcategory
-      if (!subcategory && !newSubcategory.trim()) {
-        Alert.alert("Validation Error", "Please select or enter a subcategory");
-        setSaving(false);
-        return;
-      }
-
-      const brand_id = await resolveBrandId();
-      const parsedTags = tags
-        .split(",")
-        .map((t) => t.trim())
-        .filter(Boolean);
-
-      // Handle category - either existing or create new
-      let categoryId;
-      if (newCategory.trim()) {
-        // Create new category
-        try {
-          const categoryResponse = await api.post("/wardrobe_categories", {
-            category: newCategory.trim(),
-          });
-          categoryId = categoryResponse.data.id;
-          // Refresh categories list
-          await loadCategories();
-        } catch (err) {
-          console.error("Failed to create category:", err);
-          throw new Error("Failed to create new category");
-        }
-      } else if (category) {
-        // Use existing category
-        const selectedCategoryOption = categoryOptions.find(
-          (c) => c.value === category
-        );
-        categoryId = selectedCategoryOption?.id;
-      }
-
-      // Handle subcategory - either existing or create new
-      let subcategoryId;
-      if (newSubcategory.trim()) {
-        // Create new subcategory (requires category ID)
-        if (!categoryId) {
-          throw new Error("Category is required to create a new subcategory");
-        }
-        try {
-          const subcategoryResponse = await api.post(
-            "/wardrobe_subcategories",
-            {
-              subcategory: newSubcategory.trim(),
-              category_id: categoryId,
-            }
-          );
-          subcategoryId = subcategoryResponse.data.id;
-          // Refresh subcategories list
-          await loadSubcategories();
-        } catch (err) {
-          console.error("Failed to create subcategory:", err);
-          throw new Error("Failed to create new subcategory");
-        }
-      } else if (subcategory) {
-        // Use existing subcategory
-        const selectedSubcategory = subcategoryOptions.find(
-          (s) => s.value === subcategory
-        );
-        subcategoryId = selectedSubcategory?.id;
-      }
-
-      const payload = {
+      // Build payload
+      const payload = buildSavePayload({
         name,
-        brand_id,
+        brand,
+        brandOptions,
         description,
-        primary_color: primaryColor,
-        price: price ? parseFloat(price) : null,
-        product_link: productLink,
-        tags: parsedTags,
-        subcategory_id: subcategoryId,
-      };
+        primaryColor,
+        price,
+        productLink,
+        tags,
+        category,
+        categoryOptions,
+        subcategory,
+        subcategoryOptions,
+      });
 
-      // PUT request should return the complete updated wardrobe item
+      // Save item
       const response = await api.put(
         `/wardrobe_items/${resolvedItemId}`,
         payload
@@ -336,13 +161,11 @@ export default function ItemReviewScreen({ route, navigation: navFromProps }) {
         updatedItem?.name
       );
 
-      // Update just this item in the context (much faster than refetching all items)
+      // Update context
       updateWardrobeItem(updatedItem);
-
-      // Small delay to ensure state update processes
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      // If editing from bulk upload, go back instead of navigating to WardrobeHome
+      // Navigate
       if (route.params?.fromBulkUpload) {
         if (route.params?.onSave) route.params.onSave();
         navigation.goBack();
@@ -366,8 +189,8 @@ export default function ItemReviewScreen({ route, navigation: navFromProps }) {
   }, [navigation]);
 
   return (
-    <View style={{ flex: 1 }}>
-      <SafeAreaView edges={["top"]} style={{ backgroundColor: "#fff" }}>
+    <View style={styles.container}>
+      <SafeAreaView edges={["top"]} style={{ backgroundColor: "#f3f4f6" }}>
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.headerIcon}
@@ -380,221 +203,336 @@ export default function ItemReviewScreen({ route, navigation: navFromProps }) {
         </View>
       </SafeAreaView>
 
-      <ScrollView
+      <KeyboardAwareScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        style={styles.scrollContainer}
       >
-        <SafeAreaView style={{ flex: 1 }} edges={["top", "left", "right"]}>
+        <SafeAreaView style={{ flex: 1 }} edges={["left", "right"]}>
           <KeyboardAvoidingView
             style={{ flex: 1 }}
             behavior={Platform.OS === "ios" ? "padding" : undefined}
           >
             <ScrollView
-              ref={scrollRef}
-              contentContainerStyle={styles.container}
               keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.contentContainer}
             >
-              <View style={styles.card}>
-                {(item?.image_url || item?.presigned_urls?.cleaned) && (
-                  <View style={styles.imageContainer}>
-                    <CachedImage
-                      imageUrl={
-                        item.image_url
-                          ? item.image_url
-                          : item.presigned_urls?.cleaned
-                      }
-                      itemId={item.item_id || item.id}
-                      style={styles.image}
-                    />
-                  </View>
-                )}
-                <View style={styles.infoSection}>
-                  <LabeledInput label="Name" value={name} setValue={setName} />
-
-                  <Text style={styles.label}>Brand</Text>
-                  <DropDownPicker
-                    open={brandDropdownOpen}
-                    setOpen={(open) => {
-                      setBrandDropdownOpen(open);
-                      if (open) scrollToEnd();
-                    }}
-                    items={brandOptions}
-                    value={brand}
-                    setValue={setBrand}
-                    searchable
-                    placeholder="Select brand"
-                    style={styles.dropdown}
-                    containerStyle={{
-                      marginBottom: brandDropdownOpen ? 150 : 20,
-                    }}
-                  />
-                  <Text style={styles.small}>or enter new brand</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="New Brand"
-                    value={newBrand}
-                    onChangeText={setNewBrand}
-                    onFocus={scrollToEnd}
-                  />
-
-                  <Text style={styles.label}>Category</Text>
-                  <DropDownPicker
-                    open={categoryDropdownOpen}
-                    setOpen={(open) => {
-                      setCategoryDropdownOpen(open);
-                      if (open) scrollToEnd();
-                    }}
-                    items={categoryOptions}
-                    value={category}
-                    setValue={setCategory}
-                    searchable
-                    placeholder={
-                      loadingCategories
-                        ? "Loading categories..."
-                        : categoryOptions.length > 0
-                        ? `Select category (${categoryOptions.length} available)`
-                        : "No categories available"
+              {/* Image Section */}
+              {(item?.image_url || item?.presigned_urls?.cleaned) && (
+                <View style={styles.imageContainer}>
+                  <CachedImage
+                    imageUrl={
+                      item.image_url
+                        ? item.image_url
+                        : item.presigned_urls?.cleaned
                     }
-                    style={styles.dropdown}
-                    containerStyle={{
-                      marginBottom: categoryDropdownOpen ? 150 : 20,
-                    }}
+                    itemId={item.item_id || item.id}
+                    style={styles.image}
                   />
-                  <Text style={styles.small}>or enter new category</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="New Category"
-                    value={newCategory}
-                    onChangeText={setNewCategory}
-                    onFocus={scrollToEnd}
-                  />
-
-                  <Text style={styles.label}>Subcategory</Text>
-                  <DropDownPicker
-                    open={subcategoryDropdownOpen}
-                    setOpen={(open) => {
-                      setSubcategoryDropdownOpen(open);
-                      if (open) scrollToEnd();
-                    }}
-                    items={filteredSubcategoryOptions}
-                    value={subcategory}
-                    setValue={setSubcategory}
-                    searchable
-                    placeholder={
-                      loadingSubcategories
-                        ? "Loading subcategories..."
-                        : !category
-                        ? "Select a category first"
-                        : filteredSubcategoryOptions.length > 0
-                        ? `Select subcategory (${filteredSubcategoryOptions.length} available)`
-                        : "No subcategories for this category"
-                    }
-                    disabled={!category || loadingSubcategories}
-                    style={[
-                      styles.dropdown,
-                      (!category || loadingSubcategories) &&
-                        styles.disabledDropdown,
-                    ]}
-                    containerStyle={{
-                      marginBottom: subcategoryDropdownOpen ? 150 : 20,
-                    }}
-                  />
-                  <Text style={styles.small}>or enter new subcategory</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="New Subcategory"
-                    value={newSubcategory}
-                    onChangeText={setNewSubcategory}
-                    onFocus={scrollToEnd}
-                  />
-
-                  <LabeledInput
-                    label="Description"
-                    value={description}
-                    setValue={setDescription}
-                  />
-                  <LabeledInput
-                    label="Primary Color"
-                    value={primaryColor}
-                    setValue={setPrimaryColor}
-                  />
-                  <LabeledInput
-                    label="Price"
-                    value={price}
-                    setValue={setPrice}
-                    keyboardType="numeric"
-                  />
-                  <LabeledInput
-                    label="Product Link"
-                    value={productLink}
-                    setValue={setProductLink}
-                    autoCapitalize="none"
-                  />
-                  <LabeledInput
-                    label="Tags (comma separated)"
-                    value={tags}
-                    setValue={setTags}
-                    placeholder="e.g. casual, summer, vacation"
-                  />
-                </View>
-              </View>
-              {saving && (
-                <View style={styles.savingOverlay}>
-                  <ActivityIndicator size="large" color="#000" />
                 </View>
               )}
+
+              {/* Form Fields */}
+              <View style={styles.formContainer}>
+                <ItemFormSection title="Basic Information">
+                  <FormField
+                    label="NAME"
+                    value={name}
+                    placeholder="Enter item name"
+                    onPress={() => setShowNameModal(true)}
+                    icon="edit"
+                  />
+
+                  <FormField
+                    label="BRAND"
+                    value={brand}
+                    placeholder="Select brand"
+                    onPress={() => setShowBrandPicker(true)}
+                    icon="search"
+                  />
+
+                  <FormField
+                    label="CATEGORY"
+                    value={category}
+                    placeholder={
+                      loadingCategories ? "Loading..." : "Select category"
+                    }
+                    onPress={() => setShowCategoryPicker(true)}
+                    icon="apps"
+                    disabled={loadingCategories}
+                  />
+
+                  <FormField
+                    label="SUBCATEGORY"
+                    value={subcategory}
+                    placeholder={
+                      !category
+                        ? "Select a category first"
+                        : "Select subcategory"
+                    }
+                    onPress={() => setShowSubcategoryPicker(true)}
+                    icon="category"
+                    disabled={!category || loadingSubcategories}
+                  />
+                </ItemFormSection>
+
+                <ItemFormSection title="Details">
+                  <FormField
+                    label="DESCRIPTION"
+                    value={description}
+                    placeholder="Enter product description..."
+                    onPress={() => setShowDescriptionModal(true)}
+                    icon="edit"
+                    numberOfLines={2}
+                  />
+
+                  <FormField
+                    label="PRIMARY COLOR"
+                    value={primaryColor}
+                    placeholder="Enter primary color"
+                    onPress={() => setShowPrimaryColorModal(true)}
+                    icon="palette"
+                  />
+
+                  <FormField
+                    label="TAGS"
+                    placeholder="Add tags..."
+                    onPress={() => setShowTagModal(true)}
+                    icon="local-offer"
+                  >
+                    <TagsPreview tags={tags} />
+                  </FormField>
+                </ItemFormSection>
+
+                <ItemFormSection title="Product Details">
+                  <FormField
+                    label="PRICE"
+                    value={price ? `$${parseFloat(price).toFixed(2)}` : ""}
+                    placeholder="Enter price"
+                    onPress={() => setShowPriceModal(true)}
+                    icon="attach-money"
+                  />
+
+                  <FormField
+                    label="PRODUCT LINK"
+                    value={productLink}
+                    placeholder="Enter product link"
+                    onPress={() => setShowProductLinkModal(true)}
+                    icon="link"
+                    numberOfLines={1}
+                  />
+                </ItemFormSection>
+              </View>
             </ScrollView>
           </KeyboardAvoidingView>
         </SafeAreaView>
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       {!saving && (
         <View style={styles.floatingFooter}>
-          <Shadow
-            distance={15}
-            startColor={"#00000010"}
-            offset={[0, 0]}
-            radius={18}
-            containerViewStyle={{ width: 250, alignSelf: "center" }}
+          <TouchableOpacity
+            style={styles.submitButton}
+            onPress={handleSave}
+            disabled={saving}
           >
-            <TouchableOpacity
-              style={styles.submitButton}
-              onPress={handleSave}
-              disabled={saving}
-            >
-              <Text style={styles.submitButtonText}>Confirm and Save</Text>
-            </TouchableOpacity>
-          </Shadow>
+            <Text style={styles.submitButtonText}>Confirm and Save</Text>
+          </TouchableOpacity>
         </View>
       )}
-    </View>
-  );
-}
 
-function LabeledInput({ label, value, setValue, ...props }) {
-  return (
-    <View style={{ marginBottom: 12 }}>
-      <Text style={styles.label}>{label}</Text>
-      <TextInput
-        style={styles.input}
-        value={value}
-        onChangeText={setValue}
-        {...props}
+      {saving && (
+        <View style={styles.savingOverlay}>
+          <ActivityIndicator size="large" color="#000" />
+        </View>
+      )}
+
+      {/* Modals */}
+      <SearchablePicker
+        visible={showBrandPicker}
+        onClose={() => setShowBrandPicker(false)}
+        title="Select Brand"
+        data={brandOptions}
+        onSelect={handleBrandSelect}
+        selectedValue={brand}
+        placeholder="No brands available"
+        allowAdd
+      />
+
+      <CustomPicker
+        visible={showCategoryPicker}
+        onClose={() => setShowCategoryPicker(false)}
+        title="Select Category"
+        data={categoryOptions}
+        onSelect={setCategory}
+        selectedValue={category}
+        placeholder="No categories available"
+        loading={loadingCategories}
+      />
+
+      <CustomPicker
+        visible={showSubcategoryPicker}
+        onClose={() => setShowSubcategoryPicker(false)}
+        title="Select Subcategory"
+        data={filteredSubcategoryOptions}
+        onSelect={setSubcategory}
+        selectedValue={subcategory}
+        placeholder="No subcategories available"
+        loading={loadingSubcategories}
+      />
+
+      <ModalTextInput
+        visible={showNameModal}
+        onClose={() => setShowNameModal(false)}
+        title="Item Name"
+        value={name}
+        onSave={setName}
+        placeholder="Enter item name..."
+      />
+
+      <ModalTextInput
+        visible={showDescriptionModal}
+        onClose={() => setShowDescriptionModal(false)}
+        title="Description"
+        value={description}
+        onSave={setDescription}
+        placeholder="Enter product description..."
+        multiline
+      />
+
+      <ModalTextInput
+        visible={showPrimaryColorModal}
+        onClose={() => setShowPrimaryColorModal(false)}
+        title="Primary Color"
+        value={primaryColor}
+        onSave={setPrimaryColor}
+        placeholder="Enter primary color..."
+      />
+
+      <ModalTextInput
+        visible={showPriceModal}
+        onClose={() => setShowPriceModal(false)}
+        title="Price"
+        value={price}
+        onSave={setPrice}
+        placeholder="Enter price..."
+        keyboardType="numeric"
+        isPriceInput={true}
+      />
+
+      <ModalTextInput
+        visible={showProductLinkModal}
+        onClose={() => setShowProductLinkModal(false)}
+        title="Product Link"
+        value={productLink}
+        onSave={setProductLink}
+        placeholder="Enter product link..."
+        keyboardType="url"
+      />
+
+      <ModalTagInput
+        visible={showTagModal}
+        onClose={() => setShowTagModal(false)}
+        title="Manage Tags"
+        tags={tags}
+        onSave={setTags}
+        placeholder="Add a tag..."
       />
     </View>
   );
 }
 
+// CustomPicker component for categories and subcategories
+function CustomPicker({
+  visible,
+  onClose,
+  title,
+  data,
+  onSelect,
+  selectedValue,
+  placeholder,
+  loading = false,
+}) {
+  const renderItem = ({ item }) => (
+    <TouchableOpacity
+      style={[
+        styles.pickerItem,
+        selectedValue === item.value && styles.pickerItemSelected,
+      ]}
+      onPress={() => {
+        onSelect(item.value);
+        onClose();
+      }}
+    >
+      <Text
+        style={[
+          styles.pickerItemText,
+          selectedValue === item.value && styles.pickerItemTextSelected,
+        ]}
+      >
+        {item.label}
+      </Text>
+      {selectedValue === item.value && (
+        <Icon name="check" size={20} color="#111827" />
+      )}
+    </TouchableOpacity>
+  );
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <View style={styles.pickerModalOverlay}>
+        <View style={styles.pickerModal}>
+          <View style={styles.pickerHeader}>
+            <Text style={styles.pickerTitle}>{title}</Text>
+            <TouchableOpacity
+              onPress={onClose}
+              style={styles.pickerCloseButton}
+            >
+              <Icon name="close" size={24} color="#6b7280" />
+            </TouchableOpacity>
+          </View>
+
+          {loading ? (
+            <View style={styles.pickerLoading}>
+              <ActivityIndicator size="large" color="#111827" />
+              <Text style={styles.pickerLoadingText}>Loading...</Text>
+            </View>
+          ) : data.length === 0 ? (
+            <View style={styles.pickerEmpty}>
+              <Text style={styles.pickerEmptyText}>{placeholder}</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={data}
+              renderItem={renderItem}
+              keyExtractor={(item) => item.value}
+              style={styles.pickerList}
+              showsVerticalScrollIndicator={false}
+            />
+          )}
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
-    alignItems: "center",
+    flex: 1,
+    backgroundColor: "#f3f4f6",
   },
   card: {
     width: "100%",
     maxWidth: 420,
-    borderRadius: 18,
+    borderRadius: 20,
     padding: 0,
     overflow: "hidden",
+    backgroundColor: "transparent",
   },
   imageContainer: {
     width: "100%",
@@ -604,6 +542,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
+    marginBottom: 0,
+    marginTop: 0,
   },
   image: {
     width: "100%",
@@ -611,42 +551,15 @@ const styles = StyleSheet.create({
     resizeMode: "contain",
   },
   infoSection: {
-    padding: 22,
+    padding: 0,
   },
   label: {
-    fontWeight: "bold",
+    fontWeight: "600",
     marginBottom: 6,
-    marginTop: 8,
-    fontSize: 14,
-    color: "#121416",
-  },
-  small: {
-    fontSize: 12,
-    marginBottom: 4,
-    color: "#555",
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 2,
-    fontSize: 15,
-    backgroundColor: "#f8fafc",
-    color: "#121416",
-  },
-  dropdown: {
-    borderColor: "#e5e7eb",
-    marginBottom: 10,
-    borderRadius: 8,
-    backgroundColor: "#f8fafc",
-  },
-  savingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(255,255,255,0.7)",
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 999,
+    fontSize: 11,
+    color: "#6b7280",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
   },
   floatingFooter: {
     position: "absolute",
@@ -658,41 +571,197 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   submitButton: {
-    backgroundColor: "rgba(230, 250, 255, 0.9)",
-    borderRadius: 15,
-    paddingVertical: 14,
+    backgroundColor: "#111827",
+    borderRadius: 25,
+    paddingVertical: 16,
     alignItems: "center",
-    paddingHorizontal: 16,
-    width: 250,
-    // maxWidth: 250,
+    paddingHorizontal: 32,
+    width: "100%",
+    maxWidth: 300,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
   },
   submitButtonText: {
-    color: "#000",
+    color: "#fff",
     fontSize: 16,
     fontWeight: "600",
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: "#f3f4f6",
   },
   headerIcon: {
     padding: 8,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginLeft: 16,
+    fontSize: 20,
+    fontWeight: "700",
+    marginLeft: 12,
+    color: "#111827",
   },
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: 140,
+    paddingBottom: 100,
   },
-  readOnlyInput: {
-    backgroundColor: "#f1f5f9",
+  scrollContainer: {
+    flex: 1,
+    backgroundColor: "#f3f4f6",
+  },
+  contentContainer: {
+    paddingBottom: 16,
+  },
+  formContainer: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
+  sectionContainer: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: 12,
+  },
+  fieldContainer: {
+    marginBottom: 12,
+  },
+  pillButton: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    minHeight: 48,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  pillButtonText: {
+    fontSize: 15,
+    color: "#111827",
+    flex: 1,
+    fontWeight: "500",
+  },
+  pillButtonTextPlaceholder: {
+    color: "#9ca3af",
+    fontWeight: "400",
+  },
+  pillButtonDisabled: {
+    backgroundColor: "#f9fafb",
+    opacity: 0.6,
+  },
+  tagsPreview: {
+    flex: 1,
+  },
+  tagsPreviewContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+  },
+  tagPreviewChip: {
+    backgroundColor: "#f3f4f6",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginRight: 6,
+    marginBottom: 2,
+  },
+  tagPreviewText: {
+    fontSize: 12,
+    color: "#374151",
+  },
+  moreTagsText: {
+    fontSize: 13,
     color: "#6b7280",
+    fontStyle: "italic",
   },
-  disabledDropdown: {
-    backgroundColor: "#f1f5f9",
+  // Picker modal styles
+  pickerModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  pickerModal: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 20,
+    width: "80%",
+    maxWidth: 400,
+  },
+  pickerHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  pickerTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  pickerCloseButton: {
+    padding: 8,
+  },
+  pickerLoading: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  pickerLoadingText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginLeft: 8,
+  },
+  pickerEmpty: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  pickerEmptyText: {
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  pickerList: {
+    maxHeight: 200,
+  },
+  pickerItem: {
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 8,
+    marginBottom: 8,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  pickerItemSelected: {
+    backgroundColor: "#f3f4f6",
+  },
+  pickerItemText: {
+    fontSize: 16,
+  },
+  pickerItemTextSelected: {
+    fontWeight: "bold",
+  },
+  savingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(255,255,255,0.7)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 999,
   },
 });

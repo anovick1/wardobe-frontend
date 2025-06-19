@@ -19,6 +19,7 @@ import UrlHeader from "../components/webview/UrlHeader";
 import WebViewSection from "../components/webview/WebViewSection";
 import EnhancedCropModal from "../components/common/EnhancedCropModal";
 import PendingUploadsBar from "../components/webview/PendingUploadsBar";
+import * as FileSystem from "expo-file-system";
 
 const WebViewScreen = ({}) => {
   const navigation = useNavigation();
@@ -26,6 +27,7 @@ const WebViewScreen = ({}) => {
   const [urlInput, setUrlInput] = useState("https://www.google.com");
   const [productUrl, setProductUrl] = useState(null);
   const [isUrlFocused, setIsUrlFocused] = useState(false);
+  const [itemId, setItemId] = useState(null);
   const [processingImage, setProcessingImage] = useState(false);
   const [screenshotUri, setScreenshotUri] = useState(null);
   const [showCropModal, setShowCropModal] = useState(false);
@@ -33,11 +35,11 @@ const WebViewScreen = ({}) => {
   const viewShotRef = useRef(null);
   const [viewReady, setViewReady] = useState(false);
   const isMounted = useRef(true);
-  
-  // New state for multiple uploads
-  const [pendingUploads, setPendingUploads] = useState([]);
-  const [isUploading, setIsUploading] = useState(false);
-  
+
+  // State for processed uploads
+  const [processedUploads, setProcessedUploads] = useState([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+
   // Navigation state
   const [navigationState, setNavigationState] = useState({
     canGoBack: false,
@@ -75,6 +77,7 @@ const WebViewScreen = ({}) => {
       );
       const { item_id, status } = response.data;
       if (item_id && status === "processing") {
+        setItemId(item_id);
         await handleScreenshot(item_id);
       } else {
         throw new Error("Failed to extract product metadata");
@@ -118,10 +121,21 @@ const WebViewScreen = ({}) => {
     }
   };
 
-  const handleCropComplete = (croppedUri) => {
+  const handleCropComplete = async (croppedUri) => {
     setShowCropModal(false);
-    // Add to pending uploads
-    addToPendingUploads(croppedUri, null);
+
+    // Add to processed uploads immediately with processing status
+    const newProcessedUpload = {
+      id: Date.now() + Math.random(),
+      originalUri: croppedUri,
+      croppedUri: croppedUri,
+      cleanedImageUrl: null,
+      itemId: itemId,
+      status: "processing",
+    };
+    setProcessedUploads((prev) => [...prev, newProcessedUpload]);
+
+    await processProductImage(croppedUri, itemId);
   };
 
   const handleCropCancel = () => {
@@ -129,50 +143,21 @@ const WebViewScreen = ({}) => {
     setScreenshotUri(null);
   };
 
-  const addToPendingUploads = (croppedUri, itemId) => {
-    const newUpload = {
-      id: Date.now() + Math.random(),
-      croppedUri,
-      itemId,
-      status: "pending",
-    };
-    setPendingUploads(prev => [...prev, newUpload]);
-  };
-
-  const removeFromPendingUploads = (uploadId) => {
-    setPendingUploads(prev => prev.filter(upload => upload.id !== uploadId));
-  };
-
-  const uploadAllPending = async () => {
-    if (pendingUploads.length === 0) return;
-
+  const processProductImage = async (imageUri, item_id) => {
     try {
-      setIsUploading(true);
+      setIsProcessing(true);
       const token = await auth.currentUser.getIdToken();
-      
-      // Create FormData with all images
       const formData = new FormData();
-      const clientUploadIds = [];
-
-      pendingUploads.forEach((upload, index) => {
-        const clientUploadId = `${Date.now()}-${index}`;
-        clientUploadIds.push(clientUploadId);
-        
-        formData.append("files", {
-          uri: Platform.OS === "android" ? upload.croppedUri : upload.croppedUri.replace("file://", ""),
-          type: "image/jpeg",
-          name: `product_image_${index}.jpg`,
-        });
+      formData.append("file", {
+        uri:
+          Platform.OS === "android"
+            ? imageUri
+            : imageUri.replace("file://", ""),
+        type: "image/jpeg",
+        name: "product_image.jpg",
       });
-
-      // Add client upload IDs
-      clientUploadIds.forEach(id => {
-        formData.append("client_upload_ids", id);
-      });
-
-      // Upload all images at once
-      const response = await api.post(
-        "/wardrobe_items/upload_and_process",
+      const imageResponse = await api.post(
+        `/wardrobe_items/${item_id}/process_product_image`,
         formData,
         {
           headers: {
@@ -182,25 +167,144 @@ const WebViewScreen = ({}) => {
         }
       );
 
-      console.log("✅ Bulk upload started:", response.data);
+      console.log("✅ Image processing response:", imageResponse.data);
 
-      // Navigate to MultiUploadScreen to handle the processing
-      navigation.navigate("MultiUpload", { 
-        images: pendingUploads.map(upload => ({ uri: upload.croppedUri })),
-        clientUploadIds 
+      // Check for different possible field names for the cleaned image URL
+      const cleanedImageUrl =
+        imageResponse.data.urls?.cleaned ||
+        imageResponse.data.cleaned_image_url ||
+        imageResponse.data.image_url ||
+        imageResponse.data.url ||
+        imageResponse.data.cleaned_url;
+
+      console.log("🔍 Looking for cleaned image URL in response fields:", {
+        urls: imageResponse.data.urls,
+        cleaned_image_url: imageResponse.data.cleaned_image_url,
+        image_url: imageResponse.data.image_url,
+        url: imageResponse.data.url,
+        cleaned_url: imageResponse.data.cleaned_url,
+        allKeys: Object.keys(imageResponse.data),
       });
 
-      // Clear pending uploads
-      setPendingUploads([]);
+      // Only cache if we have a valid cleaned image URL
+      if (cleanedImageUrl) {
+        // Cache the cleaned image
+        const cachePath = `${FileSystem.cacheDirectory}wardrobe-${item_id}.jpg`;
+        try {
+          await FileSystem.downloadAsync(cleanedImageUrl, cachePath);
+          console.log("✅ Cached cleaned image:", cachePath);
+        } catch (e) {
+          console.error("Failed to cache cleaned image:", e);
+        }
+
+        // Update the existing upload with cleaned image URL and cached path
+        setProcessedUploads((prev) =>
+          prev.map((upload) =>
+            upload.itemId === item_id
+              ? { ...upload, cleanedImageUrl, cachedImagePath: cachePath }
+              : upload
+          )
+        );
+      } else {
+        console.warn(
+          "⚠️ No cleaned_image_url in response:",
+          imageResponse.data
+        );
+        // Update the existing upload without cleaned image URL
+        setProcessedUploads((prev) =>
+          prev.map((upload) =>
+            upload.itemId === item_id ? { ...upload, status: "failed" } : upload
+          )
+        );
+      }
+
+      // Poll for status
+      const checkStatus = async () => {
+        const itemResponse = await api.get(
+          `/wardrobe_items/${item_id}/status`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        return itemResponse.data;
+      };
+
+      // Poll every 500ms until complete or failed
+      const pollStatus = async () => {
+        const status = await checkStatus();
+        if (status.status === "completed") {
+          // Update the processed upload status
+          setProcessedUploads((prev) =>
+            prev.map((upload) =>
+              upload.itemId === item_id
+                ? { ...upload, status: "completed", item: status }
+                : upload
+            )
+          );
+          // Don't navigate - stay on web page
+        } else if (status.status === "failed") {
+          // Update the processed upload status
+          setProcessedUploads((prev) =>
+            prev.map((upload) =>
+              upload.itemId === item_id
+                ? { ...upload, status: "failed", item: status }
+                : upload
+            )
+          );
+          // Don't navigate - stay on web page
+        } else {
+          // Still processing, wait and try again
+          setTimeout(pollStatus, 500);
+        }
+      };
+
+      // Start polling
+      pollStatus();
     } catch (err) {
-      console.error("Bulk upload failed:", err);
-      Alert.alert(
-        "Error",
-        "Failed to upload images. Please try again. Error: " + err.message
+      console.error("Image processing failed:", err);
+
+      // Update the existing upload to failed status
+      setProcessedUploads((prev) =>
+        prev.map((upload) =>
+          upload.itemId === item_id ? { ...upload, status: "failed" } : upload
+        )
       );
+
+      Alert.alert("Error", "Failed to process image. Please try again.");
     } finally {
-      setIsUploading(false);
+      setIsProcessing(false);
     }
+  };
+
+  const removeProcessedUpload = (uploadId) => {
+    setProcessedUploads((prev) =>
+      prev.filter((upload) => upload.id !== uploadId)
+    );
+  };
+
+  const handleUploadAll = () => {
+    // Filter only completed uploads that have items
+    const completedUploads = processedUploads.filter(
+      (upload) => upload.status === "completed" && upload.item
+    );
+
+    if (completedUploads.length === 0) {
+      Alert.alert(
+        "No Items Ready",
+        "No items have finished processing yet. Please wait for the processing to complete."
+      );
+      return;
+    }
+
+    // Navigate to MultiUploadScreen with the completed items
+    navigation.navigate("MultiUpload", {
+      images: completedUploads.map((upload) => ({
+        uri: upload.cachedImagePath || upload.croppedUri,
+      })),
+      clientUploadIds: completedUploads.map((upload) => upload.id),
+      processedItems: completedUploads.map((upload) => upload.item),
+      skipUpload: true, // Add flag to indicate items are already processed
+    });
   };
 
   return (
@@ -243,10 +347,12 @@ const WebViewScreen = ({}) => {
       )}
       {/* Floating button - redesigned for better integration */}
       {!loading && (
-        <View style={[
-          styles.footer,
-          pendingUploads.length > 0 && styles.footerWithPending
-        ]}>
+        <View
+          style={[
+            styles.footer,
+            processedUploads.length > 0 && styles.footerWithPending,
+          ]}
+        >
           <View style={styles.captureButtonContainer}>
             <TouchableOpacity
               style={styles.captureButton}
@@ -254,12 +360,16 @@ const WebViewScreen = ({}) => {
               disabled={loading}
             >
               <Text style={styles.captureButtonText}>
-                {pendingUploads.length > 0 ? `+${pendingUploads.length}` : "Capture"}
+                {processedUploads.length > 0
+                  ? `+${processedUploads.length}`
+                  : "Capture"}
               </Text>
             </TouchableOpacity>
-            {pendingUploads.length > 0 && (
+            {processedUploads.length > 0 && (
               <View style={styles.pendingIndicator}>
-                <Text style={styles.pendingIndicatorText}>{pendingUploads.length}</Text>
+                <Text style={styles.pendingIndicatorText}>
+                  {processedUploads.length}
+                </Text>
               </View>
             )}
           </View>
@@ -273,11 +383,11 @@ const WebViewScreen = ({}) => {
         processingImage={processingImage}
       />
       <PendingUploadsBar
-        pendingUploads={pendingUploads}
-        onRemoveUpload={removeFromPendingUploads}
-        onUploadAll={uploadAllPending}
-        isUploading={isUploading}
-        uploadCount={pendingUploads.length}
+        pendingUploads={processedUploads}
+        onRemoveUpload={removeProcessedUpload}
+        onUploadAll={handleUploadAll}
+        isUploading={isProcessing}
+        uploadCount={processedUploads.length}
       />
     </SafeAreaView>
   );

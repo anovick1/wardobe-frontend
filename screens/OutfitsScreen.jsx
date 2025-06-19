@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useCallback } from "react";
 import {
   View,
   Text,
@@ -11,83 +11,48 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import { AuthContext } from "../auth/AuthContext";
+import useCachedImage from "../hooks/useCachedImage";
+import { useOutfits } from "../contexts/OutfitContext";
 import api from "../api";
 
-const OutfitsScreen = () => {
-  const [outfits, setOutfits] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [refreshing, setRefreshing] = useState(false);
-  const navigation = useNavigation();
-  const { user } = useContext(AuthContext);
+// Cached outfit item component for optimized image loading
+const OutfitItemWithCache = ({ item, onPress, onDelete }) => {
+  const { uri, loading, error } = useCachedImage(
+    item.thumbnail_url,
+    `outfit-${item.id}`
+  );
 
-  const fetchOutfits = async (page = 1, forceRefresh = false) => {
-    if (outfits.length > 0 && page === 1 && !forceRefresh) {
-      setLoading(false);
-      setRefreshing(false);
-      return;
-    }
-    try {
-      const response = await api.get(`/outfits/?page=${page}`);
-      if (page === 1) {
-        setOutfits(response.data.outfits);
-      } else {
-        setOutfits((prevOutfits) => [...prevOutfits, ...response.data.outfits]);
-      }
-      setTotalPages(response.data.pagination.pages);
-      setCurrentPage(response.data.pagination.current_page);
-    } catch (error) {
-      console.error("Failed to fetch outfits:", error);
-      Alert.alert("Error", "Failed to load outfits");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  useEffect(() => {
-    if (user) {
-      fetchOutfits(1);
-    }
-  }, [user]);
-
-  const handleRefresh = () => {
-    setRefreshing(true);
-    fetchOutfits(1, true);
-  };
-
-  const handleLoadMore = () => {
-    if (currentPage < totalPages) {
-      fetchOutfits(currentPage + 1);
-    }
-  };
-
-  const handleDeleteOutfit = async (outfitId) => {
-    try {
-      await api.delete(`/outfits/${outfitId}`);
-      setOutfits((prevOutfits) =>
-        prevOutfits.filter((outfit) => outfit.id !== outfitId)
-      );
-    } catch (error) {
-      console.error("Failed to delete outfit:", error);
-      Alert.alert("Error", "Failed to delete outfit");
-    }
-  };
-
-  const renderOutfitItem = ({ item }) => (
-    <TouchableOpacity
-      style={styles.outfitCard}
-      onPress={() => navigation.navigate("OutfitDetail", { outfitId: item.id })}
-    >
+  return (
+    <TouchableOpacity style={styles.outfitCard} onPress={onPress}>
       <View style={styles.outfitImages}>
         {item.thumbnail_url && (
-          <Image
-            source={{ uri: item.thumbnail_url }}
-            style={styles.outfitImage}
-            resizeMode="contain"
-          />
+          <>
+            {loading ? (
+              <View
+                style={[
+                  styles.outfitImage,
+                  { alignItems: "center", justifyContent: "center" },
+                ]}
+              >
+                <ActivityIndicator size="small" />
+              </View>
+            ) : error ? (
+              <View
+                style={[
+                  styles.outfitImage,
+                  { alignItems: "center", justifyContent: "center" },
+                ]}
+              >
+                <Ionicons name="alert-circle" size={24} color="#dc2626" />
+              </View>
+            ) : (
+              <Image
+                source={{ uri }}
+                style={styles.outfitImage}
+                resizeMode="contain"
+              />
+            )}
+          </>
         )}
       </View>
       <View style={styles.outfitInfo}>
@@ -98,16 +63,58 @@ const OutfitsScreen = () => {
           {item.item_count} {item.item_count === 1 ? "item" : "items"}
         </Text>
       </View>
-      <TouchableOpacity
-        style={styles.deleteButton}
-        onPress={() => handleDeleteOutfit(item.id)}
-      >
+      <TouchableOpacity style={styles.deleteButton} onPress={onDelete}>
         <Ionicons name="trash-outline" size={24} color="#ff3b30" />
       </TouchableOpacity>
     </TouchableOpacity>
   );
+};
 
-  if (loading) {
+const OutfitsScreen = () => {
+  const navigation = useNavigation();
+  const {
+    outfits,
+    loadingOutfits,
+    currentPage,
+    totalPages,
+    removeOutfit,
+    loadMoreOutfits,
+    refreshOutfits,
+  } = useOutfits();
+
+  const handleDeleteOutfit = useCallback(
+    async (outfitId) => {
+      try {
+        await api.delete(`/outfits/${outfitId}`);
+        removeOutfit(outfitId);
+      } catch (error) {
+        console.error("Failed to delete outfit:", error);
+        Alert.alert("Error", "Failed to delete outfit");
+      }
+    },
+    [removeOutfit]
+  );
+
+  const renderOutfitItem = useCallback(
+    ({ item }) => (
+      <OutfitItemWithCache
+        item={item}
+        onPress={() =>
+          navigation.navigate("OutfitDetail", { outfitId: item.id })
+        }
+        onDelete={() => handleDeleteOutfit(item.id)}
+      />
+    ),
+    [navigation, handleDeleteOutfit]
+  );
+
+  const handleLoadMore = useCallback(() => {
+    if (currentPage < totalPages && !loadingOutfits) {
+      loadMoreOutfits();
+    }
+  }, [currentPage, totalPages, loadingOutfits, loadMoreOutfits]);
+
+  if (loadingOutfits && outfits.length === 0) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#0000ff" />
@@ -141,8 +148,8 @@ const OutfitsScreen = () => {
         renderItem={renderOutfitItem}
         keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={styles.listContainer}
-        refreshing={refreshing}
-        onRefresh={handleRefresh}
+        refreshing={loadingOutfits && outfits.length > 0}
+        onRefresh={refreshOutfits}
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.5}
         ListEmptyComponent={

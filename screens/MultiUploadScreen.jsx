@@ -17,14 +17,21 @@ import * as FileSystem from "expo-file-system";
 import { useWardrobe } from "../contexts/WardrobeContext";
 
 export default function MultiUploadScreen({ route, navigation }) {
-  const { images, clientUploadIds } = route.params;
+  const { images, clientUploadIds, processedItems, skipUpload } = route.params;
   const { addItemToWardrobe } = useWardrobe();
   const [uploadStatus, setUploadStatus] = useState(
     images.map((_, index) => ({
       id: index,
-      client_upload_id: clientUploadIds ? clientUploadIds[index] : `${Date.now()}-${index}`, // Use provided IDs or generate new ones
-      status: clientUploadIds ? "processing" : "uploading", // Skip upload step if IDs are provided
-      item: null,
+      client_upload_id: clientUploadIds
+        ? clientUploadIds[index]
+        : `${Date.now()}-${index}`, // Use provided IDs or generate new ones
+      status:
+        skipUpload && processedItems
+          ? "completed"
+          : clientUploadIds
+          ? "processing"
+          : "uploading", // Set as completed if already processed
+      item: skipUpload && processedItems ? processedItems[index] : null, // Use processed items if provided
       error: null,
     }))
   );
@@ -212,7 +219,23 @@ export default function MultiUploadScreen({ route, navigation }) {
 
     const showCleaned =
       status.status === "completed" || status.status === "saved";
-    const imageUrl = showCleaned ? status.item.image_url : image.uri;
+
+    // Use cached image path if available, otherwise fall back to cleaned image URL or original
+    let imageUrl = image.uri; // Default to passed image URI (which should be cached path)
+    if (showCleaned && status.item && status.item.image_url) {
+      // Try to use cached image first, fall back to cleaned image URL
+      const cachedPath = `${FileSystem.cacheDirectory}wardrobe-${status.item.id}.jpg`;
+      try {
+        // Check if cached file exists
+        if (FileSystem.getInfoAsync(cachedPath)) {
+          imageUrl = cachedPath;
+        } else {
+          imageUrl = status.item.image_url;
+        }
+      } catch (e) {
+        imageUrl = status.item.image_url;
+      }
+    }
 
     return (
       <View style={styles.itemContainer}>
