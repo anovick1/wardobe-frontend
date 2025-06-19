@@ -21,7 +21,7 @@ const OutfitDetail = () => {
   const route = useRoute();
   const navigation = useNavigation();
   const { user } = useContext(AuthContext);
-  const { outfitId } = route.params;
+  const { outfitId, fromHome } = route.params;
 
   const fetchOutfitDetails = async () => {
     try {
@@ -95,7 +95,13 @@ const OutfitDetail = () => {
       <View style={styles.header} pointerEvents="box-none">
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => {
+            if (fromHome) {
+              navigation.navigate("Outfits");
+            } else {
+              navigation.goBack();
+            }
+          }}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           pointerEvents="auto"
         >
