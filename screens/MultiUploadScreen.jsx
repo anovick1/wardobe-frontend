@@ -17,20 +17,26 @@ import * as FileSystem from "expo-file-system";
 import { useWardrobe } from "../contexts/WardrobeContext";
 
 export default function MultiUploadScreen({ route, navigation }) {
-  const { images } = route.params;
+  const { images, clientUploadIds } = route.params;
   const { addItemToWardrobe } = useWardrobe();
   const [uploadStatus, setUploadStatus] = useState(
     images.map((_, index) => ({
       id: index,
-      client_upload_id: `${Date.now()}-${index}`, // Unique ID for this upload
-      status: "uploading",
+      client_upload_id: clientUploadIds ? clientUploadIds[index] : `${Date.now()}-${index}`, // Use provided IDs or generate new ones
+      status: clientUploadIds ? "processing" : "uploading", // Skip upload step if IDs are provided
       item: null,
       error: null,
     }))
   );
 
-  // Upload and process each image
+  // Upload and process each image (only if clientUploadIds are not provided)
   useEffect(() => {
+    if (clientUploadIds) {
+      // If client upload IDs are provided, skip the upload step
+      console.log("✅ Using provided client upload IDs, skipping upload step");
+      return;
+    }
+
     const uploadImages = async () => {
       try {
         const auth = getAuth();
@@ -86,7 +92,7 @@ export default function MultiUploadScreen({ route, navigation }) {
     };
 
     uploadImages();
-  }, [images]);
+  }, [images, clientUploadIds]);
 
   useEffect(() => {
     const auth = getAuth();
@@ -134,38 +140,70 @@ export default function MultiUploadScreen({ route, navigation }) {
   const handleEditItem = (item, index) => {
     navigation.navigate("ItemReview", {
       item,
+      fromBulkUpload: true,
       onSave: () => {
-        setUploadStatus((prev) =>
-          prev.map((status, i) =>
-            i === index ? { ...status, status: "saved" } : status
-          )
-        );
+        setUploadStatus((prev) => {
+          const updated = prev.map((status, i) =>
+            i === index ? { ...status, status: "confirmed", item } : status
+          );
+          // Only auto-navigate if ALL items are now confirmed (after this save)
+          const allConfirmed = updated.every(
+            (s) => s.status === "confirmed" || s.status === "error"
+          );
+          if (allConfirmed) {
+            setTimeout(() => {
+              navigation.navigate("WardrobeHome");
+            }, 100);
+          }
+          return updated;
+        });
       },
     });
   };
 
-  const handleConfirmAll = () => {
-    console.log("🔄 Confirming all items, processing upload status...");
-
-    // Add all completed items to the wardrobe
+  const handleConfirmAll = async () => {
+    // Only embed items that are not already confirmed
     const itemsToAdd = uploadStatus.filter(
       (status) =>
         (status.status === "completed" || status.status === "saved") &&
-        status.item
+        status.item &&
+        status.status !== "confirmed"
     );
 
-    console.log("📝 Items to add to wardrobe:", itemsToAdd.length);
-
     itemsToAdd.forEach((status) => {
-      console.log("➕ Adding item:", status.item?.id, status.item?.name);
       addItemToWardrobe(status.item);
     });
 
-    // Small delay to ensure all updates process
-    setTimeout(() => {
-      // Navigate back to wardrobe
-      navigation.navigate("WardrobeHome");
-    }, 100);
+    // Call bulk embed API for all unconfirmed items
+    if (itemsToAdd.length > 0) {
+      try {
+        const itemIds = itemsToAdd.map((status) => status.item.id);
+        await api.post("/wardrobe_items/bulk_embed", {
+          item_ids: itemIds,
+        });
+      } catch (err) {
+        // Silent fail
+      }
+    }
+
+    // Mark all embedded items as confirmed
+    setUploadStatus((prev) => {
+      const updated = prev.map((status) =>
+        status.status !== "confirmed" && status.item
+          ? { ...status, status: "confirmed" }
+          : status
+      );
+      // If all are now confirmed, auto-navigate
+      const allConfirmed = updated.every(
+        (s) => s.status === "confirmed" || s.status === "error"
+      );
+      if (allConfirmed) {
+        setTimeout(() => {
+          navigation.navigate("WardrobeHome");
+        }, 100);
+      }
+      return updated;
+    });
   };
 
   const renderItem = ({ item, index }) => {
@@ -228,11 +266,9 @@ export default function MultiUploadScreen({ route, navigation }) {
     );
   };
 
-  const allUploaded = uploadStatus.every(
-    (status) =>
-      status.status === "completed" ||
-      status.status === "saved" ||
-      status.status === "error"
+  // Only show Confirm All if there are unconfirmed items
+  const anyUnconfirmed = uploadStatus.some(
+    (s) => s.status !== "confirmed" && s.status !== "error"
   );
 
   return (
@@ -245,7 +281,7 @@ export default function MultiUploadScreen({ route, navigation }) {
           keyExtractor={(_, index) => index.toString()}
           contentContainerStyle={styles.list}
         />
-        {allUploaded && (
+        {anyUnconfirmed && (
           <View style={styles.confirmContainer}>
             <TouchableOpacity
               style={styles.confirmButton}

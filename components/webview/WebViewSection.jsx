@@ -10,6 +10,7 @@ const WebViewSection = ({
   setProductUrl,
   isMounted,
   setViewReady,
+  onNavigationStateChange,
 }) => (
   <ViewShot
     ref={viewShotRef}
@@ -25,6 +26,9 @@ const WebViewSection = ({
       onNavigationStateChange={(navState) => {
         if (isMounted.current && navState.url) {
           setProductUrl(navState.url);
+        }
+        if (onNavigationStateChange) {
+          onNavigationStateChange(navState);
         }
       }}
       startInLoadingState={true}

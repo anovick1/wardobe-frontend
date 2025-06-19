@@ -8,19 +8,17 @@ import {
   TouchableOpacity,
   Platform,
   Keyboard,
-  PanResponder,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import * as ImageManipulator from "expo-image-manipulator";
 import { auth } from "../firebase";
 import api from "../api";
-import ExpoImageCropTool from "expo-image-crop-tool";
 import { useNavigation } from "@react-navigation/native";
 import { Shadow } from "react-native-shadow-2";
 import InstructionBanner from "../components/webview/InstructionBanner";
 import UrlHeader from "../components/webview/UrlHeader";
 import WebViewSection from "../components/webview/WebViewSection";
-import CropModal from "../components/common/CropModal";
+import EnhancedCropModal from "../components/common/EnhancedCropModal";
+import PendingUploadsBar from "../components/webview/PendingUploadsBar";
 
 const WebViewScreen = ({}) => {
   const navigation = useNavigation();
@@ -28,30 +26,23 @@ const WebViewScreen = ({}) => {
   const [urlInput, setUrlInput] = useState("https://www.google.com");
   const [productUrl, setProductUrl] = useState(null);
   const [isUrlFocused, setIsUrlFocused] = useState(false);
-  const [itemId, setItemId] = useState(null);
   const [processingImage, setProcessingImage] = useState(false);
   const [screenshotUri, setScreenshotUri] = useState(null);
-  const [showPreview, setShowPreview] = useState(false);
+  const [showCropModal, setShowCropModal] = useState(false);
   const webViewRef = useRef(null);
   const viewShotRef = useRef(null);
   const [viewReady, setViewReady] = useState(false);
   const isMounted = useRef(true);
-  const [cropPosition, setCropPosition] = useState({ x: 0, y: 0 });
-  const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
-  const cropBoxSize = 200; // Size of the crop box
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onPanResponderMove: (_, gestureState) => {
-        const { dx, dy } = gestureState;
-        setCropPosition((prev) => ({
-          x: Math.max(0, Math.min(prev.x + dx, imageSize.width - cropBoxSize)),
-          y: Math.max(0, Math.min(prev.y + dy, imageSize.height - cropBoxSize)),
-        }));
-      },
-    })
-  ).current;
+  
+  // New state for multiple uploads
+  const [pendingUploads, setPendingUploads] = useState([]);
+  const [isUploading, setIsUploading] = useState(false);
+  
+  // Navigation state
+  const [navigationState, setNavigationState] = useState({
+    canGoBack: false,
+    canGoForward: false,
+  });
 
   useEffect(() => {
     isMounted.current = true;
@@ -84,7 +75,6 @@ const WebViewScreen = ({}) => {
       );
       const { item_id, status } = response.data;
       if (item_id && status === "processing") {
-        setItemId(item_id);
         await handleScreenshot(item_id);
       } else {
         throw new Error("Failed to extract product metadata");
@@ -117,7 +107,7 @@ const WebViewScreen = ({}) => {
       if (!uri)
         throw new Error("Failed to capture screenshot - no URI returned");
       setScreenshotUri(uri);
-      await handleCropWithPicker(uri, item_id);
+      setShowCropModal(true);
     } catch (err) {
       Alert.alert(
         "Error",
@@ -128,96 +118,61 @@ const WebViewScreen = ({}) => {
     }
   };
 
-  const handleCropWithPicker = async (uri, item_id) => {
-    try {
-      setProcessingImage(true);
-      const cropped = await ExpoImageCropTool.openCropperAsync({
-        imageUri: uri,
-        // aspectRatio: 1, // for a square crop
-        format: "jpeg",
-        compressImageQuality: 0.9,
-      });
-      if (!cropped || !cropped.path) {
-        throw new Error("Failed to crop image - no path returned");
-      }
-      await uploadProductImage(cropped.path, item_id);
-    } catch (err) {
-      if (err.message.includes("cancel")) {
-        return;
-      }
-      Alert.alert(
-        "Error",
-        "Failed to crop image. Please try again. Error: " + err.message
-      );
-    } finally {
-      if (isMounted.current) {
-        setProcessingImage(false);
-      }
-    }
+  const handleCropComplete = (croppedUri) => {
+    setShowCropModal(false);
+    // Add to pending uploads
+    addToPendingUploads(croppedUri, null);
   };
 
-  const handleConfirmCrop = async () => {
-    if (!screenshotUri) return;
-    setShowPreview(false);
-
-    try {
-      setProcessingImage(true);
-      // Calculate crop dimensions based on the crop box position
-      const scale = imageSize.width / 800; // Assuming we want to resize to 800px width
-      const cropX = Math.round(cropPosition.x * scale);
-      const cropY = Math.round(cropPosition.y * scale);
-      const cropSize = Math.round(cropBoxSize * scale);
-
-      const cropped = await ImageManipulator.manipulateAsync(
-        screenshotUri,
-        [
-          {
-            crop: {
-              originX: cropX,
-              originY: cropY,
-              width: cropSize,
-              height: cropSize,
-            },
-          },
-        ],
-        { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG }
-      );
-
-      if (!cropped || !cropped.uri) {
-        throw new Error("Failed to crop image - no URI returned");
-      }
-
-      await uploadProductImage(cropped.uri, itemId);
-    } catch (err) {
-      console.error("Image crop failed:", err);
-      Alert.alert(
-        "Error",
-        "Failed to crop image. Please try again. Error: " + err.message
-      );
-    } finally {
-      setProcessingImage(false);
-    }
-  };
-
-  const handleCancelCrop = () => {
-    setShowPreview(false);
+  const handleCropCancel = () => {
+    setShowCropModal(false);
     setScreenshotUri(null);
   };
 
-  const uploadProductImage = async (imageUri, item_id) => {
+  const addToPendingUploads = (croppedUri, itemId) => {
+    const newUpload = {
+      id: Date.now() + Math.random(),
+      croppedUri,
+      itemId,
+      status: "pending",
+    };
+    setPendingUploads(prev => [...prev, newUpload]);
+  };
+
+  const removeFromPendingUploads = (uploadId) => {
+    setPendingUploads(prev => prev.filter(upload => upload.id !== uploadId));
+  };
+
+  const uploadAllPending = async () => {
+    if (pendingUploads.length === 0) return;
+
     try {
+      setIsUploading(true);
       const token = await auth.currentUser.getIdToken();
+      
+      // Create FormData with all images
       const formData = new FormData();
-      formData.append("file", {
-        uri:
-          Platform.OS === "android"
-            ? imageUri
-            : imageUri.replace("file://", ""),
-        type: "image/jpeg",
-        name: "product_image.jpg",
+      const clientUploadIds = [];
+
+      pendingUploads.forEach((upload, index) => {
+        const clientUploadId = `${Date.now()}-${index}`;
+        clientUploadIds.push(clientUploadId);
+        
+        formData.append("files", {
+          uri: Platform.OS === "android" ? upload.croppedUri : upload.croppedUri.replace("file://", ""),
+          type: "image/jpeg",
+          name: `product_image_${index}.jpg`,
+        });
       });
-      const imageResponse = await api.post(
-        `/wardrobe_items/${item_id}/process_product_image`,
+
+      // Add client upload IDs
+      clientUploadIds.forEach(id => {
+        formData.append("client_upload_ids", id);
+      });
+
+      // Upload all images at once
+      const response = await api.post(
+        "/wardrobe_items/upload_and_process",
         formData,
         {
           headers: {
@@ -226,50 +181,25 @@ const WebViewScreen = ({}) => {
           },
         }
       );
-      const cleanedImageUrl = imageResponse.data.cleaned_image_url;
 
-      // Poll for status
-      const checkStatus = async () => {
-        const itemResponse = await api.get(
-          `/wardrobe_items/${item_id}/status`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-        return itemResponse.data;
-      };
+      console.log("✅ Bulk upload started:", response.data);
 
-      // Poll every 500ms until complete or failed
-      const pollStatus = async () => {
-        const status = await checkStatus();
-        if (status.status === "completed") {
-          navigation.navigate("ItemReview", {
-            itemId,
-            imageUrl: cleanedImageUrl,
-            item: status,
-          });
-        } else if (status.status === "failed") {
-          Alert.alert(
-            "Limited Data Available",
-            "We couldn't extract all the product details automatically. You can still add the item manually.",
-            [{ text: "OK" }]
-          );
-          navigation.navigate("ItemReview", {
-            itemId,
-            imageUrl: cleanedImageUrl,
-            item: status,
-          });
-        } else {
-          // Still processing, wait and try again
-          setTimeout(pollStatus, 500);
-        }
-      };
+      // Navigate to MultiUploadScreen to handle the processing
+      navigation.navigate("MultiUpload", { 
+        images: pendingUploads.map(upload => ({ uri: upload.croppedUri })),
+        clientUploadIds 
+      });
 
-      // Start polling
-      pollStatus();
+      // Clear pending uploads
+      setPendingUploads([]);
     } catch (err) {
-      console.error("Image upload failed:", err);
-      Alert.alert("Error", "Failed to upload image. Please try again.");
+      console.error("Bulk upload failed:", err);
+      Alert.alert(
+        "Error",
+        "Failed to upload images. Please try again. Error: " + err.message
+      );
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -293,6 +223,8 @@ const WebViewScreen = ({}) => {
         setIsUrlFocused={setIsUrlFocused}
         webViewRef={webViewRef}
         onBack={() => navigation.goBack()}
+        canGoBack={navigationState.canGoBack}
+        canGoForward={navigationState.canGoForward}
       />
       <WebViewSection
         viewShotRef={viewShotRef}
@@ -301,6 +233,7 @@ const WebViewScreen = ({}) => {
         setProductUrl={setProductUrl}
         isMounted={isMounted}
         setViewReady={setViewReady}
+        onNavigationStateChange={setNavigationState}
       />
       {/* Loading overlay */}
       {loading && (
@@ -308,38 +241,43 @@ const WebViewScreen = ({}) => {
           <ActivityIndicator size="large" color="#000" />
         </View>
       )}
-      {/* Floating button, only show when not loading */}
+      {/* Floating button - redesigned for better integration */}
       {!loading && (
-        <View style={styles.footer}>
-          <Shadow
-            distance={15}
-            startColor={"#00000010"}
-            offset={[0, 0]}
-            radius={18}
-            containerViewStyle={{ width: 250, alignSelf: "center" }}
-          >
+        <View style={[
+          styles.footer,
+          pendingUploads.length > 0 && styles.footerWithPending
+        ]}>
+          <View style={styles.captureButtonContainer}>
             <TouchableOpacity
-              style={styles.submitButton}
+              style={styles.captureButton}
               onPress={handleCaptureProduct}
               disabled={loading}
             >
-              <Text style={styles.submitButtonText}>Capture Product</Text>
+              <Text style={styles.captureButtonText}>
+                {pendingUploads.length > 0 ? `+${pendingUploads.length}` : "Capture"}
+              </Text>
             </TouchableOpacity>
-          </Shadow>
+            {pendingUploads.length > 0 && (
+              <View style={styles.pendingIndicator}>
+                <Text style={styles.pendingIndicatorText}>{pendingUploads.length}</Text>
+              </View>
+            )}
+          </View>
         </View>
       )}
-      <CropModal
-        showPreview={showPreview}
-        handleCancelCrop={handleCancelCrop}
-        screenshotUri={screenshotUri}
-        imageSize={imageSize}
-        setImageSize={setImageSize}
-        cropPosition={cropPosition}
-        setCropPosition={setCropPosition}
-        cropBoxSize={cropBoxSize}
-        panResponder={panResponder}
-        handleConfirmCrop={handleConfirmCrop}
+      <EnhancedCropModal
+        visible={showCropModal}
+        imageUri={screenshotUri}
+        onCropComplete={handleCropComplete}
+        onCancel={handleCropCancel}
         processingImage={processingImage}
+      />
+      <PendingUploadsBar
+        pendingUploads={pendingUploads}
+        onRemoveUpload={removeFromPendingUploads}
+        onUploadAll={uploadAllPending}
+        isUploading={isUploading}
+        uploadCount={pendingUploads.length}
       />
     </SafeAreaView>
   );
@@ -348,40 +286,67 @@ const WebViewScreen = ({}) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "#f9fafb",
   },
   footer: {
     position: "absolute",
     left: 0,
     right: 0,
-    bottom: "7%",
-    backgroundColor: "transparent",
+    bottom: "6%",
     alignItems: "center",
-    zIndex: 10,
-    elevation: 10,
+    zIndex: 150,
   },
-  submitButton: {
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
-    borderRadius: 15,
-    paddingVertical: 14,
+  footerWithPending: {
+    bottom: 140,
+  },
+  captureButtonContainer: {
+    flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    width: 250,
+    backgroundColor: "#ffffffee",
+    borderRadius: 50,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 4,
   },
-  submitButtonDisabled: {
-    opacity: 0.5,
+  captureButton: {
+    backgroundColor: "#111827",
+    borderRadius: 24,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 100,
   },
-  submitButtonText: {
-    color: "#000",
-    fontSize: 16,
+  captureButtonText: {
+    color: "#fff",
+    fontSize: 15,
     fontWeight: "600",
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(255,255,255,0.7)",
+    backgroundColor: "rgba(255,255,255,0.8)",
     justifyContent: "center",
     alignItems: "center",
     zIndex: 999,
+  },
+  pendingIndicator: {
+    backgroundColor: "#ef4444",
+    borderRadius: 12,
+    minWidth: 24,
+    height: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 10,
+    paddingHorizontal: 6,
+  },
+  pendingIndicatorText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "bold",
   },
 });
 

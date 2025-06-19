@@ -342,8 +342,13 @@ export default function ItemReviewScreen({ route, navigation: navFromProps }) {
       // Small delay to ensure state update processes
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      // Navigate back to WardrobeHome to see the updates
-      navigation.navigate("WardrobeHome");
+      // If editing from bulk upload, go back instead of navigating to WardrobeHome
+      if (route.params?.fromBulkUpload) {
+        if (route.params?.onSave) route.params.onSave();
+        navigation.goBack();
+      } else {
+        navigation.navigate("WardrobeHome");
+      }
     } catch (err) {
       console.error("Save failed:", err);
       Alert.alert("Error", err.message || "Failed to save item. Try again.");
