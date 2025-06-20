@@ -15,7 +15,6 @@ import typography from "../../styles/typography";
 import globalStyles from "../../styles/global";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import { SafeAreaView } from "react-native-safe-area-context";
-import useCachedImage from "../../hooks/useCachedImage";
 import * as FileSystem from "expo-file-system";
 import WardrobeItemCard from "./WardrobeItemCard";
 
@@ -91,17 +90,6 @@ export default function WardrobeItems() {
     </SafeAreaView>
   );
 }
-
-const tagColorStyle = (tag) => {
-  // Simple color mapping for demo; you can expand this
-  if (/work/i.test(tag)) return { backgroundColor: "#e0f2fe" };
-  if (/elegant/i.test(tag)) return { backgroundColor: "#fce7f3" };
-  if (/casual/i.test(tag)) return { backgroundColor: "#e0e7ff" };
-  if (/basics?/i.test(tag)) return { backgroundColor: "#ccfbf1" };
-  if (/cozy/i.test(tag)) return { backgroundColor: "#fef3c7" };
-  if (/winter/i.test(tag)) return { backgroundColor: "#e5e7eb" };
-  return { backgroundColor: "#f1f5f9" };
-};
 
 const styles = StyleSheet.create({
   cardTouchable: {
