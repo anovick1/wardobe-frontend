@@ -10,9 +10,15 @@ import { useNavigation } from "@react-navigation/native";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import cardStyles from "../../styles/card";
 import typography from "../../styles/typography";
+import useCachedImage from "../../hooks/useCachedImage";
 
 export default function OutfitCard({ item }) {
   const navigation = useNavigation();
+
+  const { uri, loading, error } = useCachedImage(
+    item.composite_image_url,
+    item.id
+  );
 
   return (
     <TouchableOpacity
@@ -25,12 +31,23 @@ export default function OutfitCard({ item }) {
     >
       <View style={cardStyles.card}>
         <View style={cardStyles.image}>
-          {item.thumbnail_url ? (
+          {loading ? (
+            <ActivityIndicator style={{ flex: 1 }} />
+          ) : error ? (
+            <View
+              style={{
+                flex: 1,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Icon name="error" size={36} color="#dc2626" />
+            </View>
+          ) : uri ? (
             <Image
-              source={{ uri: item.thumbnail_url }}
+              source={{ uri }}
               style={cardStyles.image}
               resizeMode="contain"
-              onError={(error) => console.log("Image load error:", error)}
             />
           ) : (
             <View

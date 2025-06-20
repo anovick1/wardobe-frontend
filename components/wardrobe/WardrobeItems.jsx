@@ -20,15 +20,16 @@ import * as FileSystem from "expo-file-system";
 import WardrobeItemCard from "./WardrobeItemCard";
 
 export default function WardrobeItems() {
-  const { wardrobeItems: rawItems, loadingWardrobe } = useWardrobe();
-  const [items, setItems] = React.useState([]);
-
-  React.useEffect(() => {
-    const sortedItems = [...rawItems].sort(
-      (a, b) => new Date(b.created_at) - new Date(a.created_at)
-    );
-    setItems(sortedItems);
-  }, [rawItems]);
+  const {
+    wardrobeItems: rawItems,
+    loadingWardrobe,
+    loadingMoreWardrobe,
+    loadMoreWardrobeItems,
+    currentPage,
+    totalPages,
+    hasMoreWardrobe,
+  } = useWardrobe();
+  const items = rawItems; // order preserved from backend/pagination
 
   // Cleanup unused cached images
   useEffect(() => {
@@ -62,13 +63,7 @@ export default function WardrobeItems() {
 
   return (
     <SafeAreaView style={globalStyles.container} edges={["left", "right"]}>
-      {loadingWardrobe ? (
-        <ActivityIndicator
-          testID="wardrobe-loading"
-          size="large"
-          style={{ marginTop: 40 }}
-        />
-      ) : items.length === 0 ? (
+      {loadingWardrobe && items.length === 0 ? (
         <Text style={[styles.emptyText]}>No wardrobe items yet.</Text>
       ) : (
         <FlatList
@@ -78,6 +73,19 @@ export default function WardrobeItems() {
           numColumns={2}
           columnWrapperStyle={styles.columnWrapper}
           contentContainerStyle={styles.listContent}
+          onEndReachedThreshold={0.5}
+          onEndReached={() => {
+            if (hasMoreWardrobe && !loadingMoreWardrobe) {
+              loadMoreWardrobeItems();
+            }
+          }}
+          ListFooterComponent={() =>
+            loadingMoreWardrobe ? (
+              <View style={{ paddingVertical: 20 }}>
+                <ActivityIndicator size="small" />
+              </View>
+            ) : null
+          }
         />
       )}
     </SafeAreaView>

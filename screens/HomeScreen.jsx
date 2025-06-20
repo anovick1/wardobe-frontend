@@ -5,14 +5,20 @@ import { useWeather } from "../contexts/WeatherContext";
 import typography from "../styles/typography";
 import globalStyles from "../styles/global";
 import { SafeAreaView } from "react-native-safe-area-context";
-import DailyOutfitGenerator from "../components/homescreen/outfits/DailyOutfitGenerator";
+import { useDailyOutfit } from "../components/homescreen/outfits/useDailyOutfit";
+import OutfitCard from "../components/homescreen/outfits/DailyOutfitCard";
+import LoadingSkeleton from "../components/homescreen/outfits/LoadingSkeleton";
 import * as Calendar from "expo-calendar";
 
 export default function HomeScreen() {
   const { user } = useContext(AuthContext);
-  const { weather, error: weatherError, city } = useWeather();
+  const { weather, error: weatherError, city, coordinates } = useWeather();
   const [calendarPermission, setCalendarPermission] = useState(false);
   const [todaysEvents, setTodaysEvents] = useState([]);
+
+  // Daily outfit hook
+  const { dailyOutfit, loading, generating, initialising, generateOutfit } =
+    useDailyOutfit(coordinates?.lat, coordinates?.lon, todaysEvents);
 
   useEffect(() => {
     requestCalendarPermissions();
@@ -97,7 +103,7 @@ export default function HomeScreen() {
         👋 Hi {user?.backend?.name || "there"}!
       </Text>
 
-      {weather && (
+      {false && (
         <View style={styles.weatherCard}>
           <View style={styles.weatherHeaderRow}>
             <Text style={styles.weatherEmoji}>
@@ -131,31 +137,30 @@ export default function HomeScreen() {
         </Text>
       )}
 
-      {/* Show today's events if we have any */}
-      {todaysEvents.length > 0 && (
-        <View style={styles.eventsCard}>
-          <Text style={styles.eventsTitle}>📅 Today's Events</Text>
-          {todaysEvents.slice(0, 3).map((event) => (
-            <Text key={event.id} style={styles.eventItem}>
-              • {event.title} at{" "}
-              {new Date(event.startDate).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </Text>
-          ))}
-          {todaysEvents.length > 3 && (
-            <Text style={styles.moreEvents}>
-              +{todaysEvents.length - 3} more events
-            </Text>
-          )}
-        </View>
-      )}
-
-      <DailyOutfitGenerator
-        todaysEvents={todaysEvents}
-        calendarPermission={calendarPermission}
-      />
+      {/* Daily Outfit Section */}
+      {!dailyOutfit && (loading || generating || initialising) ? (
+        <LoadingSkeleton text="Styling your look…" />
+      ) : dailyOutfit ? (
+        <OutfitCard
+          imageUrl={
+            dailyOutfit.composite_image_url ||
+            dailyOutfit.outfit?.composite_image_url
+          }
+          imageId={dailyOutfit.outfit_id || dailyOutfit.id}
+          title={
+            dailyOutfit.title ||
+            dailyOutfit.outfit?.title ||
+            "Today's Perfect Look"
+          }
+          explanation={
+            dailyOutfit.explanation || dailyOutfit.outfit?.explanation
+          }
+          onNewLook={generateOutfit}
+          loading={generating}
+          events={todaysEvents}
+          tags={dailyOutfit.tags || dailyOutfit.outfit?.tags || []}
+        />
+      ) : null}
 
       {/* Future: outfit suggestions, upcoming events, feed, etc. */}
     </SafeAreaView>

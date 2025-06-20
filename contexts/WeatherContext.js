@@ -8,6 +8,7 @@ export const WeatherProvider = ({ children }) => {
   const [weather, setWeather] = useState(null);
   const [error, setError] = useState(null);
   const [city, setCity] = useState(null);
+  const [coordinates, setCoordinates] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -20,6 +21,9 @@ export const WeatherProvider = ({ children }) => {
 
         const location = await Location.getCurrentPositionAsync({});
         const { latitude, longitude } = location.coords;
+
+        // Store coordinates
+        setCoordinates({ lat: latitude, lon: longitude });
 
         // Reverse geocode to get city
         const placemarks = await Location.reverseGeocodeAsync({
@@ -53,7 +57,7 @@ export const WeatherProvider = ({ children }) => {
   }, []);
 
   return (
-    <WeatherContext.Provider value={{ weather, error, city }}>
+    <WeatherContext.Provider value={{ weather, error, city, coordinates }}>
       {children}
     </WeatherContext.Provider>
   );
