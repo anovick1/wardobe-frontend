@@ -14,14 +14,14 @@ export default function useCachedImage(imageUrl, itemId) {
       setLoading(true);
       setError(false);
       try {
-        // Check if file exists
         const info = await FileSystem.getInfoAsync(cachePath);
         if (info.exists) {
           if (isMounted) setUri(info.uri);
         } else {
-          // Download and cache
-          const download = await FileSystem.downloadAsync(imageUrl, cachePath);
-          if (isMounted) setUri(download.uri);
+          // Show remote image immediately
+          if (isMounted) setUri(imageUrl);
+          // Start background cache download
+          FileSystem.downloadAsync(imageUrl, cachePath).catch(() => {});
         }
       } catch (e) {
         if (isMounted) setError(true);

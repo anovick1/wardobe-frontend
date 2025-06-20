@@ -18,14 +18,14 @@ import api from "../api";
 // Cached outfit item component for optimized image loading
 const OutfitItemWithCache = ({ item, onPress, onDelete }) => {
   const { uri, loading, error } = useCachedImage(
-    item.thumbnail_url,
+    item.composite_image_url,
     `outfit-${item.id}`
   );
 
   return (
     <TouchableOpacity style={styles.outfitCard} onPress={onPress}>
       <View style={styles.outfitImages}>
-        {item.thumbnail_url && (
+        {item.composite_image_url && (
           <>
             {loading ? (
               <View

@@ -18,23 +18,52 @@ import * as Calendar from "expo-calendar";
 const CALENDAR_VIEWS = { WEEK: "week", MONTH: "month" };
 
 export default function PlannerScreen() {
+  // Get today's date in local timezone, not UTC
   const today = new Date();
-  const isoDate = today.toISOString().split("T")[0];
-  const [permissionGranted, setPermissionGranted] = useState(false);
-  const [status, setStatus] = useState("Waiting for permission...");
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  const isoDate = `${year}-${month}-${day}`;
+
+  const [permissionGranted, setPermissionGranted] = useState(null); // null = not checked yet
+  const [status, setStatus] = useState("Checking calendar permissions...");
   const [selectedDate, setSelectedDate] = useState(null);
   const [events, setEvents] = useState([]);
   const [calendarView, setCalendarView] = useState("week");
   const [viewDate, setViewDate] = useState(null);
 
   useEffect(() => {
-    requestCalendarPermissions();
-    const today = new Date();
-    const isoDate = today.toISOString().split("T")[0];
+    // Check existing permissions without requesting
+    checkCalendarPermissions();
+    // Use the already calculated isoDate
     setSelectedDate(isoDate);
     setViewDate(isoDate);
-    fetchEventsForSelectedDate(isoDate);
   }, []);
+
+  useEffect(() => {
+    // Fetch events when permission is granted and we have a selected date
+    if (permissionGranted && selectedDate) {
+      fetchEventsForSelectedDate(selectedDate);
+    }
+  }, [permissionGranted, selectedDate]);
+
+  const checkCalendarPermissions = async () => {
+    try {
+      const { status } = await Calendar.getCalendarPermissionsAsync();
+      if (status === "granted") {
+        setPermissionGranted(true);
+        setStatus("✅ Calendar access granted.");
+      } else {
+        setPermissionGranted(false);
+        setStatus(
+          "📅 Calendar access needed to view events. Tap to grant permission."
+        );
+      }
+    } catch (err) {
+      setPermissionGranted(false);
+      setStatus("❌ Error checking calendar permission.");
+    }
+  };
 
   const requestCalendarPermissions = async () => {
     try {
@@ -42,6 +71,9 @@ export default function PlannerScreen() {
       if (status === "granted") {
         setPermissionGranted(true);
         setStatus("✅ Calendar access granted.");
+        if (selectedDate) {
+          fetchEventsForSelectedDate(selectedDate);
+        }
       } else {
         setPermissionGranted(false);
         setStatus("❌ Calendar permission denied.");
@@ -64,6 +96,13 @@ export default function PlannerScreen() {
   const createTestEvent = async () => {
     if (!selectedDate) {
       Alert.alert("Please select a date first.");
+      return;
+    }
+    if (!permissionGranted) {
+      Alert.alert(
+        "Calendar permission needed",
+        "Please grant calendar access first."
+      );
       return;
     }
     try {
@@ -96,6 +135,14 @@ export default function PlannerScreen() {
       const calendars = await Calendar.getCalendarsAsync(
         Calendar.EntityTypes.EVENT
       );
+
+      // Check if we have any calendars (Android issue)
+      if (calendars.length === 0) {
+        console.log("❌ PlannerScreen - No calendars found");
+        setEvents([]);
+        return;
+      }
+
       const [year, month, day] = dateStr.split("-").map(Number);
       const startOfDay = new Date(year, month - 1, day, 0, 0, 0);
       const endOfDay = new Date(year, month - 1, day, 23, 59, 59);
@@ -119,7 +166,9 @@ export default function PlannerScreen() {
   const handleDaySelect = (dateStr) => {
     setSelectedDate(dateStr);
     setViewDate(dateStr);
-    fetchEventsForSelectedDate(dateStr);
+    if (permissionGranted) {
+      fetchEventsForSelectedDate(dateStr);
+    }
   };
 
   const handleWeekChange = (newDateStr) => {
@@ -129,7 +178,9 @@ export default function PlannerScreen() {
   const handleMonthChange = (newDateStr) => {
     setViewDate(newDateStr);
     setSelectedDate(newDateStr);
-    fetchEventsForSelectedDate(newDateStr);
+    if (permissionGranted) {
+      fetchEventsForSelectedDate(newDateStr);
+    }
   };
 
   const renderToggle = () => (
@@ -145,7 +196,9 @@ export default function PlannerScreen() {
             setCalendarView(value);
             setSelectedDate(isoDate);
             setViewDate(isoDate);
-            fetchEventsForSelectedDate(isoDate);
+            if (permissionGranted) {
+              fetchEventsForSelectedDate(isoDate);
+            }
           }}
           activeOpacity={0.85}
         >
@@ -174,6 +227,17 @@ export default function PlannerScreen() {
         <Text style={[typography.title, { marginBottom: 10 }]}>
           🗓️ Outfit Planner
         </Text>
+
+        {/* Show permission status */}
+        {permissionGranted === false && (
+          <TouchableOpacity
+            style={styles.permissionCard}
+            onPress={requestCalendarPermissions}
+          >
+            <Text style={styles.permissionText}>{status}</Text>
+          </TouchableOpacity>
+        )}
+
         {renderToggle()}
         <View style={styles.card}>
           {calendarView === CALENDAR_VIEWS.WEEK ? (
@@ -204,9 +268,13 @@ export default function PlannerScreen() {
                   </Text>
                 ))}
               </View>
-            ) : (
+            ) : permissionGranted ? (
               <Text style={{ color: "#6a7681", textAlign: "center" }}>
                 No events for this day
+              </Text>
+            ) : (
+              <Text style={{ color: "#6a7681", textAlign: "center" }}>
+                Grant calendar access to view events
               </Text>
             )}
           </View>
@@ -229,6 +297,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingTop: 18,
     paddingBottom: 40,
+  },
+  permissionCard: {
+    backgroundColor: "#fef3c7",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#f59e0b",
+    width: "100%",
+    maxWidth: 420,
+  },
+  permissionText: {
+    color: "#92400e",
+    textAlign: "center",
+    fontSize: 14,
+    fontWeight: "500",
   },
   toggleRow: {
     flexDirection: "row",

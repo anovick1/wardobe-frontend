@@ -144,10 +144,10 @@ const OutfitDetail = () => {
 
         {/* Outfit Composite Image */}
         <View style={styles.outfitImageContainer}>
-          {outfit.composite_image_url || outfit.thumbnail_url ? (
+          {outfit.composite_image_url || outfit.composite_image_url ? (
             <Image
               source={{
-                uri: outfit.composite_image_url || outfit.thumbnail_url,
+                uri: outfit.composite_image_url || outfit.composite_image_url,
               }}
               style={styles.outfitImage}
               resizeMode="contain"
@@ -193,7 +193,7 @@ const OutfitDetail = () => {
                 }
               >
                 <Image
-                  source={{ uri: item.thumbnail_url || item.image_url }}
+                  source={{ uri: item.composite_image_url || item.image_url }}
                   style={styles.itemImage}
                   resizeMode="contain"
                 />

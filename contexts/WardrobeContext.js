@@ -14,30 +14,45 @@ const WardrobeContext = createContext();
 export function WardrobeProvider({ children }) {
   const [wardrobeItems, setWardrobeItems] = useState([]);
   const [loadingWardrobe, setLoadingWardrobe] = useState(true);
+  const [loadingMoreWardrobe, setLoadingMoreWardrobe] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const { user, loading: authLoading } = useContext(AuthContext);
   const hasLoadedRef = useRef(false);
 
   const fetchWardrobeItems = useCallback(
-    async (forceRefresh = false) => {
+    async (page = 1, forceRefresh = false) => {
       if (!user?.firebase) return;
 
       // Use ref to check if we've already loaded to avoid dependency on state
-      if (hasLoadedRef.current && !forceRefresh) {
+      if (hasLoadedRef.current && page === 1 && !forceRefresh) {
         return;
       }
 
       try {
-        setLoadingWardrobe(true);
-        const res = await api.get("/wardrobe_items");
-        setWardrobeItems(res.data);
-        hasLoadedRef.current = true;
+        if (page === 1) setLoadingWardrobe(true);
+        else setLoadingMoreWardrobe(true);
+        const res = await api.get(`/wardrobe_items?page=${page}`);
+
+        const { wardrobe_items, pagination } = res.data;
+
+        if (page === 1) {
+          setWardrobeItems(wardrobe_items);
+          hasLoadedRef.current = true;
+        } else {
+          setWardrobeItems((prev) => [...prev, ...wardrobe_items]);
+        }
+
+        setCurrentPage(pagination.current_page);
+        setTotalPages(pagination.pages);
       } catch (err) {
         console.error("⚠️ Failed to fetch wardrobe items:", err);
       } finally {
-        setLoadingWardrobe(false);
+        if (page === 1) setLoadingWardrobe(false);
+        else setLoadingMoreWardrobe(false);
       }
     },
-    [user?.firebase] // Only depend on user.firebase
+    [user?.firebase]
   );
 
   useEffect(() => {
@@ -145,9 +160,21 @@ export function WardrobeProvider({ children }) {
   };
 
   // Add a force refresh function as a fallback
+  const loadMoreWardrobeItems = useCallback(async () => {
+    if (currentPage < totalPages && !loadingMoreWardrobe && !loadingWardrobe) {
+      await fetchWardrobeItems(currentPage + 1);
+    }
+  }, [
+    currentPage,
+    totalPages,
+    loadingWardrobe,
+    loadingMoreWardrobe,
+    fetchWardrobeItems,
+  ]);
+
   const refreshWardrobeItems = useCallback(async () => {
     console.log("🔄 Force refreshing wardrobe items...");
-    await fetchWardrobeItems(true);
+    await fetchWardrobeItems(1, true);
   }, [fetchWardrobeItems]);
 
   return (
@@ -155,11 +182,16 @@ export function WardrobeProvider({ children }) {
       value={{
         wardrobeItems,
         loadingWardrobe,
+        loadingMoreWardrobe,
         fetchWardrobeItems,
         addItemToWardrobe,
         updateWardrobeItem,
         removeWardrobeItem,
+        loadMoreWardrobeItems,
+        hasMoreWardrobe: currentPage < totalPages,
         refreshWardrobeItems,
+        currentPage,
+        totalPages,
       }}
     >
       {children}

@@ -96,8 +96,9 @@ export function OutfitProvider({ children }) {
             ? {
                 ...outfit,
                 ...newOutfit,
-                // Preserve the original thumbnail_url if it hasn't changed
-                thumbnail_url: newOutfit.thumbnail_url || outfit.thumbnail_url,
+                // Preserve the original composite_image_url if it hasn't changed
+                composite_image_url:
+                  newOutfit.composite_image_url || outfit.composite_image_url,
               }
             : outfit
         );
@@ -141,9 +142,10 @@ export function OutfitProvider({ children }) {
       updated[outfitIndex] = {
         ...prev[outfitIndex],
         ...updatedOutfit,
-        // Preserve the original thumbnail_url if it hasn't changed
-        thumbnail_url:
-          updatedOutfit.thumbnail_url || prev[outfitIndex].thumbnail_url,
+        // Preserve the original composite_image_url if it hasn't changed
+        composite_image_url:
+          updatedOutfit.composite_image_url ||
+          prev[outfitIndex].composite_image_url,
       };
 
       console.log("✅ Updated outfit at index:", outfitIndex);

@@ -15,20 +15,20 @@ import typography from "../../styles/typography";
 import globalStyles from "../../styles/global";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import { SafeAreaView } from "react-native-safe-area-context";
-import useCachedImage from "../../hooks/useCachedImage";
 import * as FileSystem from "expo-file-system";
 import WardrobeItemCard from "./WardrobeItemCard";
 
 export default function WardrobeItems() {
-  const { wardrobeItems: rawItems, loadingWardrobe } = useWardrobe();
-  const [items, setItems] = React.useState([]);
-
-  React.useEffect(() => {
-    const sortedItems = [...rawItems].sort(
-      (a, b) => new Date(b.created_at) - new Date(a.created_at)
-    );
-    setItems(sortedItems);
-  }, [rawItems]);
+  const {
+    wardrobeItems: rawItems,
+    loadingWardrobe,
+    loadingMoreWardrobe,
+    loadMoreWardrobeItems,
+    currentPage,
+    totalPages,
+    hasMoreWardrobe,
+  } = useWardrobe();
+  const items = rawItems; // order preserved from backend/pagination
 
   // Cleanup unused cached images
   useEffect(() => {
@@ -62,13 +62,7 @@ export default function WardrobeItems() {
 
   return (
     <SafeAreaView style={globalStyles.container} edges={["left", "right"]}>
-      {loadingWardrobe ? (
-        <ActivityIndicator
-          testID="wardrobe-loading"
-          size="large"
-          style={{ marginTop: 40 }}
-        />
-      ) : items.length === 0 ? (
+      {loadingWardrobe && items.length === 0 ? (
         <Text style={[styles.emptyText]}>No wardrobe items yet.</Text>
       ) : (
         <FlatList
@@ -78,22 +72,24 @@ export default function WardrobeItems() {
           numColumns={2}
           columnWrapperStyle={styles.columnWrapper}
           contentContainerStyle={styles.listContent}
+          onEndReachedThreshold={0.5}
+          onEndReached={() => {
+            if (hasMoreWardrobe && !loadingMoreWardrobe) {
+              loadMoreWardrobeItems();
+            }
+          }}
+          ListFooterComponent={() =>
+            loadingMoreWardrobe ? (
+              <View style={{ paddingVertical: 20 }}>
+                <ActivityIndicator size="small" />
+              </View>
+            ) : null
+          }
         />
       )}
     </SafeAreaView>
   );
 }
-
-const tagColorStyle = (tag) => {
-  // Simple color mapping for demo; you can expand this
-  if (/work/i.test(tag)) return { backgroundColor: "#e0f2fe" };
-  if (/elegant/i.test(tag)) return { backgroundColor: "#fce7f3" };
-  if (/casual/i.test(tag)) return { backgroundColor: "#e0e7ff" };
-  if (/basics?/i.test(tag)) return { backgroundColor: "#ccfbf1" };
-  if (/cozy/i.test(tag)) return { backgroundColor: "#fef3c7" };
-  if (/winter/i.test(tag)) return { backgroundColor: "#e5e7eb" };
-  return { backgroundColor: "#f1f5f9" };
-};
 
 const styles = StyleSheet.create({
   cardTouchable: {
