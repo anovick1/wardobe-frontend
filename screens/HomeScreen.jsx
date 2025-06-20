@@ -1,15 +1,92 @@
-import React, { useContext } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import React, { useContext, useState, useEffect } from "react";
+import { View, Text, StyleSheet, Alert } from "react-native";
 import { AuthContext } from "../auth/AuthContext";
 import { useWeather } from "../contexts/WeatherContext";
 import typography from "../styles/typography";
 import globalStyles from "../styles/global";
 import { SafeAreaView } from "react-native-safe-area-context";
 import DailyOutfitGenerator from "../components/homescreen/outfits/DailyOutfitGenerator";
+import * as Calendar from "expo-calendar";
 
 export default function HomeScreen() {
   const { user } = useContext(AuthContext);
   const { weather, error: weatherError, city } = useWeather();
+  const [calendarPermission, setCalendarPermission] = useState(false);
+  const [todaysEvents, setTodaysEvents] = useState([]);
+
+  useEffect(() => {
+    requestCalendarPermissions();
+  }, []);
+
+  const requestCalendarPermissions = async () => {
+    try {
+      const { status } = await Calendar.requestCalendarPermissionsAsync();
+      if (status === "granted") {
+        setCalendarPermission(true);
+        console.log("✅ Calendar access granted");
+        fetchTodaysEvents();
+      } else {
+        setCalendarPermission(false);
+        console.log("❌ Calendar permission denied");
+      }
+    } catch (err) {
+      console.error("❌ Error requesting calendar permission:", err);
+    }
+  };
+
+  const fetchTodaysEvents = async () => {
+    try {
+      const calendars = await Calendar.getCalendarsAsync(
+        Calendar.EntityTypes.EVENT
+      );
+
+      console.log(`📅 Found ${calendars.length} calendars`);
+
+      // Check if we have any calendars (Android issue)
+      if (calendars.length === 0) {
+        console.log("❌ No calendars found - cannot fetch events");
+        setTodaysEvents([]);
+        return;
+      }
+
+      // Use local timezone, not UTC
+      const today = new Date();
+      const startOfDay = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate(),
+        0,
+        0,
+        0
+      );
+      const endOfDay = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate(),
+        23,
+        59,
+        59
+      );
+
+      const allEvents = await Calendar.getEventsAsync(
+        calendars.map((c) => c.id),
+        startOfDay,
+        endOfDay
+      );
+
+      // Filter events that overlap with today
+      const todayEvents = allEvents.filter((event) => {
+        const eventStart = new Date(event.startDate);
+        const eventEnd = new Date(event.endDate || event.startDate);
+        return eventStart <= endOfDay && eventEnd >= startOfDay;
+      });
+
+      setTodaysEvents(todayEvents);
+      console.log(`📅 Found ${todayEvents.length} events for today`);
+    } catch (err) {
+      console.error("❌ Error fetching today's events:", err);
+    }
+  };
 
   return (
     <SafeAreaView
@@ -54,7 +131,31 @@ export default function HomeScreen() {
         </Text>
       )}
 
-      <DailyOutfitGenerator />
+      {/* Show today's events if we have any */}
+      {todaysEvents.length > 0 && (
+        <View style={styles.eventsCard}>
+          <Text style={styles.eventsTitle}>📅 Today's Events</Text>
+          {todaysEvents.slice(0, 3).map((event) => (
+            <Text key={event.id} style={styles.eventItem}>
+              • {event.title} at{" "}
+              {new Date(event.startDate).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </Text>
+          ))}
+          {todaysEvents.length > 3 && (
+            <Text style={styles.moreEvents}>
+              +{todaysEvents.length - 3} more events
+            </Text>
+          )}
+        </View>
+      )}
+
+      <DailyOutfitGenerator
+        todaysEvents={todaysEvents}
+        calendarPermission={calendarPermission}
+      />
 
       {/* Future: outfit suggestions, upcoming events, feed, etc. */}
     </SafeAreaView>
@@ -132,5 +233,33 @@ const styles = StyleSheet.create({
     color: "#121416",
     flex: 1,
     flexWrap: "wrap",
+  },
+  eventsCard: {
+    marginVertical: 10,
+    backgroundColor: "rgba(255,255,255,0.85)",
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderWidth: 0.5,
+    borderColor: "#e5e7eb",
+    alignSelf: "stretch",
+    minWidth: 0,
+  },
+  eventsTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#121416",
+    marginBottom: 6,
+  },
+  eventItem: {
+    fontSize: 12,
+    color: "#64748b",
+    marginBottom: 2,
+  },
+  moreEvents: {
+    fontSize: 11,
+    color: "#9ca3af",
+    fontStyle: "italic",
+    marginTop: 2,
   },
 });
