@@ -13,7 +13,9 @@ import {
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { AuthContext } from "../auth/AuthContext";
-import api from "../api";
+import { useWardrobe } from "../contexts/WardrobeContext";
+import { useOutfits } from "../contexts/OutfitContext";
+import { dataManager } from "../services/DataManager";
 
 const EditOutfit = () => {
   const [outfit, setOutfit] = useState(null);
@@ -26,13 +28,17 @@ const EditOutfit = () => {
   const route = useRoute();
   const { outfitId } = route.params;
   const { user } = useContext(AuthContext);
+  const { getAllWardrobeItemsForSelection } = useWardrobe();
+  const { getOutfitById, updateOutfit } = useOutfits();
 
   const fetchOutfitDetails = async () => {
     try {
-      const response = await api.get(`/outfits/${outfitId}`);
-      setOutfit(response.data);
-      setSelectedItems(response.data.wardrobe_items.map((item) => item.id));
-      setNotes(response.data.notes || "");
+      const outfitData = await getOutfitById(outfitId);
+      if (outfitData) {
+        setOutfit(outfitData);
+        setSelectedItems(outfitData.wardrobe_items.map((item) => item.id));
+        setNotes(outfitData.notes || "");
+      }
     } catch (error) {
       Alert.alert("Error", "Failed to load outfit details");
       console.error(error);
@@ -41,11 +47,12 @@ const EditOutfit = () => {
 
   const fetchWardrobeItems = async () => {
     try {
-      const response = await api.get("/wardrobe_items");
-      setWardrobeItems(response.data);
+      const items = await getAllWardrobeItemsForSelection();
+      setWardrobeItems(items || []);
     } catch (error) {
       Alert.alert("Error", "Failed to load wardrobe items");
       console.error(error);
+      setWardrobeItems([]);
     } finally {
       setLoading(false);
     }
@@ -53,7 +60,12 @@ const EditOutfit = () => {
 
   useEffect(() => {
     if (user) {
-      Promise.all([fetchOutfitDetails(), fetchWardrobeItems()]);
+      Promise.all([fetchOutfitDetails(), fetchWardrobeItems()]).catch(
+        (error) => {
+          console.error("Error loading data:", error);
+          setLoading(false);
+        }
+      );
     }
   }, [user]);
 
@@ -75,10 +87,20 @@ const EditOutfit = () => {
 
     setSaving(true);
     try {
-      await api.put(`/outfits/${outfitId}`, {
+      await dataManager.updateOutfit(outfitId, {
         wardrobe_item_ids: selectedItems,
         notes: notes,
       });
+
+      // Update the outfit in context
+      const updatedOutfitData = {
+        ...outfit,
+        notes: notes,
+        wardrobe_items: wardrobeItems.filter((item) =>
+          selectedItems.includes(item.id)
+        ),
+      };
+      await updateOutfit(updatedOutfitData, true); // Skip backend call since we just did it
 
       Alert.alert("Success", "Outfit updated successfully");
       navigation.navigate("Wardrobe", { screen: "Outfits" });
@@ -145,7 +167,7 @@ const EditOutfit = () => {
         <View style={styles.itemsContainer}>
           <Text style={styles.label}>Select Items</Text>
           <View style={styles.itemsGrid}>
-            {wardrobeItems.map((item) => (
+            {(wardrobeItems || []).map((item) => (
               <TouchableOpacity
                 key={item.id}
                 style={[
@@ -290,6 +312,7 @@ const styles = StyleSheet.create({
   itemImage: {
     width: "100%",
     height: 150,
+    resizeMode: "contain",
   },
   itemOverlay: {
     ...StyleSheet.absoluteFillObject,

@@ -6,14 +6,15 @@ import React, {
   useCallback,
   useRef,
 } from "react";
-import api from "../api";
 import { AuthContext } from "./../auth/AuthContext";
+import { dataManager } from "../services/DataManager";
 
 const OutfitContext = createContext();
 
 export function OutfitProvider({ children }) {
   const [outfits, setOutfits] = useState([]);
   const [loadingOutfits, setLoadingOutfits] = useState(true);
+  const [loadingMoreOutfits, setLoadingMoreOutfits] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const { user, loading: authLoading } = useContext(AuthContext);
@@ -30,36 +31,25 @@ export function OutfitProvider({ children }) {
       }
 
       try {
-        setLoadingOutfits(true);
-        console.log(
-          "🔄 Fetching outfits - page:",
-          page,
-          "forceRefresh:",
-          forceRefresh
-        );
-
-        const response = await api.get(`/outfits/?page=${page}`);
+        if (page === 1) setLoadingOutfits(true);
+        else setLoadingMoreOutfits(true);
+        
+        const { items, pagination } = await dataManager.getOutfits(page, forceRefresh);
 
         if (page === 1) {
-          setOutfits(response.data.outfits);
+          setOutfits(items);
           hasLoadedRef.current = true;
         } else {
-          setOutfits((prevOutfits) => [
-            ...prevOutfits,
-            ...response.data.outfits,
-          ]);
+          setOutfits((prevOutfits) => [...prevOutfits, ...items]);
         }
 
-        setTotalPages(response.data.pagination.pages);
-        setCurrentPage(response.data.pagination.current_page);
-        console.log(
-          "✅ Fetched outfits successfully, count:",
-          response.data.outfits.length
-        );
+        setTotalPages(pagination.pages);
+        setCurrentPage(pagination.current_page);
       } catch (err) {
         console.error("⚠️ Failed to fetch outfits:", err);
       } finally {
-        setLoadingOutfits(false);
+        if (page === 1) setLoadingOutfits(false);
+        else setLoadingMoreOutfits(false);
       }
     },
     [user?.firebase] // Only depend on user.firebase
@@ -77,109 +67,108 @@ export function OutfitProvider({ children }) {
     }
   }, [user, authLoading, fetchOutfits]);
 
-  const addOutfit = (newOutfit) => {
-    console.log("🔄 Adding outfit:", newOutfit?.id, newOutfit?.title);
-
+  const addOutfit = useCallback(async (newOutfit, skipBackendCall = false) => {
     if (!newOutfit || !newOutfit.id) {
       console.error("❌ Cannot add outfit without ID:", newOutfit);
       return;
     }
 
+    // Optimistically update UI
     setOutfits((prev) => {
       const exists = prev.some((outfit) => outfit.id === newOutfit.id);
-      console.log("📝 Outfit exists:", exists, "Current count:", prev.length);
-
       if (exists) {
-        // If it exists, update it
-        const updated = prev.map((outfit) =>
+        return prev.map((outfit) =>
           outfit.id === newOutfit.id
             ? {
                 ...outfit,
                 ...newOutfit,
-                // Preserve the original composite_image_url if it hasn't changed
                 composite_image_url:
                   newOutfit.composite_image_url || outfit.composite_image_url,
               }
             : outfit
         );
-        console.log("✅ Updated existing outfit");
-        return updated;
       } else {
-        // If it's new, add it to the start
-        const newList = [newOutfit, ...prev];
-        console.log("✅ Added new outfit, new count:", newList.length);
-        return newList;
+        return [newOutfit, ...prev];
       }
     });
-  };
 
-  const updateOutfit = (updatedOutfit) => {
-    console.log("🔄 Updating outfit:", updatedOutfit?.id, updatedOutfit?.title);
+    // Invalidate cache to ensure fresh data on next load
+    if (!skipBackendCall) {
+      dataManager.invalidateOutfitCache();
+    }
+  }, []);
 
+  const updateOutfit = useCallback(async (updatedOutfit, skipBackendCall = false) => {
     if (!updatedOutfit || !updatedOutfit.id) {
       console.error("❌ Cannot update outfit without ID:", updatedOutfit);
       return;
     }
 
+    // Optimistically update UI
     setOutfits((prev) => {
       const outfitIndex = prev.findIndex(
         (outfit) => outfit.id === updatedOutfit.id
       );
-      console.log(
-        "📝 Outfit found at index:",
-        outfitIndex,
-        "Current count:",
-        prev.length
-      );
-
       if (outfitIndex === -1) {
-        console.log("⚠️ Outfit not found, adding as new outfit");
         return [updatedOutfit, ...prev];
       }
 
-      // Force a new array reference to ensure React re-renders
       const updated = [...prev];
       updated[outfitIndex] = {
         ...prev[outfitIndex],
         ...updatedOutfit,
-        // Preserve the original composite_image_url if it hasn't changed
         composite_image_url:
           updatedOutfit.composite_image_url ||
           prev[outfitIndex].composite_image_url,
       };
-
-      console.log("✅ Updated outfit at index:", outfitIndex);
       return updated;
     });
-  };
 
-  const removeOutfit = (outfitId) => {
-    console.log("🗑️ Removing outfit:", outfitId);
-    setOutfits((prev) => {
-      const filtered = prev.filter((outfit) => outfit.id !== outfitId);
-      console.log("✅ Removed outfit, new count:", filtered.length);
-      return filtered;
-    });
-  };
+    // Invalidate cache to ensure fresh data on next load
+    if (!skipBackendCall) {
+      dataManager.invalidateOutfitCache();
+    }
+  }, []);
+
+  const removeOutfit = useCallback(async (outfitId, skipBackendCall = false) => {
+    // Optimistically update UI
+    setOutfits((prev) => prev.filter((outfit) => outfit.id !== outfitId));
+
+    // Invalidate cache to ensure fresh data on next load
+    if (!skipBackendCall) {
+      dataManager.invalidateOutfitCache();
+    }
+  }, []);
 
   const loadMoreOutfits = useCallback(async () => {
-    if (currentPage < totalPages && !loadingOutfits) {
+    if (currentPage < totalPages && !loadingMoreOutfits && !loadingOutfits) {
       await fetchOutfits(currentPage + 1);
     }
-  }, [currentPage, totalPages, loadingOutfits, fetchOutfits]);
+  }, [currentPage, totalPages, loadingOutfits, loadingMoreOutfits, fetchOutfits]);
 
   // Add a force refresh function as a fallback
   const refreshOutfits = useCallback(async () => {
-    console.log("🔄 Force refreshing outfits...");
-    hasLoadedRef.current = false; // Reset the loaded flag
+    dataManager.invalidateOutfitCache();
+    hasLoadedRef.current = false;
     await fetchOutfits(1, true);
   }, [fetchOutfits]);
+
+  // Function to get a specific outfit by ID
+  const getOutfitById = useCallback(async (outfitId, forceRefresh = false) => {
+    try {
+      return await dataManager.getOutfitById(outfitId, forceRefresh);
+    } catch (error) {
+      console.error("Failed to get outfit by ID:", error);
+      return null;
+    }
+  }, []);
 
   return (
     <OutfitContext.Provider
       value={{
         outfits,
         loadingOutfits,
+        loadingMoreOutfits,
         currentPage,
         totalPages,
         fetchOutfits,
@@ -188,6 +177,8 @@ export function OutfitProvider({ children }) {
         removeOutfit,
         loadMoreOutfits,
         refreshOutfits,
+        getOutfitById,
+        hasMoreOutfits: currentPage < totalPages,
       }}
     >
       {children}
