@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import api from "../../../api";
 import { mapEventsForApi } from "../../../utils/events";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useOutfits } from "../../../contexts/OutfitContext";
 
 export const useDailyOutfit = (lat, lon, events) => {
   const [dailyOutfit, setDailyOutfit] = useState(null);
@@ -9,6 +10,9 @@ export const useDailyOutfit = (lat, lon, events) => {
   const [error, setError] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [initialising, setInitialising] = useState(true);
+
+  // Get outfit context functions
+  const { addOutfit, updateOutfit } = useOutfits();
 
   // Load cached outfit on mount
   useEffect(() => {
@@ -44,6 +48,19 @@ export const useDailyOutfit = (lat, lon, events) => {
         () => {}
       );
 
+      // Add to outfit context if it has an outfit object
+      if (outfitPayload?.outfit && addOutfit) {
+        addOutfit(outfitPayload.outfit, true); // skipBackendCall = true since it's already from backend
+      } else if (outfitPayload && outfitPayload.id && addOutfit) {
+        // If the daily outfit payload itself is the outfit data, add it directly
+        // Mark it as a daily outfit for proper categorization
+        const outfitData = {
+          ...outfitPayload,
+          is_daily_outfit: true,
+        };
+        addOutfit(outfitData, true);
+      }
+
       // No polling here – backend already returns the composite image URL when ready
     } catch (err) {
       if (err.response?.status === 404) {
@@ -56,7 +73,7 @@ export const useDailyOutfit = (lat, lon, events) => {
       setLoading(false);
       setInitialising(false);
     }
-  }, [lat, lon]);
+  }, [lat, lon, addOutfit]);
 
   // Function to generate new outfit
   const generateOutfit = useCallback(async () => {
@@ -83,6 +100,19 @@ export const useDailyOutfit = (lat, lon, events) => {
         () => {}
       );
 
+      // Add to outfit context if it has an outfit object
+      if (outfitPayload?.outfit && addOutfit) {
+        addOutfit(outfitPayload.outfit, true); // skipBackendCall = true since it's already from backend
+      } else if (outfitPayload && outfitPayload.id && addOutfit) {
+        // If the daily outfit payload itself is the outfit data, add it directly
+        // Mark it as a daily outfit for proper categorization
+        const outfitData = {
+          ...outfitPayload,
+          is_daily_outfit: true,
+        };
+        addOutfit(outfitData, true);
+      }
+
       // Backend will return the composite image URL once generation is done – no polling
     } catch (err) {
       setError({ status: err.response?.status, message: err.message });
@@ -90,7 +120,7 @@ export const useDailyOutfit = (lat, lon, events) => {
       setGenerating(false);
       setInitialising(false);
     }
-  }, [lat, lon, events]);
+  }, [lat, lon, events, addOutfit]);
 
   // Initial fetch when coordinates are available
   useEffect(() => {
