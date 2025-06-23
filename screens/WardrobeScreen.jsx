@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -21,8 +21,9 @@ import ProcessingOverlay from "../components/common/ProcessingOverlay";
 
 const tabs = ["Wardrobe", "Outfits", "Boards", "Capsules", "Smart"];
 
-export default function WardrobeScreen({ navigation }) {
-  const [activeTab, setActiveTab] = useState("Wardrobe");
+export default function WardrobeScreen({ navigation, route }) {
+  const initialTabParam = route?.params?.initialTab;
+  const [activeTab, setActiveTab] = useState(initialTabParam || "Wardrobe");
   const [processing, setProcessing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
 
@@ -34,6 +35,13 @@ export default function WardrobeScreen({ navigation }) {
       navigation.navigate("WardrobeHome");
     }, [navigation])
   );
+
+  // Update active tab if navigation param changes while screen is already mounted
+  useEffect(() => {
+    if (route?.params?.initialTab) {
+      setActiveTab(route.params.initialTab);
+    }
+  }, [route?.params?.initialTab]);
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -117,7 +125,13 @@ export default function WardrobeScreen({ navigation }) {
       {!processing && (
         <TouchableOpacity
           style={styles.fab}
-          onPress={() => setModalVisible(true)}
+          onPress={() => {
+            if (activeTab === "Outfits") {
+              navigation.navigate("CreateOutfit");
+            } else {
+              setModalVisible(true);
+            }
+          }}
         >
           <Icon name="add" size={32} color="#121416" />
         </TouchableOpacity>

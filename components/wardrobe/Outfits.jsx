@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -9,19 +9,29 @@ import {
   Modal,
   TextInput,
   Alert,
+  ScrollView,
 } from "react-native";
+
+import * as Calendar from "expo-calendar";
 import { useNavigation } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import OutfitCard from "./OutfitCard";
 import { useOutfits } from "../../contexts/OutfitContext";
+import { useWeather } from "../../contexts/WeatherContext";
 import api from "../../api";
 import globalStyles from "../../styles/global";
+import { mapEventsForApi } from "../../utils/events";
 
 export default function Outfits() {
   const [modalVisible, setModalVisible] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [generating, setGenerating] = useState(false);
+  const [upcomingEvents, setUpcomingEvents] = useState([]);
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [loadingEvents, setLoadingEvents] = useState(false);
+  const [eventDays, setEventDays] = useState(7); // Default to 7 days
+  const [showEmptyEvents, setShowEmptyEvents] = useState(false);
   const navigation = useNavigation();
 
   const {
@@ -33,6 +43,82 @@ export default function Outfits() {
     loadMoreOutfits,
   } = useOutfits();
 
+  const { coordinates } = useWeather();
+
+  // Fetch upcoming events when modal opens or event range changes
+  useEffect(() => {
+    if (modalVisible) {
+      fetchUpcomingEvents();
+    }
+  }, [modalVisible, eventDays]);
+
+  const fetchUpcomingEvents = async () => {
+    try {
+      setLoadingEvents(true);
+      setShowEmptyEvents(false); // Hide empty state during loading
+
+      // Request both calendar and reminders permissions
+      const { status } = await Calendar.requestCalendarPermissionsAsync();
+      const reminderStatus = await Calendar.requestRemindersPermissionsAsync();
+
+      if (status !== "granted" || reminderStatus.status !== "granted") {
+        console.log("Calendar or reminders permission denied");
+        // Only clear events if this is the first load (no existing events)
+        if (upcomingEvents.length === 0) {
+          setUpcomingEvents([]);
+          setShowEmptyEvents(true);
+        }
+        return;
+      }
+
+      const calendars = await Calendar.getCalendarsAsync();
+      if (!calendars || calendars.length === 0) {
+        console.log("No calendars found");
+        // Only clear events if this is the first load (no existing events)
+        if (upcomingEvents.length === 0) {
+          setUpcomingEvents([]);
+          setShowEmptyEvents(true);
+        }
+        return;
+      }
+
+      // Get events from today to specified days from now
+      const today = new Date();
+      const startDate = new Date(today);
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(today);
+      endDate.setDate(today.getDate() + eventDays);
+      endDate.setHours(23, 59, 59, 999);
+
+      const allEvents = await Calendar.getEventsAsync(
+        calendars.map((cal) => cal.id),
+        startDate,
+        endDate
+      );
+
+      // Filter and sort events
+      const upcoming = allEvents
+        .filter((event) => {
+          const eventStart = new Date(event.startDate);
+          return eventStart >= startDate;
+        })
+        .sort((a, b) => new Date(a.startDate) - new Date(b.startDate))
+        .slice(0, 10); // Limit to 10 events
+
+      setUpcomingEvents(upcoming);
+      setShowEmptyEvents(upcoming.length === 0); // Show empty state only if no events found
+    } catch (error) {
+      console.error("Error fetching events:", error);
+      // Only clear events if this is the first load (no existing events)
+      if (upcomingEvents.length === 0) {
+        setUpcomingEvents([]);
+        setShowEmptyEvents(true);
+      }
+    } finally {
+      setLoadingEvents(false);
+    }
+  };
+
   const generateOutfitWithAI = async () => {
     if (!prompt.trim()) {
       Alert.alert("Error", "Please enter a prompt for the outfit");
@@ -41,21 +127,37 @@ export default function Outfits() {
 
     setGenerating(true);
     try {
-      const response = await api.post("/outfits/ai_generate_hybrid", {
+      // Prepare the request payload
+      const payload = {
         prompt: prompt.trim(),
-      });
+      };
+
+      // Add location data if available
+      if (coordinates?.lat && coordinates?.lon) {
+        payload.lat = coordinates.lat;
+        payload.lon = coordinates.lon;
+      }
+
+      // Add selected event if chosen
+      if (selectedEvent) {
+        payload.selected_event = mapEventsForApi([selectedEvent])[0];
+        console.log('Event being passed to AI:', payload.selected_event);
+      }
+
+      const response = await api.post("/outfits/ai_generate_hybrid", payload);
 
       const { outfit } = response.data;
 
       // Add the new outfit to context
       addOutfit(outfit);
 
-      // Close modal and reset prompt
+      // Close modal and reset form
       setModalVisible(false);
       setPrompt("");
+      setSelectedEvent(null);
 
       // Navigate to outfit detail
-      navigation.navigate("OutfitDetail", { outfitId: outfit.id });
+      navigation.navigate("OutfitDetail", { outfit });
     } catch (error) {
       console.error("Failed to generate outfit:", error);
       Alert.alert(
@@ -77,10 +179,12 @@ export default function Outfits() {
   const renderItem = ({ item }) => <OutfitCard item={item} />;
 
   const renderFooter = () => {
-    if (!loadingOutfits || outfits.length === 0) return null;
+    if (!loadingOutfits || outfits.length === 0 || currentPage >= totalPages)
+      return null;
     return (
       <View style={styles.footerLoader}>
-        <ActivityIndicator size="small" color="#0000ff" />
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text style={styles.loadingText}>Loading more outfits...</Text>
       </View>
     );
   };
@@ -132,34 +236,228 @@ export default function Outfits() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
+            {generating && (
+              <View style={styles.modalLoadingOverlay}>
+                <View style={styles.modalLoadingContent}>
+                  <ActivityIndicator size="large" color="#007AFF" />
+                  <Text style={styles.modalLoadingText}>Generating outfit...</Text>
+                </View>
+              </View>
+            )}
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Generate Outfit with AI</Text>
               <TouchableOpacity
-                onPress={() => setModalVisible(false)}
+                onPress={() => {
+                  setModalVisible(false);
+                  setSelectedEvent(null);
+                }}
                 style={styles.closeButton}
               >
                 <Icon name="close" size={24} color="#666" />
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.promptLabel}>
-              Describe the outfit you want:
-            </Text>
+            <ScrollView style={styles.modalScrollView}>
+              <Text style={styles.promptLabel}>
+                Describe the outfit you want:
+              </Text>
+              <TextInput
+                style={styles.promptInput}
+                placeholder="e.g., Casual summer outfit for a coffee date"
+                value={prompt}
+                onChangeText={setPrompt}
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+              />
+              {/* Weather Info */}
+              {coordinates && (
+                <View style={styles.weatherInfo}>
+                  <Text style={styles.weatherLabel}>
+                    🌤️ Weather data will be included automatically
+                  </Text>
+                  <Text style={styles.weatherDisclaimer}>
+                    Forecasts available for the next 5 days
+                  </Text>
+                </View>
+              )}
+              {/* Event Selection */}
+              <View style={styles.eventSectionHeader}>
+                <Text style={styles.eventLabel}>Select Event (Optional):</Text>
 
-            <TextInput
-              style={styles.promptInput}
-              placeholder="e.g., Casual summer outfit for a coffee date"
-              value={prompt}
-              onChangeText={setPrompt}
-              multiline
-              numberOfLines={3}
-              textAlignVertical="top"
-            />
+                {/* Time Range Selector */}
+                <View style={styles.timeRangeContainer}>
+                  <TouchableOpacity
+                    style={[
+                      styles.timeRangeButton,
+                      eventDays === 7 && styles.timeRangeButtonActive,
+                    ]}
+                    onPress={() => setEventDays(7)}
+                  >
+                    <Text
+                      style={[
+                        styles.timeRangeText,
+                        eventDays === 7 && styles.timeRangeTextActive,
+                      ]}
+                    >
+                      Week
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.timeRangeButton,
+                      eventDays === 14 && styles.timeRangeButtonActive,
+                    ]}
+                    onPress={() => setEventDays(14)}
+                  >
+                    <Text
+                      style={[
+                        styles.timeRangeText,
+                        eventDays === 14 && styles.timeRangeTextActive,
+                      ]}
+                    >
+                      2 Weeks
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.timeRangeButton,
+                      eventDays === 30 && styles.timeRangeButtonActive,
+                    ]}
+                    onPress={() => setEventDays(30)}
+                  >
+                    <Text
+                      style={[
+                        styles.timeRangeText,
+                        eventDays === 30 && styles.timeRangeTextActive,
+                      ]}
+                    >
+                      Month
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+              <View style={styles.eventOptionsContainer}>
+                {loadingEvents && (
+                  <View style={styles.loadingOverlay}>
+                    <ActivityIndicator size="small" color="#007AFF" />
+                  </View>
+                )}
+                <View
+                  style={[
+                    styles.eventOptionsList,
+                    loadingEvents && styles.eventOptionsLoading,
+                  ]}
+                >
+                  {/* No Event Option */}
+                  <TouchableOpacity
+                    style={[
+                      styles.eventOption,
+                      !selectedEvent && styles.eventOptionSelected,
+                    ]}
+                    onPress={() => setSelectedEvent(null)}
+                  >
+                    <View style={styles.eventOptionContent}>
+                      <Text style={styles.eventOptionIcon}>✨</Text>
+                      <Text
+                        style={[
+                          styles.eventOptionTitle,
+                          !selectedEvent && styles.eventOptionTitleSelected,
+                        ]}
+                      >
+                        No specific event
+                      </Text>
+                    </View>
+                    {!selectedEvent && (
+                      <Icon name="check-circle" size={20} color="#007AFF" />
+                    )}
+                  </TouchableOpacity>
+
+                  {/* Event Options */}
+                  {upcomingEvents.slice(0, 5).map((event) => {
+                    const eventDate = new Date(event.startDate);
+                    const isToday =
+                      eventDate.toDateString() === new Date().toDateString();
+                    const isTomorrow =
+                      eventDate.toDateString() ===
+                      new Date(Date.now() + 86400000).toDateString();
+
+                    let dateLabel;
+                    if (isToday) {
+                      dateLabel = "Today";
+                    } else if (isTomorrow) {
+                      dateLabel = "Tomorrow";
+                    } else {
+                      dateLabel = eventDate.toLocaleDateString("en-US", {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                      });
+                    }
+
+                    const timeLabel = eventDate.toLocaleTimeString("en-US", {
+                      hour: "numeric",
+                      minute: "2-digit",
+                      hour12: true,
+                    });
+
+                    return (
+                      <TouchableOpacity
+                        key={event.id}
+                        style={[
+                          styles.eventOption,
+                          selectedEvent?.id === event.id &&
+                            styles.eventOptionSelected,
+                        ]}
+                        onPress={() => setSelectedEvent(event)}
+                      >
+                        <View style={styles.eventOptionContent}>
+                          <Text style={styles.eventOptionIcon}>📅</Text>
+                          <View style={styles.eventDetails}>
+                            <Text
+                              style={[
+                                styles.eventOptionTitle,
+                                selectedEvent?.id === event.id &&
+                                  styles.eventOptionTitleSelected,
+                              ]}
+                            >
+                              {event.title}
+                            </Text>
+                            <Text style={styles.eventDateTime}>
+                              {dateLabel} • {timeLabel}
+                            </Text>
+                            {event.location && (
+                              <Text style={styles.eventLocation}>
+                                📍 {event.location}
+                              </Text>
+                            )}
+                          </View>
+                        </View>
+                        {selectedEvent?.id === event.id && (
+                          <Icon name="check-circle" size={20} color="#007AFF" />
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+
+                  {showEmptyEvents && !loadingEvents && (
+                    <View style={styles.noEventsContainer}>
+                      <Text style={styles.noEventsText}>
+                        📅 No upcoming events found
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            </ScrollView>
 
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={styles.cancelButton}
-                onPress={() => setModalVisible(false)}
+                onPress={() => {
+                  setModalVisible(false);
+                  setSelectedEvent(null);
+                }}
               >
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
@@ -239,6 +537,12 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     alignItems: "center",
   },
+  loadingText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: "#6b7280",
+    fontWeight: "500",
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
@@ -251,6 +555,10 @@ const styles = StyleSheet.create({
     padding: 20,
     width: "90%",
     maxWidth: 400,
+    maxHeight: "80%",
+  },
+  modalScrollView: {
+    maxHeight: 400,
   },
   modalHeader: {
     flexDirection: "row",
@@ -279,7 +587,136 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 16,
     minHeight: 80,
-    marginBottom: 20,
+    marginBottom: 16,
+  },
+  eventSectionHeader: {
+    marginBottom: 12,
+  },
+  eventLabel: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#374151",
+    marginBottom: 8,
+  },
+  timeRangeContainer: {
+    flexDirection: "row",
+    backgroundColor: "#f3f4f6",
+    borderRadius: 8,
+    padding: 2,
+  },
+  timeRangeButton: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    alignItems: "center",
+  },
+  timeRangeButtonActive: {
+    backgroundColor: "#007AFF",
+  },
+  timeRangeText: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#6b7280",
+  },
+  timeRangeTextActive: {
+    color: "#fff",
+  },
+  loadingEventsContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 16,
+    backgroundColor: "#f9fafb",
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  loadingEventsText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: "#6b7280",
+  },
+  eventOptionsContainer: {
+    marginBottom: 12,
+  },
+  eventOptionsList: {
+    minHeight: 200, // Maintain consistent height
+  },
+  eventOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 8,
+    marginBottom: 8,
+    backgroundColor: "#fff",
+  },
+  eventOptionSelected: {
+    borderColor: "#007AFF",
+    backgroundColor: "#f0f9ff",
+  },
+  eventOptionContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  eventOptionIcon: {
+    fontSize: 16,
+    marginRight: 12,
+  },
+  eventDetails: {
+    flex: 1,
+  },
+  eventOptionTitle: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#374151",
+    marginBottom: 2,
+  },
+  eventOptionTitleSelected: {
+    color: "#007AFF",
+  },
+  eventDateTime: {
+    fontSize: 12,
+    color: "#6b7280",
+    marginBottom: 2,
+  },
+  eventLocation: {
+    fontSize: 11,
+    color: "#9ca3af",
+  },
+  weatherInfo: {
+    backgroundColor: "#ecfdf5",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  weatherLabel: {
+    fontSize: 14,
+    color: "#059669",
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  weatherDisclaimer: {
+    fontSize: 12,
+    color: "#6b7280",
+    textAlign: "center",
+    fontStyle: "italic",
+  },
+  noEventsContainer: {
+    backgroundColor: "#f9fafb",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+  },
+  noEventsText: {
+    fontSize: 14,
+    color: "#6b7280",
+    textAlign: "center",
   },
   modalButtons: {
     flexDirection: "row",
@@ -318,5 +755,49 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.6,
+  },
+  loadingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 8,
+    zIndex: 1,
+  },
+  eventOptionsLoading: {
+    opacity: 0.7,
+  },
+  modalLoadingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 10,
+    borderRadius: 12,
+  },
+  modalLoadingContent: {
+    backgroundColor: "white",
+    padding: 20,
+    borderRadius: 12,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalLoadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: "#333",
+    fontWeight: "500",
   },
 });

@@ -1,12 +1,17 @@
 import { StyleSheet } from "react-native";
 
 export default StyleSheet.create({
+  cardTouchable: {
+    width: "46%",
+    marginHorizontal: "1%",
+    marginBottom: 16,
+    minWidth: 0,
+  },
   card: {
     borderRadius: 16,
     overflow: "hidden",
-    marginBottom: 2,
     flexDirection: "column",
-    width: 150,
+    width: "100%",
   },
   infoSection: {
     flex: 1,

@@ -5,6 +5,7 @@ import {
   Text,
   Image,
   ActivityIndicator,
+  StyleSheet,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import Icon from "react-native-vector-icons/MaterialIcons";
@@ -20,12 +21,44 @@ export default function OutfitCard({ item }) {
     item.id
   );
 
+  // Determine outfit type and corresponding icon/badge
+  const isDailyOutfit = item.is_daily_outfit;
+  const isAIGenerated = item.generated_by === "chatgpt" && !isDailyOutfit;
+  const isUserGenerated = item.generated_by === "manual";
+
+  const getOutfitTypeInfo = () => {
+    if (isDailyOutfit) {
+      return {
+        icon: "event",
+        text: "Daily",
+        color: "#FF6B6B",
+        backgroundColor: "#FFE8E8",
+      };
+    } else if (isAIGenerated) {
+      return {
+        icon: "auto-awesome",
+        text: "AI",
+        color: "#4ECDC4",
+        backgroundColor: "#E8FFFE",
+      };
+    } else {
+      return {
+        icon: "person",
+        text: "You",
+        color: "#45B7D1",
+        backgroundColor: "#E8F4FD",
+      };
+    }
+  };
+
+  const typeInfo = getOutfitTypeInfo();
+
   return (
     <TouchableOpacity
       style={cardStyles.cardTouchable}
       onPress={() =>
         navigation.navigate("OutfitDetail", {
-          outfitId: item.id,
+          outfit: item,
         })
       }
     >
@@ -66,11 +99,36 @@ export default function OutfitCard({ item }) {
           <Text style={typography.name} numberOfLines={1} adjustsFontSizeToFit>
             {item.title || "Untitled Outfit"}
           </Text>
-          <Text style={typography.brand} numberOfLines={1} adjustsFontSizeToFit>
-            {item.item_count} {item.item_count === 1 ? "item" : "items"}
-          </Text>
+          <View
+            style={[
+              styles.typeBadge,
+              { backgroundColor: typeInfo.backgroundColor },
+            ]}
+          >
+            <Icon name={typeInfo.icon} size={12} color={typeInfo.color} />
+            <Text style={[styles.typeBadgeText, { color: typeInfo.color }]}>
+              {typeInfo.text}
+            </Text>
+          </View>
         </View>
       </View>
     </TouchableOpacity>
   );
 }
+
+const styles = StyleSheet.create({
+  typeBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 8,
+    alignSelf: "flex-start",
+    marginTop: 4,
+  },
+  typeBadgeText: {
+    fontSize: 10,
+    fontWeight: "600",
+    marginLeft: 3,
+  },
+});

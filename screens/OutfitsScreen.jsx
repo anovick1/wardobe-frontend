@@ -22,6 +22,38 @@ const OutfitItemWithCache = ({ item, onPress, onDelete }) => {
     `outfit-${item.id}`
   );
 
+  // Determine outfit type and corresponding icon/badge
+  const isDailyOutfit = item.is_daily_outfit;
+  const isAIGenerated = item.generated_by === "chatgpt" && !isDailyOutfit;
+  const isUserGenerated = item.generated_by === "manual";
+
+  const getOutfitTypeInfo = () => {
+    if (isDailyOutfit) {
+      return {
+        icon: "calendar",
+        text: "Daily",
+        color: "#FF6B6B",
+        backgroundColor: "#FFE8E8",
+      };
+    } else if (isAIGenerated) {
+      return {
+        icon: "sparkles",
+        text: "AI",
+        color: "#4ECDC4",
+        backgroundColor: "#E8FFFE",
+      };
+    } else {
+      return {
+        icon: "person",
+        text: "Manual",
+        color: "#45B7D1",
+        backgroundColor: "#E8F4FD",
+      };
+    }
+  };
+
+  const typeInfo = getOutfitTypeInfo();
+
   return (
     <TouchableOpacity style={styles.outfitCard} onPress={onPress}>
       <View style={styles.outfitImages}>
@@ -56,9 +88,22 @@ const OutfitItemWithCache = ({ item, onPress, onDelete }) => {
         )}
       </View>
       <View style={styles.outfitInfo}>
-        <Text style={styles.outfitTitle}>
-          {item.title || "Untitled Outfit"}
-        </Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.outfitTitle}>
+            {item.title || "Untitled Outfit"}
+          </Text>
+          <View
+            style={[
+              styles.typeBadge,
+              { backgroundColor: typeInfo.backgroundColor },
+            ]}
+          >
+            <Ionicons name={typeInfo.icon} size={12} color={typeInfo.color} />
+            <Text style={[styles.typeBadgeText, { color: typeInfo.color }]}>
+              {typeInfo.text}
+            </Text>
+          </View>
+        </View>
         <Text style={styles.outfitItems}>
           {item.item_count} {item.item_count === 1 ? "item" : "items"}
         </Text>
@@ -99,9 +144,7 @@ const OutfitsScreen = () => {
     ({ item }) => (
       <OutfitItemWithCache
         item={item}
-        onPress={() =>
-          navigation.navigate("OutfitDetail", { outfitId: item.id })
-        }
+        onPress={() => navigation.navigate("OutfitDetail", { outfit: item })}
         onDelete={() => handleDeleteOutfit(item.id)}
       />
     ),
@@ -259,11 +302,31 @@ const styles = StyleSheet.create({
   outfitInfo: {
     flex: 1,
   },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
   outfitTitle: {
     fontSize: 16,
     fontWeight: "600",
-    marginBottom: 4,
     color: "#000",
+    flex: 1,
+  },
+  typeBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginLeft: 8,
+    minWidth: 50,
+    justifyContent: "center",
+  },
+  typeBadgeText: {
+    fontSize: 10,
+    fontWeight: "600",
+    marginLeft: 3,
   },
   outfitItems: {
     fontSize: 14,

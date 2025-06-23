@@ -190,7 +190,7 @@ export default function ItemReviewScreen({ route }) {
 
   return (
     <View style={styles.container}>
-      <SafeAreaView edges={["top"]} style={{ backgroundColor: "#f3f4f6" }}>
+      <SafeAreaView edges={["top"]} style={{ backgroundColor: "#fff" }}>
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.headerIcon}
@@ -524,7 +524,7 @@ function CustomPicker({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f3f4f6",
+    backgroundColor: "#fff",
   },
   card: {
     width: "100%",

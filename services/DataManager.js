@@ -219,6 +219,20 @@ class DataManager {
     }
   }
 
+  async copyOutfit(outfitId) {
+    try {
+      const response = await api.post(`/outfits/${outfitId}/copy`);
+      
+      // Invalidate relevant caches to refresh outfit list
+      dataCache.invalidatePattern('outfits');
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error copying outfit:', error);
+      throw error;
+    }
+  }
+
   async uploadOutfitImage(outfitId, imageFile) {
     try {
       const formData = new FormData();

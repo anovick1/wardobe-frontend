@@ -92,11 +92,6 @@ export default function WardrobeItems() {
 }
 
 const styles = StyleSheet.create({
-  cardTouchable: {
-    width: "48%",
-    margin: "1%",
-    minWidth: 0,
-  },
   columnWrapper: {
     flexDirection: "row",
     justifyContent: "space-between",

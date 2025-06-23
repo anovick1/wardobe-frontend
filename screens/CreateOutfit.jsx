@@ -10,37 +10,81 @@ import {
   ActivityIndicator,
   Image,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
+import ModalTagInput from "../components/common/ModalTagInput";
+import TagsPreview from "../components/itemReview/TagsPreview";
 import { AuthContext } from "../auth/AuthContext";
 import api from "../api";
+import { useOutfits } from "../contexts/OutfitContext";
 
 const CreateOutfit = () => {
   const [wardrobeItems, setWardrobeItems] = useState([]);
   const [selectedItems, setSelectedItems] = useState([]);
+  const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
+  const [tags, setTags] = useState([]);
+  const [tagModalVisible, setTagModalVisible] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [notesHeight, setNotesHeight] = useState(100);
   const navigation = useNavigation();
   const route = useRoute();
   const { selectedItem } = route.params || {};
   const { user } = useContext(AuthContext);
+  const { addOutfit } = useOutfits();
 
-  const fetchWardrobeItems = async () => {
+  const fetchWardrobeItems = async (page = 1, append = false) => {
     try {
-      const response = await api.get("/wardrobe_items");
-      setWardrobeItems(response.data);
+      if (page === 1) setLoading(true);
+      else setLoadingMore(true);
+
+      const response = await api.get(`/wardrobe_items?page=${page}`);
+      const items = response.data?.wardrobe_items || [];
+      const pagination = response.data?.pagination || {};
+
+      if (append) {
+        setWardrobeItems((prev) => [...prev, ...items]);
+      } else {
+        setWardrobeItems(items);
+      }
+
+      setHasMore(pagination.has_next || false);
+      setCurrentPage(page);
     } catch (error) {
-      Alert.alert("Error", "Failed to load wardrobe items");
-      console.error(error);
+      Alert.alert("Error", `Failed to load wardrobe items: ${error.message}`);
+      if (!append) setWardrobeItems([]);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
+    }
+  };
+
+  const loadMoreItems = async () => {
+    if (!loadingMore && hasMore) {
+      await fetchWardrobeItems(currentPage + 1, true);
+    }
+  };
+
+  const handleScroll = ({ nativeEvent }) => {
+    const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+    const paddingToBottom = 20;
+
+    if (
+      layoutMeasurement.height + contentOffset.y >=
+      contentSize.height - paddingToBottom
+    ) {
+      loadMoreItems();
     }
   };
 
   useEffect(() => {
     if (user) {
-      fetchWardrobeItems();
+      fetchWardrobeItems(1, false);
     }
   }, [user]);
 
@@ -61,6 +105,11 @@ const CreateOutfit = () => {
   };
 
   const handleCreateOutfit = async () => {
+    if (!title.trim()) {
+      Alert.alert("Error", "Please enter a title for your outfit");
+      return;
+    }
+
     if (selectedItems.length === 0) {
       Alert.alert("Error", "Please select at least one item for your outfit");
       return;
@@ -69,12 +118,37 @@ const CreateOutfit = () => {
     setSaving(true);
     try {
       const response = await api.post("/outfits/manual_create", {
+        title: title.trim(),
         wardrobe_item_ids: selectedItems,
-        notes: notes,
+        notes: notes.trim(),
+        tags: tags,
       });
 
+      let newOutfit = response.data?.outfit || response.data;
+
+      // If backend returns minimal payload, fetch full outfit details to ensure all fields (title, etc.) are present
+      if (newOutfit && (!newOutfit.title || !newOutfit.wardrobe_items)) {
+        try {
+          const fetched = await api.get(`/outfits/${newOutfit.id}`);
+          newOutfit = fetched.data;
+        } catch (fetchErr) {
+          // If fetch fails, fall back to original payload
+          console.log(
+            "Failed to fetch full outfit details, using initial payload",
+            fetchErr
+          );
+        }
+      }
+
+      if (newOutfit && addOutfit) {
+        addOutfit(newOutfit);
+      }
+
       Alert.alert("Success", "Outfit created successfully");
-      navigation.navigate("Wardrobe", { screen: "Outfits" });
+      navigation.navigate("Wardrobe", {
+        screen: "WardrobeHome",
+        params: { initialTab: "Outfits" },
+      });
     } catch (error) {
       Alert.alert("Error", "Failed to create outfit");
       console.error(error);
@@ -86,254 +160,388 @@ const CreateOutfit = () => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#0000ff" />
+        <ActivityIndicator size="large" color="#121416" />
+        <Text style={{ marginTop: 10 }}>Loading wardrobe items...</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="arrow-back" size={24} color="#000" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Create Outfit</Text>
-        <TouchableOpacity
-          style={[styles.saveButton, saving && styles.saveButtonDisabled]}
-          onPress={handleCreateOutfit}
-          disabled={saving}
-        >
-          {saving ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <Text style={styles.saveButtonText}>Save</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView style={styles.content}>
-        <View style={styles.notesContainer}>
-          <Text style={styles.label}>Notes (optional)</Text>
-          <TextInput
-            style={styles.notesInput}
-            value={notes}
-            onChangeText={setNotes}
-            placeholder="Add notes about this outfit..."
-            multiline
-            numberOfLines={4}
-          />
+    <SafeAreaView
+      style={{ backgroundColor: "#fff", flex: 1 }}
+      edges={["top", "left", "right"]}
+    >
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="arrow-back" size={24} color="#000" />
+          </TouchableOpacity>
+          <Text style={styles.title}>Create Outfit</Text>
+          <TouchableOpacity
+            style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+            onPress={handleCreateOutfit}
+            disabled={saving}
+          >
+            {saving ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={styles.saveButtonText}>Save</Text>
+            )}
+          </TouchableOpacity>
         </View>
 
-        <View style={styles.itemsContainer}>
-          <Text style={styles.label}>
-            Selected Items ({selectedItems.length})
-          </Text>
-          <View style={styles.selectedItemsContainer}>
-            {selectedItems.map((itemId) => {
-              const item = wardrobeItems.find((i) => i.id === itemId);
-              if (!item) return null;
-              return (
-                <View key={itemId} style={styles.selectedItemCard}>
-                  <Image
-                    source={{ uri: item.image_url }}
-                    style={styles.selectedItemImage}
-                  />
-                  <View style={styles.selectedItemInfo}>
-                    <Text style={styles.selectedItemName}>{item.name}</Text>
-                    <Text style={styles.selectedItemBrand}>{item.brand}</Text>
+        <ScrollView
+          style={styles.content}
+          onScroll={handleScroll}
+          scrollEventThrottle={400}
+        >
+          <View style={styles.formContainer}>
+            <Text style={styles.label}>Title *</Text>
+            <TextInput
+              style={styles.titleInput}
+              value={title}
+              onChangeText={setTitle}
+              placeholder="Enter outfit title..."
+              placeholderTextColor="#6a7681"
+            />
+
+            <Text style={[styles.label, { marginTop: 20 }]}>
+              Tags (optional)
+            </Text>
+            <TouchableOpacity
+              style={styles.tagsField}
+              onPress={() => setTagModalVisible(true)}
+            >
+              <TagsPreview tags={tags} />
+              <Ionicons name="chevron-forward" size={20} color="#6a7681" />
+            </TouchableOpacity>
+
+            <Text style={[styles.label, { marginTop: 20 }]}>
+              Notes (optional)
+            </Text>
+            <TextInput
+              style={[styles.notesInput, { height: notesHeight }]}
+              value={notes}
+              onChangeText={setNotes}
+              placeholder="Add notes about this outfit..."
+              placeholderTextColor="#6a7681"
+              multiline
+              textAlignVertical="top"
+              scrollEnabled={false}
+              onContentSizeChange={(event) =>
+                setNotesHeight(
+                  Math.max(
+                    100,
+                    Math.min(200, event.nativeEvent.contentSize.height + 16)
+                  )
+                )
+              }
+            />
+          </View>
+
+          <View style={styles.itemsContainer}>
+            <Text style={styles.label}>
+              Selected Items ({selectedItems.length})
+            </Text>
+            <View style={styles.selectedItemsContainer}>
+              {selectedItems.map((itemId) => {
+                const item = (wardrobeItems || []).find((i) => i.id === itemId);
+                if (!item) return null;
+                return (
+                  <View key={itemId} style={styles.selectedItemCard}>
+                    <Image
+                      source={{ uri: item.image_url }}
+                      style={styles.selectedItemImage}
+                      resizeMode="contain"
+                    />
+                    <View style={styles.selectedItemInfo}>
+                      <Text style={styles.selectedItemName}>{item.name}</Text>
+                      <Text style={styles.selectedItemBrand}>{item.brand}</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.removeItemButton}
+                      onPress={() => toggleItemSelection(itemId)}
+                    >
+                      <Ionicons name="close-circle" size={24} color="#ff3b30" />
+                    </TouchableOpacity>
                   </View>
+                );
+              })}
+            </View>
+
+            <Text style={[styles.label, { marginTop: 16 }]}>
+              Add More Items
+            </Text>
+            <View style={styles.itemsGrid}>
+              {(wardrobeItems || [])
+                .filter((item) => !selectedItems.includes(item.id))
+                .map((item) => (
                   <TouchableOpacity
-                    style={styles.removeItemButton}
-                    onPress={() => toggleItemSelection(itemId)}
+                    key={item.id}
+                    style={styles.itemCard}
+                    onPress={() => toggleItemSelection(item.id)}
                   >
-                    <Ionicons name="close-circle" size={24} color="#ff3b30" />
+                    <Image
+                      source={{ uri: item.image_url }}
+                      style={styles.itemImage}
+                      resizeMode="contain"
+                    />
+                    <View style={styles.itemInfo}>
+                      <Text style={styles.itemName} numberOfLines={1}>
+                        {item.name}
+                      </Text>
+                      <Text style={styles.itemBrand} numberOfLines={1}>
+                        {item.brand}
+                      </Text>
+                    </View>
                   </TouchableOpacity>
-                </View>
-              );
-            })}
-          </View>
+                ))}
+            </View>
 
-          <Text style={[styles.label, { marginTop: 16 }]}>Add More Items</Text>
-          <View style={styles.itemsGrid}>
-            {wardrobeItems
-              .filter((item) => !selectedItems.includes(item.id))
-              .map((item) => (
-                <TouchableOpacity
-                  key={item.id}
-                  style={styles.itemCard}
-                  onPress={() => toggleItemSelection(item.id)}
-                >
-                  <Image
-                    source={{ uri: item.image_url }}
-                    style={styles.itemImage}
-                  />
-                  <View style={styles.itemInfo}>
-                    <Text style={styles.itemName} numberOfLines={1}>
-                      {item.name}
-                    </Text>
-                    <Text style={styles.itemBrand} numberOfLines={1}>
-                      {item.brand}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
+            {loadingMore && (
+              <View style={styles.loadingMoreContainer}>
+                <ActivityIndicator size="small" color="#121416" />
+                <Text style={styles.loadingMoreText}>
+                  Loading more items...
+                </Text>
+              </View>
+            )}
           </View>
-        </View>
-      </ScrollView>
-    </View>
+        </ScrollView>
+
+        <ModalTagInput
+          visible={tagModalVisible}
+          onClose={() => setTagModalVisible(false)}
+          title="Outfit Tags"
+          tags={tags}
+          onSave={setTags}
+          placeholder="Add outfit tag..."
+        />
+      </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#f8fafc",
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "#f8fafc",
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: 16,
-    backgroundColor: "#fff",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: "#ffffff",
     borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
+    borderBottomColor: "#e5e7eb",
+    shadowColor: "#000",
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
     zIndex: 1,
   },
   backButton: {
-    padding: 8,
-    minWidth: 44,
-    minHeight: 44,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#f8fafc",
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
   },
   title: {
-    fontSize: 20,
-    fontWeight: "bold",
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#121416",
+    letterSpacing: -0.5,
   },
   saveButton: {
-    backgroundColor: "#007AFF",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    minWidth: 44,
+    backgroundColor: "#121416",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
     minHeight: 44,
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
   },
   saveButtonDisabled: {
-    opacity: 0.5,
+    opacity: 0.6,
   },
   saveButtonText: {
-    color: "#fff",
+    color: "#ffffff",
     fontSize: 16,
-    fontWeight: "500",
+    fontWeight: "600",
+    letterSpacing: 0.3,
   },
   content: {
     flex: 1,
   },
-  notesContainer: {
+  formContainer: {
+    marginHorizontal: 20,
+    marginTop: 20,
+    padding: 20,
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  titleInput: {
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 12,
     padding: 16,
-    backgroundColor: "#fff",
-    marginBottom: 16,
+    fontSize: 16,
+    color: "#121416",
+    backgroundColor: "#f8fafc",
+    fontFamily: "System",
+    fontWeight: "500",
+  },
+  tagsField: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 12,
+    padding: 16,
+    backgroundColor: "#f8fafc",
+    minHeight: 50,
   },
   label: {
-    fontSize: 16,
-    fontWeight: "500",
-    marginBottom: 8,
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#121416",
+    marginBottom: 12,
+    letterSpacing: -0.3,
   },
   notesInput: {
     borderWidth: 1,
-    borderColor: "#e0e0e0",
-    borderRadius: 8,
-    padding: 12,
+    borderColor: "#e5e7eb",
+    borderRadius: 12,
+    padding: 16,
     fontSize: 16,
+    color: "#121416",
     minHeight: 100,
     textAlignVertical: "top",
+    backgroundColor: "#f8fafc",
+    fontFamily: "System",
   },
   itemsContainer: {
-    padding: 16,
+    paddingHorizontal: 20,
   },
   selectedItemsContainer: {
-    marginBottom: 16,
+    marginBottom: 24,
   },
   selectedItemCard: {
     flexDirection: "row",
-    backgroundColor: "#fff",
-    borderRadius: 8,
-    marginBottom: 8,
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    marginBottom: 12,
     overflow: "hidden",
     shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    borderWidth: 1,
+    borderColor: "#f1f5f9",
   },
   selectedItemImage: {
-    width: 80,
-    height: 80,
+    width: 88,
+    height: 88,
+    backgroundColor: "#f8fafc",
   },
   selectedItemInfo: {
     flex: 1,
-    padding: 12,
+    padding: 16,
     justifyContent: "center",
   },
   selectedItemName: {
     fontSize: 16,
-    fontWeight: "500",
-    marginBottom: 4,
+    fontWeight: "600",
+    color: "#121416",
+    marginBottom: 6,
+    letterSpacing: -0.2,
   },
   selectedItemBrand: {
     fontSize: 14,
-    color: "#666",
+    color: "#6a7681",
+    fontWeight: "500",
   },
   removeItemButton: {
-    padding: 12,
+    padding: 16,
     justifyContent: "center",
+    alignItems: "center",
   },
   itemsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 12,
+    gap: 16,
   },
   itemCard: {
-    width: "48%",
-    backgroundColor: "#fff",
-    borderRadius: 8,
+    width: "47%",
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
     overflow: "hidden",
     shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    borderWidth: 1,
+    borderColor: "#f1f5f9",
   },
   itemImage: {
     width: "100%",
-    height: 150,
+    height: 160,
+    backgroundColor: "#f8fafc",
   },
   itemInfo: {
-    padding: 8,
+    padding: 12,
   },
   itemName: {
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: "600",
+    color: "#121416",
+    marginBottom: 4,
+    letterSpacing: -0.1,
   },
   itemBrand: {
     fontSize: 12,
-    color: "#666",
+    color: "#6a7681",
+    fontWeight: "500",
+  },
+  loadingMoreContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 20,
+    marginTop: 10,
+  },
+  loadingMoreText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: "#6a7681",
+    fontWeight: "500",
   },
 });
 
