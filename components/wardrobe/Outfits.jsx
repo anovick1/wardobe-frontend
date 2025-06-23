@@ -141,7 +141,7 @@ export default function Outfits() {
       // Add selected event if chosen
       if (selectedEvent) {
         payload.selected_event = mapEventsForApi([selectedEvent])[0];
-        console.log('Event being passed to AI:', payload.selected_event);
+        console.log("Event being passed to AI:", payload.selected_event);
       }
 
       const response = await api.post("/outfits/ai_generate_hybrid", payload);
@@ -240,7 +240,9 @@ export default function Outfits() {
               <View style={styles.modalLoadingOverlay}>
                 <View style={styles.modalLoadingContent}>
                   <ActivityIndicator size="large" color="#007AFF" />
-                  <Text style={styles.modalLoadingText}>Generating outfit...</Text>
+                  <Text style={styles.modalLoadingText}>
+                    Generating outfit...
+                  </Text>
                 </View>
               </View>
             )}
