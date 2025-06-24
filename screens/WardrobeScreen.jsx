@@ -18,6 +18,8 @@ import Capsules from "../components/wardrobe/Capsules";
 import Recommendations from "../components/wardrobe/Recommendations";
 import AddNewModal from "../components/wardrobe/AddNewModal";
 import ProcessingOverlay from "../components/common/ProcessingOverlay";
+import FilterButtons from "../components/wardrobe/FilterButtons";
+import { useWardrobe } from "../contexts/WardrobeContext";
 
 const tabs = ["Wardrobe", "Outfits", "Boards", "Capsules", "Smart"];
 
@@ -26,6 +28,8 @@ export default function WardrobeScreen({ navigation, route }) {
   const [activeTab, setActiveTab] = useState(initialTabParam || "Wardrobe");
   const [processing, setProcessing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
+  const [wardrobeFilters, setWardrobeFilters] = useState({});
+  const { wardrobeItems } = useWardrobe();
 
   useFocusEffect(
     React.useCallback(() => {
@@ -43,10 +47,14 @@ export default function WardrobeScreen({ navigation, route }) {
     }
   }, [route?.params?.initialTab]);
 
+  const handleFilterChange = (filters) => {
+    setWardrobeFilters(filters);
+  };
+
   const renderTabContent = () => {
     switch (activeTab) {
       case "Wardrobe":
-        return <WardrobeItems />;
+        return <WardrobeItems filters={wardrobeFilters} />;
       case "Outfits":
         return <Outfits />;
       case "Boards":
@@ -103,19 +111,11 @@ export default function WardrobeScreen({ navigation, route }) {
               />
             </View>
             {/* Filter Buttons */}
-            <ScrollView
-              style={{ marginHorizontal: 0 }}
-              contentContainerStyle={styles.filterRow}
-              horizontal={true}
-              showsHorizontalScrollIndicator={false}
-            >
-              {["Brand", "Category", "Color", "Season"].map((filter) => (
-                <TouchableOpacity key={filter} style={styles.filterButton}>
-                  <Text style={styles.filterText}>{filter}</Text>
-                  <Icon name="expand-more" size={20} color="#6a7681" />
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+            <FilterButtons
+              onFilterChange={handleFilterChange}
+              activeFilters={wardrobeFilters}
+              wardrobeItems={wardrobeItems || []}
+            />
           </>
         )}
       </View>

@@ -18,7 +18,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import * as FileSystem from "expo-file-system";
 import WardrobeItemCard from "./WardrobeItemCard";
 
-export default function WardrobeItems() {
+export default function WardrobeItems({ filters = {} }) {
   const {
     wardrobeItems: rawItems,
     loadingWardrobe,
@@ -28,7 +28,65 @@ export default function WardrobeItems() {
     totalPages,
     hasMoreWardrobe,
   } = useWardrobe();
-  const items = rawItems; // order preserved from backend/pagination
+
+  // Filter items based on active filters
+  const filterItems = (items) => {
+    if (Object.keys(filters).length === 0) {
+      return items;
+    }
+
+    return items.filter((item) => {
+      // Check brand filter
+      if (filters.brand && filters.brand.length > 0) {
+        if (!item.brand || !filters.brand.includes(item.brand)) {
+          return false;
+        }
+      }
+
+      // Check category filter
+      if (filters.category && filters.category.length > 0) {
+        let itemCategory = '';
+        if (item.category && item.subcategory) {
+          itemCategory = `${item.category} - ${item.subcategory}`;
+        } else if (item.category) {
+          itemCategory = item.category;
+        } else if (item.subcategory) {
+          itemCategory = item.subcategory;
+        }
+        
+        if (!itemCategory || !filters.category.includes(itemCategory)) {
+          return false;
+        }
+      }
+
+      // Check color filter
+      if (filters.color && filters.color.length > 0) {
+        if (!item.primary_color || !filters.color.includes(item.primary_color)) {
+          return false;
+        }
+      }
+
+      // Check tags filter
+      if (filters.tags && filters.tags.length > 0) {
+        if (!item.tags || !Array.isArray(item.tags)) {
+          return false;
+        }
+        
+        // Check if item has at least one of the selected tags
+        const hasMatchingTag = filters.tags.some(selectedTag => 
+          item.tags.includes(selectedTag)
+        );
+        
+        if (!hasMatchingTag) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  };
+
+  const items = filterItems(rawItems);
 
   // Cleanup unused cached images
   useEffect(() => {
