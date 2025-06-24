@@ -19,6 +19,7 @@ import Recommendations from "../components/wardrobe/Recommendations";
 import AddNewModal from "../components/wardrobe/AddNewModal";
 import ProcessingOverlay from "../components/common/ProcessingOverlay";
 import FilterButtons from "../components/wardrobe/FilterButtons";
+import OutfitFilterButtons from "../components/outfits/OutfitFilterButtons";
 import { useWardrobe } from "../contexts/WardrobeContext";
 
 const tabs = ["Wardrobe", "Outfits", "Boards", "Capsules", "Smart"];
@@ -29,6 +30,7 @@ export default function WardrobeScreen({ navigation, route }) {
   const [processing, setProcessing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [wardrobeFilters, setWardrobeFilters] = useState({});
+  const [outfitFilters, setOutfitFilters] = useState([]);
   const { wardrobeItems } = useWardrobe();
 
   useFocusEffect(
@@ -47,8 +49,12 @@ export default function WardrobeScreen({ navigation, route }) {
     }
   }, [route?.params?.initialTab]);
 
-  const handleFilterChange = (filters) => {
+  const handleWardrobeFilterChange = (filters) => {
     setWardrobeFilters(filters);
+  };
+
+  const handleOutfitFilterChange = (filters) => {
+    setOutfitFilters(filters);
   };
 
   const renderTabContent = () => {
@@ -56,7 +62,7 @@ export default function WardrobeScreen({ navigation, route }) {
       case "Wardrobe":
         return <WardrobeItems filters={wardrobeFilters} />;
       case "Outfits":
-        return <Outfits />;
+        return <Outfits filters={outfitFilters} />;
       case "Boards":
         return <VisionBoards />;
       case "Capsules":
@@ -92,7 +98,7 @@ export default function WardrobeScreen({ navigation, route }) {
             </TouchableOpacity>
           ))}
         </View>
-        {/* Only show search/filters on Wardrobe tab */}
+        {/* Show search/filters on Wardrobe tab */}
         {activeTab === "Wardrobe" && (
           <>
             {/* Search Bar */}
@@ -112,11 +118,21 @@ export default function WardrobeScreen({ navigation, route }) {
             </View>
             {/* Filter Buttons */}
             <FilterButtons
-              onFilterChange={handleFilterChange}
+              onFilterChange={handleWardrobeFilterChange}
               activeFilters={wardrobeFilters}
               wardrobeItems={wardrobeItems || []}
             />
           </>
+        )}
+        
+        {/* Show outfit filters on Outfits tab */}
+        {activeTab === "Outfits" && (
+          <View style={styles.outfitFiltersContainer}>
+            <OutfitFilterButtons
+              onFilterChange={handleOutfitFilterChange}
+              activeFilters={outfitFilters}
+            />
+          </View>
         )}
       </View>
 
@@ -181,6 +197,12 @@ const styles = StyleSheet.create({
     color: "#121416",
     fontWeight: "bold",
     fontSize: 15,
+  },
+  outfitFiltersContainer: {
+    paddingTop: 8,
+    paddingBottom: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
   },
   searchContainer: {
     flexDirection: "row",

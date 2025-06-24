@@ -23,7 +23,7 @@ import api from "../../api";
 import globalStyles from "../../styles/global";
 import { mapEventsForApi } from "../../utils/events";
 
-export default function Outfits() {
+export default function Outfits({ filters = [] }) {
   const [modalVisible, setModalVisible] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [generating, setGenerating] = useState(false);
@@ -35,7 +35,7 @@ export default function Outfits() {
   const navigation = useNavigation();
 
   const {
-    outfits,
+    outfits: rawOutfits,
     loadingOutfits,
     currentPage,
     totalPages,
@@ -44,6 +44,35 @@ export default function Outfits() {
   } = useOutfits();
 
   const { coordinates } = useWeather();
+
+  // Filter outfits based on active filters
+  const filterOutfits = (outfits) => {
+    if (filters.length === 0) {
+      return outfits;
+    }
+
+    return outfits.filter((outfit) => {
+      const isDailyOutfit = outfit.is_daily_outfit === true;
+      const isAIGenerated = outfit.generated_by === "chatgpt" && !isDailyOutfit;
+      const isManual = outfit.generated_by === "manual";
+
+      // Check if outfit matches any of the selected filters
+      return filters.some(filter => {
+        switch (filter) {
+          case 'daily':
+            return isDailyOutfit;
+          case 'ai':
+            return isAIGenerated;
+          case 'you':
+            return isManual;
+          default:
+            return false;
+        }
+      });
+    });
+  };
+
+  const outfits = filterOutfits(rawOutfits);
 
   // Fetch upcoming events when modal opens or event range changes
   useEffect(() => {
