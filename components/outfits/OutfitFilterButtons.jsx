@@ -33,6 +33,13 @@ const OutfitFilterButtons = ({ onFilterChange, activeFilters = [] }) => {
       color: "#45B7D1",
       backgroundColor: "#E8F4FD",
     },
+    {
+      key: "worn",
+      label: "Worn",
+      icon: "check-circle",
+      color: "#10b981",
+      backgroundColor: "#dcfce7",
+    },
   ];
 
   const handleFilterPress = (filterKey) => {

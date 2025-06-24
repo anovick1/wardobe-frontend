@@ -8,13 +8,14 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Modal,
 } from "react-native";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { AuthContext } from "../auth/AuthContext";
 import { useOutfits } from "../contexts/OutfitContext";
 import { dataManager } from "../services/DataManager";
-import api from "../api";
+import api, { wornOutfitAPI } from "../api";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const OutfitDetail = () => {
@@ -51,7 +52,18 @@ const OutfitDetail = () => {
   const outfitId = initialOutfit?.id || paramOutfitId;
   const [loading, setLoading] = useState(true);
   const { user } = useContext(AuthContext);
-  const { removeOutfit, addOutfit } = useOutfits();
+  const { removeOutfit, addOutfit, updateOutfitWornStatus } = useOutfits();
+  
+  // Worn outfit management state
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const today = new Date();
+    today.setHours(12, 0, 0, 0); // Set to noon to avoid timezone issues
+    return today;
+  });
+  const [markingAsWorn, setMarkingAsWorn] = useState(false);
+  const [wornRecords, setWornRecords] = useState([]);
+  const [loadingWornRecords, setLoadingWornRecords] = useState(false);
 
   const fetchOutfitDetails = async () => {
     if (!user || !outfitId) return;
@@ -96,6 +108,10 @@ const OutfitDetail = () => {
   useEffect(() => {
     if (user && outfitId) {
       fetchOutfitDetails();
+      // Add delay to avoid race condition
+      setTimeout(() => {
+        fetchWornRecords();
+      }, 500);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, outfitId]);
@@ -124,6 +140,85 @@ const OutfitDetail = () => {
             } catch (error) {
               Alert.alert("Error", "Failed to delete outfit");
               console.error(error);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Worn outfit management functions
+  const fetchWornRecords = async () => {
+    if (!outfitId) return;
+    try {
+      setLoadingWornRecords(true);
+      console.log("🔍 Fetching worn records for outfit:", outfitId);
+      const allWornOutfits = await wornOutfitAPI.getWornOutfits();
+      console.log("📦 All worn outfits:", allWornOutfits);
+      const outfitWornRecords = allWornOutfits.filter(
+        worn => worn.outfit && worn.outfit.id === outfitId
+      );
+      console.log("✅ Filtered worn records:", outfitWornRecords);
+      setWornRecords(outfitWornRecords);
+    } catch (error) {
+      console.error("❌ Failed to fetch worn records:", error);
+      // Don't fail silently - continue with empty records
+      setWornRecords([]);
+    } finally {
+      setLoadingWornRecords(false);
+    }
+  };
+
+  const handleMarkAsWorn = async () => {
+    try {
+      setMarkingAsWorn(true);
+      await wornOutfitAPI.markAsWorn(outfitId, selectedDate);
+      
+      // Update outfit context
+      updateOutfitWornStatus(outfitId, true);
+      
+      // Refresh outfit details and worn records
+      await Promise.all([fetchOutfitDetails(), fetchWornRecords()]);
+      
+      setShowDatePicker(false);
+      Alert.alert("Success", `Outfit marked as worn for ${selectedDate.toLocaleDateString()}!`);
+    } catch (error) {
+      console.error("Failed to mark outfit as worn:", error);
+      Alert.alert("Error", "Failed to mark outfit as worn. Please try again.");
+    } finally {
+      setMarkingAsWorn(false);
+    }
+  };
+
+  const handleRemoveWornRecord = async (wornRecordId) => {
+    Alert.alert(
+      "Remove Worn Record",
+      "Are you sure you want to remove this worn record?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Remove",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await wornOutfitAPI.removeWornRecord(wornRecordId);
+              
+              // Refresh outfit details and worn records
+              await Promise.all([fetchOutfitDetails(), fetchWornRecords()]);
+              
+              // Update context if no more worn records
+              const remainingRecords = wornRecords.filter(r => r.id !== wornRecordId);
+              if (remainingRecords.length === 0) {
+                updateOutfitWornStatus(outfitId, false);
+              }
+              
+              Alert.alert("Success", "Worn record removed successfully");
+            } catch (error) {
+              console.error("Failed to remove worn record:", error);
+              Alert.alert("Error", "Failed to remove worn record. Please try again.");
             }
           },
         },
@@ -309,6 +404,91 @@ const OutfitDetail = () => {
             </View>
           )}
 
+          {/* Worn Outfit Management */}
+          <View style={styles.wornSection}>
+            <View style={styles.wornSectionHeader}>
+              <Text style={styles.wornSectionLabel}>Worn History</Text>
+              <TouchableOpacity
+                style={styles.addWornButton}
+                onPress={() => setShowDatePicker(true)}
+                disabled={markingAsWorn}
+              >
+                {markingAsWorn ? (
+                  <ActivityIndicator size={16} color="#007AFF" />
+                ) : (
+                  <>
+                    <Ionicons name="add" size={16} color="#007AFF" />
+                    <Text style={styles.addWornButtonText}>Mark as Worn</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {loadingWornRecords ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color="#007AFF" />
+                <Text style={styles.loadingText}>Loading worn records...</Text>
+              </View>
+            ) : wornRecords.length > 0 ? (
+              <View style={styles.wornRecordsList}>
+                {wornRecords
+                  .sort((a, b) => new Date(b.worn_at) - new Date(a.worn_at))
+                  .map((record, index) => {
+                    const wornDate = new Date(record.worn_at);
+                    const today = new Date();
+                    
+                    // Compare just the date parts, ignore time
+                    const wornDateStr = wornDate.toDateString();
+                    const todayStr = today.toDateString();
+                    const isToday = wornDateStr === todayStr;
+                    
+                    // Check if worn date is in the future (after today)
+                    const tomorrow = new Date(today);
+                    tomorrow.setDate(tomorrow.getDate() + 1);
+                    const isFuture = wornDate.toDateString() >= tomorrow.toDateString();
+                    
+                    return (
+                      <View key={record.id} style={styles.wornRecord}>
+                        <View style={styles.wornRecordContent}>
+                          <Ionicons 
+                            name={isFuture ? "calendar-outline" : "checkmark-circle"} 
+                            size={16} 
+                            color={isFuture ? "#ff9500" : "#10b981"} 
+                          />
+                          <View style={styles.wornRecordInfo}>
+                            <Text style={styles.wornRecordDate}>
+                              {isToday ? "Today" : 
+                               isFuture ? `Planned for ${wornDate.toLocaleDateString()}` :
+                               `Worn on ${wornDate.toLocaleDateString()}`}
+                            </Text>
+                            <Text style={styles.wornRecordTime}>
+                              {wornDate.toLocaleTimeString([], { 
+                                hour: '2-digit', 
+                                minute: '2-digit' 
+                              })}
+                            </Text>
+                          </View>
+                        </View>
+                        <TouchableOpacity
+                          style={styles.removeWornButton}
+                          onPress={() => handleRemoveWornRecord(record.id)}
+                        >
+                          <Ionicons name="close" size={16} color="#ff3b30" />
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  })}
+              </View>
+            ) : (
+              <View style={styles.noWornRecords}>
+                <Ionicons name="shirt-outline" size={32} color="#ccc" />
+                <Text style={styles.noWornRecordsText}>
+                  No worn records yet. Tap "Mark as Worn" to start tracking!
+                </Text>
+              </View>
+            )}
+          </View>
+
           {/* Metadata */}
           <View style={styles.metadataContainer}>
             <Text style={styles.metadataLabel}>
@@ -321,6 +501,78 @@ const OutfitDetail = () => {
             </Text>
           </View>
         </ScrollView>
+        
+        {/* Date Picker Modal */}
+        {showDatePicker && (
+          <Modal
+            visible={showDatePicker}
+            transparent={true}
+            animationType="slide"
+            onRequestClose={() => setShowDatePicker(false)}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.datePickerContainer}>
+                <View style={styles.datePickerHeader}>
+                  <TouchableOpacity
+                    onPress={() => setShowDatePicker(false)}
+                    style={styles.modalButton}
+                  >
+                    <Text style={styles.modalButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.datePickerTitle}>Select Date Worn</Text>
+                  <TouchableOpacity
+                    onPress={handleMarkAsWorn}
+                    style={[styles.modalButton, styles.confirmButton]}
+                    disabled={markingAsWorn}
+                  >
+                    <Text style={[styles.modalButtonText, styles.confirmButtonText]}>
+                      Confirm
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.simpleDatePicker}>
+                  <Text style={styles.datePickerLabel}>
+                    Selected: {selectedDate.toLocaleDateString()}
+                  </Text>
+                  <View style={styles.dateButtonRow}>
+                    <TouchableOpacity
+                      style={styles.dateButton}
+                      onPress={() => {
+                        const today = new Date();
+                        today.setHours(12, 0, 0, 0); // Set to noon to avoid timezone issues
+                        setSelectedDate(today);
+                      }}
+                    >
+                      <Text style={styles.dateButtonText}>Today</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.dateButton}
+                      onPress={() => {
+                        const yesterday = new Date();
+                        yesterday.setDate(yesterday.getDate() - 1);
+                        yesterday.setHours(12, 0, 0, 0); // Set to noon to avoid timezone issues
+                        setSelectedDate(yesterday);
+                      }}
+                    >
+                      <Text style={styles.dateButtonText}>Yesterday</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.dateButton}
+                      onPress={() => {
+                        const tomorrow = new Date();
+                        tomorrow.setDate(tomorrow.getDate() + 1);
+                        tomorrow.setHours(12, 0, 0, 0); // Set to noon to avoid timezone issues
+                        setSelectedDate(tomorrow);
+                      }}
+                    >
+                      <Text style={styles.dateButtonText}>Tomorrow</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            </View>
+          </Modal>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -566,6 +818,168 @@ const styles = StyleSheet.create({
   tagText: {
     fontSize: 14,
     color: "#666",
+  },
+  // Worn outfit styles
+  wornSection: {
+    backgroundColor: "#fff",
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 12,
+    paddingVertical: 16,
+  },
+  wornSectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  wornSectionLabel: {
+    fontSize: 16,
+    fontWeight: "500",
+  },
+  addWornButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f0f9ff",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#007AFF",
+  },
+  addWornButtonText: {
+    fontSize: 12,
+    color: "#007AFF",
+    fontWeight: "500",
+    marginLeft: 4,
+  },
+  loadingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 20,
+  },
+  loadingText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: "#666",
+  },
+  wornRecordsList: {
+    paddingHorizontal: 16,
+  },
+  wornRecord: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    backgroundColor: "#f8f9fa",
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  wornRecordContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  wornRecordInfo: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  wornRecordDate: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#333",
+  },
+  wornRecordTime: {
+    fontSize: 12,
+    color: "#666",
+    marginTop: 2,
+  },
+  removeWornButton: {
+    padding: 4,
+    borderRadius: 12,
+    backgroundColor: "#fee",
+  },
+  noWornRecords: {
+    alignItems: "center",
+    paddingVertical: 32,
+    paddingHorizontal: 16,
+  },
+  noWornRecordsText: {
+    fontSize: 14,
+    color: "#666",
+    textAlign: "center",
+    marginTop: 12,
+    lineHeight: 20,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  datePickerContainer: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingBottom: 34, // Safe area
+  },
+  datePickerHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+  },
+  datePickerTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  modalButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  modalButtonText: {
+    fontSize: 16,
+    color: "#007AFF",
+  },
+  confirmButton: {
+    backgroundColor: "#007AFF",
+    borderRadius: 8,
+  },
+  confirmButtonText: {
+    color: "#fff",
+    fontWeight: "500",
+  },
+  // Simple date picker styles
+  simpleDatePicker: {
+    padding: 20,
+  },
+  datePickerLabel: {
+    fontSize: 16,
+    fontWeight: "500",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  dateButtonRow: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+  },
+  dateButton: {
+    backgroundColor: "#f0f9ff",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#007AFF",
+  },
+  dateButtonText: {
+    color: "#007AFF",
+    fontWeight: "500",
   },
 });
 

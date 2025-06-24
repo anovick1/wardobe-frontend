@@ -163,6 +163,22 @@ export function OutfitProvider({ children }) {
     }
   }, []);
 
+  // Function to update worn status of an outfit
+  const updateOutfitWornStatus = useCallback((outfitId, isWorn, timesWorn = 1) => {
+    setOutfits((prev) => 
+      prev.map((outfit) => 
+        outfit.id === outfitId 
+          ? { 
+              ...outfit, 
+              is_worn: isWorn,
+              times_worn: isWorn ? (outfit.times_worn || 0) + timesWorn : outfit.times_worn,
+              last_worn_at: isWorn ? new Date().toISOString() : outfit.last_worn_at
+            }
+          : outfit
+      )
+    );
+  }, []);
+
   return (
     <OutfitContext.Provider
       value={{
@@ -178,6 +194,7 @@ export function OutfitProvider({ children }) {
         loadMoreOutfits,
         refreshOutfits,
         getOutfitById,
+        updateOutfitWornStatus,
         hasMoreOutfits: currentPage < totalPages,
       }}
     >

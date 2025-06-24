@@ -41,6 +41,7 @@ export default function Outfits({ filters = [] }) {
     totalPages,
     addOutfit,
     loadMoreOutfits,
+    updateOutfitWornStatus,
   } = useOutfits();
 
   const { coordinates } = useWeather();
@@ -65,6 +66,8 @@ export default function Outfits({ filters = [] }) {
             return isAIGenerated;
           case 'you':
             return isManual;
+          case 'worn':
+            return outfit.is_worn === true;
           default:
             return false;
         }
@@ -205,7 +208,9 @@ export default function Outfits({ filters = [] }) {
     }
   };
 
-  const renderItem = ({ item }) => <OutfitCard item={item} />;
+  const renderItem = ({ item }) => (
+    <OutfitCard item={item} />
+  );
 
   const renderFooter = () => {
     if (!loadingOutfits || outfits.length === 0 || currentPage >= totalPages)

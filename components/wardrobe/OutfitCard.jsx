@@ -99,16 +99,29 @@ export default function OutfitCard({ item }) {
           <Text style={typography.name} numberOfLines={1} adjustsFontSizeToFit>
             {item.title || "Untitled Outfit"}
           </Text>
-          <View
-            style={[
-              styles.typeBadge,
-              { backgroundColor: typeInfo.backgroundColor },
-            ]}
-          >
-            <Icon name={typeInfo.icon} size={12} color={typeInfo.color} />
-            <Text style={[styles.typeBadgeText, { color: typeInfo.color }]}>
-              {typeInfo.text}
-            </Text>
+          
+          <View style={styles.badgeRow}>
+            <View
+              style={[
+                styles.typeBadge,
+                { backgroundColor: typeInfo.backgroundColor },
+              ]}
+            >
+              <Icon name={typeInfo.icon} size={12} color={typeInfo.color} />
+              <Text style={[styles.typeBadgeText, { color: typeInfo.color }]}>
+                {typeInfo.text}
+              </Text>
+            </View>
+            
+            {/* Worn Status Badge */}
+            {item.is_worn && (
+              <View style={styles.wornBadge}>
+                <Icon name="check-circle" size={10} color="#10b981" />
+                <Text style={styles.wornBadgeText}>
+                  Worn {item.times_worn ? `${item.times_worn}x` : ''}
+                </Text>
+              </View>
+            )}
           </View>
         </View>
       </View>
@@ -117,6 +130,12 @@ export default function OutfitCard({ item }) {
 }
 
 const styles = StyleSheet.create({
+  badgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
+    gap: 6,
+  },
   typeBadge: {
     flexDirection: "row",
     alignItems: "center",
@@ -124,11 +143,24 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 8,
     alignSelf: "flex-start",
-    marginTop: 4,
   },
   typeBadgeText: {
     fontSize: 10,
     fontWeight: "600",
     marginLeft: 3,
+  },
+  wornBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: "#dcfce7",
+  },
+  wornBadgeText: {
+    fontSize: 9,
+    fontWeight: "500",
+    color: "#10b981",
+    marginLeft: 2,
   },
 });
