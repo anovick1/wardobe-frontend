@@ -76,15 +76,17 @@ export function WardrobeProvider({ children }) {
     setWardrobeItems((prev) => {
       const exists = prev.some((item) => item.id === newItem.id);
       if (exists) {
-        return prev.map((item) =>
-          item.id === newItem.id
-            ? {
-                ...item,
-                ...newItem,
-                image_url: newItem.image_url || item.image_url,
-              }
-            : item
-        );
+        return prev.map((item) => {
+          if (item.id === newItem.id) {
+            const updated = {
+              ...item,
+              ...newItem,
+              image_url: newItem.image_url || item.image_url,
+            };
+            return updated;
+          }
+          return item;
+        });
       } else {
         return [newItem, ...prev];
       }

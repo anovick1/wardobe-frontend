@@ -17,7 +17,6 @@ import VisionBoards from "../components/wardrobe/VisionBoards";
 import Capsules from "../components/wardrobe/Capsules";
 import Recommendations from "../components/wardrobe/Recommendations";
 import AddNewModal from "../components/wardrobe/AddNewModal";
-import ProcessingOverlay from "../components/common/ProcessingOverlay";
 import FilterButtons from "../components/wardrobe/FilterButtons";
 import OutfitFilterButtons from "../components/outfits/OutfitFilterButtons";
 import { useWardrobe } from "../contexts/WardrobeContext";
@@ -27,7 +26,6 @@ const tabs = ["Wardrobe", "Outfits", "Boards", "Capsules", "Smart"];
 export default function WardrobeScreen({ navigation, route }) {
   const initialTabParam = route?.params?.initialTab;
   const [activeTab, setActiveTab] = useState(initialTabParam || "Wardrobe");
-  const [processing, setProcessing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [wardrobeFilters, setWardrobeFilters] = useState({});
   const [outfitFilters, setOutfitFilters] = useState([]);
@@ -79,7 +77,6 @@ export default function WardrobeScreen({ navigation, route }) {
       style={{ flex: 1, backgroundColor: "#fff" }}
       edges={["top", "left", "right"]}
     >
-      {processing && <ProcessingOverlay />}
 
       {/* Tabs */}
       <View style={styles.headerContainer}>
@@ -138,26 +135,23 @@ export default function WardrobeScreen({ navigation, route }) {
 
       <View style={{ flex: 1, minHeight: 0 }}>{renderTabContent()}</View>
 
-      {!processing && (
-        <TouchableOpacity
-          style={styles.fab}
-          onPress={() => {
-            if (activeTab === "Outfits") {
-              navigation.navigate("CreateOutfit");
-            } else {
-              setModalVisible(true);
-            }
-          }}
-        >
-          <Icon name="add" size={32} color="#121416" />
-        </TouchableOpacity>
-      )}
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => {
+          if (activeTab === "Outfits") {
+            navigation.navigate("CreateOutfit");
+          } else {
+            setModalVisible(true);
+          }
+        }}
+      >
+        <Icon name="add" size={32} color="#121416" />
+      </TouchableOpacity>
 
       <AddNewModal
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
         navigation={navigation}
-        setProcessing={setProcessing}
       />
     </SafeAreaView>
   );

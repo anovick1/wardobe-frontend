@@ -13,10 +13,19 @@ export default function useCachedImage(imageUrl, itemId) {
     async function load() {
       setLoading(true);
       setError(false);
+      
+      
       try {
         const info = await FileSystem.getInfoAsync(cachePath);
-        if (info.exists) {
+        // Valid images are typically > 1KB (1024 bytes), 110 bytes indicates corruption
+        if (info.exists && info.size > 1024) {
           if (isMounted) setUri(info.uri);
+        } else if (info.exists && info.size <= 1024) {
+          // Delete corrupted cache file
+          await FileSystem.deleteAsync(cachePath);
+          if (isMounted) setUri(imageUrl);
+          // Try to re-cache
+          FileSystem.downloadAsync(imageUrl, cachePath).catch(() => {});
         } else {
           // Show remote image immediately
           if (isMounted) setUri(imageUrl);
@@ -29,7 +38,20 @@ export default function useCachedImage(imageUrl, itemId) {
         if (isMounted) setLoading(false);
       }
     }
-    if (imageUrl && itemId) load();
+    
+    if (!imageUrl) {
+      setLoading(false);
+      setError(true);
+      return;
+    }
+    
+    if (!itemId) {
+      setLoading(false);
+      setError(true);
+      return;
+    }
+    
+    load();
     return () => {
       isMounted = false;
     };

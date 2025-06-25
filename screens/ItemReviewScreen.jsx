@@ -167,7 +167,7 @@ export default function ItemReviewScreen({ route }) {
 
       // Navigate
       if (route.params?.fromBulkUpload) {
-        if (route.params?.onSave) route.params.onSave();
+        if (route.params?.onSave) route.params.onSave(updatedItem);
         navigation.goBack();
       } else {
         navigation.navigate("WardrobeHome");

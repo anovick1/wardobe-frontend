@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -32,12 +32,14 @@ export default function MultiUploadScreen({ route, navigation }) {
   } = route.params;
   const { addItemToWardrobe } = useWardrobe();
   const [images, setImages] = useState(initialImages);
+  const [isUploading, setIsUploading] = useState(false);
+  const [processedWebhooks, setProcessedWebhooks] = useState(new Set());
   const [uploadStatus, setUploadStatus] = useState(
     initialImages.map((_, index) => ({
       id: index,
       client_upload_id: clientUploadIds
         ? clientUploadIds[index]
-        : `${Date.now()}-${index}`,
+        : `${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`,
       status:
         skipUpload && processedItems
           ? "completed"
@@ -50,11 +52,22 @@ export default function MultiUploadScreen({ route, navigation }) {
   );
 
   // Upload and process each image (only if clientUploadIds are not provided)
+  // Use a ref to ensure this only runs once for the initial images
+  const hasInitialUploadRun = useRef(false);
+  
   useEffect(() => {
     if (clientUploadIds) {
       console.log("✅ Using provided client upload IDs, skipping upload step");
       return;
     }
+
+    if (hasInitialUploadRun.current) {
+      console.log("⏭️ Initial upload already completed, skipping");
+      return;
+    }
+
+    hasInitialUploadRun.current = true;
+    console.log("🟢 Running initial upload for", images.length, "images");
 
     const uploadImages = async () => {
       try {
@@ -80,6 +93,7 @@ export default function MultiUploadScreen({ route, navigation }) {
           formData.append("client_upload_ids", client_upload_id);
         });
 
+        console.log("🔵 INITIAL UPLOAD: Calling upload_and_process for initial images");
         const res = await api.post(
           "/wardrobe_items/upload_and_process",
           formData,
@@ -123,37 +137,80 @@ export default function MultiUploadScreen({ route, navigation }) {
         snapshot.docChanges().forEach(async (change) => {
           if (change.type === "added") {
             const data = change.doc.data();
-            const matchIndex = uploadStatus.findIndex(
-              (s) => s.client_upload_id === data.client_upload_id
-            );
-            if (matchIndex === -1) return;
+            const webhookId = `${data.client_upload_id}-${data.id}`;
 
-            if (data.image_url) {
-              const cachePath = `${FileSystem.cacheDirectory}wardrobe-${data.id}.jpg`;
-              try {
-                await FileSystem.downloadAsync(data.image_url, cachePath);
-              } catch (e) {
-                console.error("Failed to cache image:", e);
+            // Check if already processed
+            setProcessedWebhooks((prev) => {
+              if (prev.has(webhookId)) {
+                console.log(`Webhook ${webhookId} already processed, skipping`);
+                return prev;
               }
-            }
 
-            setUploadStatus((prev) =>
-              prev.map((item, i) =>
-                i === matchIndex
-                  ? { ...item, status: "completed", item: data }
-                  : item
-              )
-            );
+              // Mark as processed and update upload status
+              const newSet = new Set(prev);
+              newSet.add(webhookId);
+
+              setUploadStatus((prevStatus) => {
+                const matchIndex = prevStatus.findIndex(
+                  (s) => s.client_upload_id === data.client_upload_id
+                );
+                if (matchIndex === -1) {
+                  console.log(
+                    `No matching upload found for client_upload_id: ${data.client_upload_id}`
+                  );
+                  return prevStatus;
+                }
+
+                const currentItem = prevStatus[matchIndex];
+                console.log(
+                  `Processing webhook for item ${matchIndex}, current status: ${currentItem.status}`
+                );
+
+                // Don't update if item was already processed
+                if (!currentItem || currentItem.status === "completed") {
+                  console.log(
+                    `Item ${matchIndex} already processed, skipping webhook update`
+                  );
+                  return prevStatus;
+                }
+
+                return prevStatus.map((item, i) => {
+                  if (i !== matchIndex) return item;
+                  console.log(
+                    `Updating item ${i} from ${item.status} to completed`
+                  );
+                  return { ...item, status: "completed", item: data };
+                });
+              });
+
+              // Cache the image if available (async but not awaited to avoid blocking)
+              if (data.image_url) {
+                const cachePath = `${FileSystem.cacheDirectory}wardrobe-${data.id}.jpg`;
+                FileSystem.downloadAsync(data.image_url, cachePath).catch(
+                  (e) => {
+                    console.error("Failed to cache image:", e);
+                  }
+                );
+              }
+
+              return newSet;
+            });
           }
         });
       }
     );
 
     return () => unsubscribe();
-  }, [uploadStatus]);
+  }, []);
 
   const handleAddMorePhotos = async () => {
+    if (isUploading) {
+      console.log("Upload already in progress, ignoring request");
+      return;
+    }
+
     try {
+      setIsUploading(true);
       const { status } =
         await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== "granted") {
@@ -178,10 +235,13 @@ export default function MultiUploadScreen({ route, navigation }) {
         // Add new images
         setImages((prev) => [...prev, ...newImages]);
 
-        // Add new upload statuses
+        // Add new upload statuses with unique IDs
+        const timestamp = Date.now();
         const newStatuses = newImages.map((_, index) => ({
           id: startIndex + index,
-          client_upload_id: `${Date.now()}-${startIndex + index}`,
+          client_upload_id: `${timestamp}-${startIndex + index}-${Math.random()
+            .toString(36)
+            .substr(2, 9)}`,
           status: "uploading",
           item: null,
           error: null,
@@ -211,6 +271,7 @@ export default function MultiUploadScreen({ route, navigation }) {
           formData.append("client_upload_ids", client_upload_id);
         });
 
+        console.log("🟡 ADD MORE PHOTOS: Calling upload_and_process for additional images");
         const res = await api.post(
           "/wardrobe_items/upload_and_process",
           formData,
@@ -222,21 +283,32 @@ export default function MultiUploadScreen({ route, navigation }) {
           }
         );
 
-        // Update new statuses to processing
+        // Update only the newly added statuses to processing
         setUploadStatus((prev) =>
-          prev.map((status, index) =>
-            index >= startIndex ? { ...status, status: "processing" } : status
-          )
+          prev.map((status, index) => {
+            if (index >= startIndex && index < startIndex + newImages.length) {
+              return { ...status, status: "processing" };
+            }
+            return status;
+          })
         );
       }
     } catch (error) {
       console.error("Error adding more photos:", error);
       Alert.alert("Error", "Failed to add more photos. Please try again.");
+    } finally {
+      setIsUploading(false);
     }
   };
 
   const handleTakePhoto = async () => {
+    if (isUploading) {
+      console.log("Upload already in progress, ignoring request");
+      return;
+    }
+
     try {
+      setIsUploading(true);
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== "granted") {
         Alert.alert(
@@ -259,7 +331,9 @@ export default function MultiUploadScreen({ route, navigation }) {
 
         const newStatus = {
           id: startIndex,
-          client_upload_id: `${Date.now()}-${startIndex}`,
+          client_upload_id: `${Date.now()}-${startIndex}-${Math.random()
+            .toString(36)
+            .substr(2, 9)}`,
           status: "uploading",
           item: null,
           error: null,
@@ -284,6 +358,7 @@ export default function MultiUploadScreen({ route, navigation }) {
         });
         formData.append("client_upload_ids", newStatus.client_upload_id);
 
+        console.log("🟠 TAKE PHOTO: Calling upload_and_process for camera photo");
         await api.post("/wardrobe_items/upload_and_process", formData, {
           headers: {
             "Content-Type": "multipart/form-data",
@@ -292,14 +367,19 @@ export default function MultiUploadScreen({ route, navigation }) {
         });
 
         setUploadStatus((prev) =>
-          prev.map((status, index) =>
-            index === startIndex ? { ...status, status: "processing" } : status
-          )
+          prev.map((status, index) => {
+            if (index === startIndex && status.status === "uploading") {
+              return { ...status, status: "processing" };
+            }
+            return status;
+          })
         );
       }
     } catch (error) {
       console.error("Error taking photo:", error);
       Alert.alert("Error", "Failed to take photo. Please try again.");
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -308,23 +388,20 @@ export default function MultiUploadScreen({ route, navigation }) {
       item,
       fromBulkUpload: true,
       onSave: (updatedItem) => {
-        setUploadStatus((prev) => {
-          const updated = prev.map((status, i) =>
-            i === index
-              ? { ...status, status: "confirmed", item: updatedItem || item }
-              : status
-          );
+        // Mark the item as manually reviewed and remove from screen
+        // The PUT request in ItemReviewScreen already saved it to backend
+        setUploadStatus((prev) => prev.filter((_, i) => i !== index));
+        setImages((prev) => prev.filter((_, i) => i !== index));
 
-          const allConfirmed = updated.every(
-            (s) => s.status === "confirmed" || s.status === "error"
-          );
-          if (allConfirmed) {
-            setTimeout(() => {
-              navigation.navigate("WardrobeHome");
-            }, 100);
-          }
-          return updated;
-        });
+        // Check if all items are now processed and navigate if empty
+        setTimeout(() => {
+          setUploadStatus((currentStatus) => {
+            if (currentStatus.length === 0) {
+              navigation.navigate("WardrobeHome", { initialTab: "Wardrobe" });
+            }
+            return currentStatus;
+          });
+        }, 100);
       },
     });
   };
@@ -348,45 +425,104 @@ export default function MultiUploadScreen({ route, navigation }) {
   };
 
   const handleConfirmAll = async () => {
-    const itemsToAdd = uploadStatus.filter(
-      (status) =>
-        (status.status === "completed" || status.status === "saved") &&
-        status.item &&
-        status.status !== "confirmed"
-    );
+    console.log("🚀 handleConfirmAll called - should hit bulk_embed endpoint");
+    try {
+      const auth = getAuth();
+      const idToken = await auth.currentUser?.getIdToken();
+      if (!idToken) throw new Error("Not signed in");
 
-    itemsToAdd.forEach((status) => {
-      addItemToWardrobe(status.item);
-    });
+      // Debug: log all current upload statuses
+      console.log("🔍 Current upload statuses:", uploadStatus.map(s => ({ 
+        status: s.status, 
+        hasItem: !!s.item, 
+        itemId: s.item?.id,
+        manuallyReviewed: s.item?.manually_reviewed 
+      })));
 
-    if (itemsToAdd.length > 0) {
-      try {
-        const itemIds = itemsToAdd.map((status) => status.item.id);
-        await api.post("/wardrobe_items/bulk_embed", {
-          item_ids: itemIds,
+      // Only process items that are completed and haven't been individually reviewed
+      const itemsToAdd = uploadStatus.filter(
+        (status) =>
+          status.status === "completed" &&
+          status.item
+          // Removed manually_reviewed check since it's never set
+      );
+
+      console.log("📋 Items to add:", itemsToAdd.length, itemsToAdd.map(s => s.item?.id));
+
+      if (itemsToAdd.length === 0) {
+        // If no items to process, just remove all completed items and navigate
+        setUploadStatus((prev) => {
+          const remaining = prev.filter(
+            (status) => status.status !== "completed"
+          );
+
+          if (remaining.length === 0) {
+            setTimeout(() => {
+              navigation.navigate("WardrobeHome", { initialTab: "Wardrobe" });
+            }, 500);
+          }
+
+          return remaining;
         });
-      } catch (err) {
-        console.error("Bulk embed failed:", err);
+        return;
       }
+
+      // Log what we're about to process
+      console.log(
+        "🔄 Processing items for bulk embed:",
+        itemsToAdd.map((s) => ({ id: s.item.id, name: s.item.name }))
+      );
+
+      // Use the bulk embed endpoint
+      const itemIds = itemsToAdd.map((status) => status.item.id);
+      const response = await api.post(
+        "/wardrobe_items/bulk_embed",
+        {
+          item_ids: itemIds,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+          },
+        }
+      );
+
+      console.log("✅ Bulk embed response:", response.data);
+
+      console.log("✅ Bulk embed completed for", itemIds.length, "items");
+
+      // Add all items to wardrobe context
+      itemsToAdd.forEach((status) => {
+        addItemToWardrobe(status.item);
+      });
+
+      // Remove all completed items from the screen
+      setUploadStatus((prev) => {
+        const remaining = prev.filter(
+          (status) => status.status !== "completed"
+        );
+
+        // Navigate to wardrobe if no items left
+        if (remaining.length === 0) {
+          setTimeout(() => {
+            navigation.navigate("WardrobeHome", { initialTab: "Wardrobe" });
+          }, 500);
+        }
+
+        return remaining;
+      });
+
+      // Also update images array to match remaining items
+      setImages((prev) => {
+        const completedIndices = uploadStatus
+          .map((status, index) => (status.status === "completed" ? index : -1))
+          .filter((index) => index !== -1);
+        return prev.filter((_, index) => !completedIndices.includes(index));
+      });
+    } catch (err) {
+      console.error("❌ Bulk upload failed:", err);
+      Alert.alert("Error", "Failed to add all items. Please try again.");
     }
-
-    setUploadStatus((prev) => {
-      const updated = prev.map((status) =>
-        status.status !== "confirmed" && status.item
-          ? { ...status, status: "confirmed" }
-          : status
-      );
-
-      const allConfirmed = updated.every(
-        (s) => s.status === "confirmed" || s.status === "error"
-      );
-      if (allConfirmed) {
-        setTimeout(() => {
-          navigation.navigate("WardrobeHome");
-        }, 100);
-      }
-      return updated;
-    });
   };
 
   const getStatusIcon = (status) => {
@@ -395,8 +531,6 @@ export default function MultiUploadScreen({ route, navigation }) {
       case "processing":
         return <ActivityIndicator size="small" color="#007AFF" />;
       case "completed":
-        return <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />;
-      case "confirmed":
         return <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />;
       case "error":
         return <Ionicons name="close-circle" size={20} color="#F44336" />;
@@ -413,8 +547,6 @@ export default function MultiUploadScreen({ route, navigation }) {
         return "Processing...";
       case "completed":
         return "Ready to review";
-      case "confirmed":
-        return "Added to wardrobe";
       case "error":
         return "Upload failed";
       default:
@@ -429,16 +561,8 @@ export default function MultiUploadScreen({ route, navigation }) {
 
     let imageUrl = image.uri;
     if (showCleaned && status.item && status.item.image_url) {
-      const cachedPath = `${FileSystem.cacheDirectory}wardrobe-${status.item.id}.jpg`;
-      try {
-        if (FileSystem.getInfoAsync(cachedPath)) {
-          imageUrl = cachedPath;
-        } else {
-          imageUrl = status.item.image_url;
-        }
-      } catch (e) {
-        imageUrl = status.item.image_url;
-      }
+      // Always prefer the cleaned image URL when available
+      imageUrl = status.item.image_url;
     }
 
     return (
@@ -496,31 +620,30 @@ export default function MultiUploadScreen({ route, navigation }) {
     );
   };
 
-  const anyUnconfirmed = uploadStatus.some(
-    (s) => s.status !== "confirmed" && s.status !== "error"
+  // Only show "Add All" if there are completed items AND no items are still processing
+  const hasProcessingItems = uploadStatus.some(
+    (s) => s.status === "uploading" || s.status === "processing"
   );
+  const hasCompletedItems = uploadStatus.some((s) => s.status === "completed");
+  const anyUnconfirmed = hasCompletedItems && !hasProcessingItems;
 
   const completedCount = uploadStatus.filter(
-    (s) =>
-      s.status === "completed" ||
-      s.status === "confirmed" ||
-      s.status === "saved"
+    (s) => s.status === "completed"
+  ).length;
+
+  const processedCount = uploadStatus.filter(
+    (s) => s.status === "completed"
   ).length;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="arrow-back" size={24} color="#000" />
-        </TouchableOpacity>
+        <View style={styles.backButton}>{/* Disabled back button */}</View>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Upload Progress</Text>
           <Text style={styles.headerSubtitle}>
-            {completedCount} of {uploadStatus.length} items processed
+            {processedCount} of {uploadStatus.length} items processed
           </Text>
         </View>
       </View>
@@ -564,9 +687,7 @@ export default function MultiUploadScreen({ route, navigation }) {
             style={styles.confirmButton}
             onPress={handleConfirmAll}
           >
-            <Text style={styles.confirmButtonText}>
-              Add All to Wardrobe ({completedCount})
-            </Text>
+            <Text style={styles.confirmButtonText}>Add All Items</Text>
             <Ionicons name="checkmark" size={20} color="#fff" />
           </TouchableOpacity>
         </View>

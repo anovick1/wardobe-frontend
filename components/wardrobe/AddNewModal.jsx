@@ -9,7 +9,6 @@ export default function AddNewModal({
   visible,
   onClose,
   navigation,
-  setProcessing,
 }) {
   const { addWardrobeItem } = useWardrobe();
 
@@ -22,7 +21,6 @@ export default function AddNewModal({
     });
 
     if (!res.canceled) {
-      setProcessing(true);
       onClose();
       navigation.navigate("MultiUpload", { images: res.assets });
     }

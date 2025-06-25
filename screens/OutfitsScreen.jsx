@@ -144,7 +144,12 @@ const OutfitsScreen = () => {
     ({ item }) => (
       <OutfitItemWithCache
         item={item}
-        onPress={() => navigation.navigate("OutfitDetail", { outfit: item })}
+        onPress={() =>
+          navigation.navigate("OutfitDetail", {
+            outfit: item,
+            outfitId: item.outfit_id || item.id, // Use outfit_id for daily outfits, fallback to id
+          })
+        }
         onDelete={() => handleDeleteOutfit(item.id)}
       />
     ),

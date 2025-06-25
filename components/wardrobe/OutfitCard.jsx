@@ -59,6 +59,7 @@ export default function OutfitCard({ item }) {
       onPress={() =>
         navigation.navigate("OutfitDetail", {
           outfit: item,
+          outfitId: item.outfit_id || item.id,
         })
       }
     >
@@ -99,7 +100,7 @@ export default function OutfitCard({ item }) {
           <Text style={typography.name} numberOfLines={1} adjustsFontSizeToFit>
             {item.title || "Untitled Outfit"}
           </Text>
-          
+
           <View style={styles.badgeRow}>
             <View
               style={[
@@ -112,13 +113,13 @@ export default function OutfitCard({ item }) {
                 {typeInfo.text}
               </Text>
             </View>
-            
+
             {/* Worn Status Badge */}
             {item.is_worn && (
               <View style={styles.wornBadge}>
                 <Icon name="check-circle" size={10} color="#10b981" />
                 <Text style={styles.wornBadgeText}>
-                  Worn {item.times_worn ? `${item.times_worn}x` : ''}
+                  Worn {item.times_worn ? `${item.times_worn}x` : ""}
                 </Text>
               </View>
             )}
