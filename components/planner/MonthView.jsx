@@ -26,7 +26,23 @@ export default function MonthView({
 }) {
   // Use viewDate to determine which month to display
 
-  const baseDate = viewDate ? new Date(viewDate) : new Date();
+  let baseDate;
+  try {
+    if (viewDate) {
+      if (typeof viewDate === "string" && viewDate.includes("-")) {
+        baseDate = parseISO(viewDate);
+      } else if (viewDate instanceof Date) {
+        baseDate = viewDate;
+      } else {
+        baseDate = new Date();
+      }
+    } else {
+      baseDate = new Date();
+    }
+  } catch (error) {
+    console.error("Error parsing viewDate:", error);
+    baseDate = new Date();
+  }
   const monthStart = startOfMonth(baseDate);
   const monthEnd = endOfMonth(baseDate);
   const gridStart = startOfWeek(monthStart, { weekStartsOn: 0 });
@@ -49,9 +65,15 @@ export default function MonthView({
   // Helper to get events for a day
   const getEventsForDay = (date) => {
     const dayEvents = events.filter((e) => {
-      const start = new Date(e.startDate);
-      const end = new Date(e.endDate || e.startDate);
-      return date >= start && date <= end;
+      if (!e || !e.startDate) return false;
+      try {
+        const start = new Date(e.startDate);
+        const end = new Date(e.endDate || e.startDate);
+        return date >= start && date <= end;
+      } catch (error) {
+        console.error("Error parsing event dates:", e, error);
+        return false;
+      }
     });
     return dayEvents;
   };
@@ -66,7 +88,7 @@ export default function MonthView({
           ]}
           onPress={() =>
             onMonthChange &&
-            onMonthChange(format(addMonths(monthStart, 0), "yyyy-MM-dd"))
+            onMonthChange(format(addMonths(monthStart, -1), "yyyy-MM-dd"))
           }
         >
           <Icon name="chevron-left" size={24} color="#121416" />
@@ -83,7 +105,7 @@ export default function MonthView({
           ]}
           onPress={() =>
             onMonthChange &&
-            onMonthChange(format(addMonths(monthStart, 2), "yyyy-MM-dd"))
+            onMonthChange(format(addMonths(monthStart, 1), "yyyy-MM-dd"))
           }
         >
           <Icon name="chevron-right" size={24} color="#121416" />

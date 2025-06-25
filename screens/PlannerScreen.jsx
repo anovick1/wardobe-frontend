@@ -192,9 +192,8 @@ export default function PlannerScreen() {
   const handleMonthChange = (newDateStr) => {
     setViewDate(newDateStr);
     // Select the first day of the new month
-    const newDate = new Date(newDateStr);
-    const monthStart = startOfMonth(newDate);
-    const firstDayStr = format(monthStart, "yyyy-MM-dd");
+    const [year, month] = newDateStr.split("-").map(Number);
+    const firstDayStr = `${year}-${String(month).padStart(2, "0")}-01`;
     setSelectedDate(firstDayStr);
     if (permissionGranted) {
       fetchEventsForSelectedDate(firstDayStr);

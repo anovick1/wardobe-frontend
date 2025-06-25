@@ -47,7 +47,7 @@ export default function WeekView({
           style={styles.arrowBtn}
           onPress={() =>
             onWeekChange &&
-            onWeekChange(format(addWeeks(weekStartDate, -1), "yyyy-MM-dd"))
+            onWeekChange(format(addWeeks(weekStartDate, 0), "yyyy-MM-dd"))
           }
         >
           <Icon name="chevron-left" size={24} color="#121416" />
@@ -73,7 +73,7 @@ export default function WeekView({
           const dayEvents = getEventsForDay(day);
           const dayWornOutfits = wornOutfits[dayStr] || [];
           const dayPlannedOutfits = plannedOutfits[dayStr] || [];
-          
+
           return (
             <TouchableOpacity
               key={dayStr}
@@ -91,12 +91,16 @@ export default function WeekView({
               >
                 {format(day, "d")}
               </Text>
-              
+
               {/* Activity indicators */}
               <View style={styles.indicators}>
                 {dayEvents.length > 0 && <Text style={styles.eventDot}>●</Text>}
-                {dayWornOutfits.length > 0 && <Text style={styles.wornDot}>●</Text>}
-                {dayPlannedOutfits.length > 0 && <Text style={styles.plannedDot}>●</Text>}
+                {dayWornOutfits.length > 0 && (
+                  <Text style={styles.wornDot}>●</Text>
+                )}
+                {dayPlannedOutfits.length > 0 && (
+                  <Text style={styles.plannedDot}>●</Text>
+                )}
               </View>
             </TouchableOpacity>
           );

@@ -17,6 +17,14 @@ import { useOutfits } from "../contexts/OutfitContext";
 import { dataManager } from "../services/DataManager";
 import api, { wornOutfitAPI } from "../api";
 import { SafeAreaView } from "react-native-safe-area-context";
+import MonthView from "../components/planner/MonthView";
+import {
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  isSameDay,
+  format,
+} from "date-fns";
 
 const OutfitDetail = () => {
   let route;
@@ -61,6 +69,7 @@ const OutfitDetail = () => {
     today.setHours(12, 0, 0, 0); // Set to noon to avoid timezone issues
     return today;
   });
+  const [viewMonth, setViewMonth] = useState(new Date());
   const [markingAsWorn, setMarkingAsWorn] = useState(false);
   const [wornRecords, setWornRecords] = useState([]);
   const [loadingWornRecords, setLoadingWornRecords] = useState(false);
@@ -542,44 +551,71 @@ const OutfitDetail = () => {
                     </Text>
                   </TouchableOpacity>
                 </View>
-                <View style={styles.simpleDatePicker}>
-                  <Text style={styles.datePickerLabel}>
-                    Selected: {selectedDate.toLocaleDateString()}
-                  </Text>
-                  <View style={styles.dateButtonRow}>
+                <View style={styles.calendarContainer}>
+                  <View style={styles.calendarHeader}>
+                    <Text style={styles.datePickerLabel}>
+                      Selected: {format(selectedDate, "MMMM d, yyyy")}
+                    </Text>
                     <TouchableOpacity
-                      style={styles.dateButton}
+                      style={styles.todayButton}
                       onPress={() => {
                         const today = new Date();
-                        today.setHours(12, 0, 0, 0); // Set to noon to avoid timezone issues
+                        today.setHours(12, 0, 0, 0);
                         setSelectedDate(today);
+                        setViewMonth(today);
                       }}
                     >
-                      <Text style={styles.dateButtonText}>Today</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.dateButton}
-                      onPress={() => {
-                        const yesterday = new Date();
-                        yesterday.setDate(yesterday.getDate() - 1);
-                        yesterday.setHours(12, 0, 0, 0); // Set to noon to avoid timezone issues
-                        setSelectedDate(yesterday);
-                      }}
-                    >
-                      <Text style={styles.dateButtonText}>Yesterday</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.dateButton}
-                      onPress={() => {
-                        const tomorrow = new Date();
-                        tomorrow.setDate(tomorrow.getDate() + 1);
-                        tomorrow.setHours(12, 0, 0, 0); // Set to noon to avoid timezone issues
-                        setSelectedDate(tomorrow);
-                      }}
-                    >
-                      <Text style={styles.dateButtonText}>Tomorrow</Text>
+                      <Ionicons name="today" size={16} color="#007AFF" />
+                      <Text style={styles.todayButtonText}>Today</Text>
                     </TouchableOpacity>
                   </View>
+                  <MonthView
+                    selectedDate={format(selectedDate, "yyyy-MM-dd")}
+                    viewDate={format(viewMonth, "yyyy-MM-dd")}
+                    onDaySelect={(date) => {
+                      // Parse the date string properly to avoid timezone issues
+                      const [year, month, day] = date.split("-").map(Number);
+                      const newDate = new Date(
+                        year,
+                        month - 1,
+                        day,
+                        12,
+                        0,
+                        0,
+                        0
+                      );
+                      setSelectedDate(newDate);
+                    }}
+                    onMonthChange={(newDateString) => {
+                      if (newDateString) {
+                        // Parse the date string properly
+                        const [year, month, day] = newDateString
+                          .split("-")
+                          .map(Number);
+                        const newViewMonth = new Date(year, month - 1, day);
+                        setViewMonth(newViewMonth);
+
+                        // Set selected date to first day of the new month (same logic as PlannerScreen)
+                        const firstDayStr = `${year}-${String(month).padStart(
+                          2,
+                          "0"
+                        )}-01`;
+                        const [firstYear, firstMonth, firstDay] = firstDayStr
+                          .split("-")
+                          .map(Number);
+                        const newSelectedDate = new Date(
+                          firstYear,
+                          firstMonth - 1,
+                          firstDay,
+                          12,
+                          0,
+                          0,
+                          0
+                        );
+                        setSelectedDate(newSelectedDate);
+                      }
+                    }}
+                  />
                 </View>
               </View>
             </View>
@@ -967,31 +1003,37 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "500",
   },
-  // Simple date picker styles
-  simpleDatePicker: {
+  // Calendar container styles
+  calendarContainer: {
     padding: 20,
+    paddingBottom: 10,
+  },
+  calendarHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
   },
   datePickerLabel: {
     fontSize: 16,
     fontWeight: "500",
-    textAlign: "center",
-    marginBottom: 20,
+    color: "#333",
   },
-  dateButtonRow: {
+  todayButton: {
     flexDirection: "row",
-    justifyContent: "space-around",
-  },
-  dateButton: {
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
     backgroundColor: "#f0f9ff",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
     borderWidth: 1,
     borderColor: "#007AFF",
   },
-  dateButtonText: {
+  todayButtonText: {
+    fontSize: 12,
     color: "#007AFF",
     fontWeight: "500",
+    marginLeft: 4,
   },
 });
 
