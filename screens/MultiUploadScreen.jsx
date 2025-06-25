@@ -54,20 +54,20 @@ export default function MultiUploadScreen({ route, navigation }) {
   // Upload and process each image (only if clientUploadIds are not provided)
   // Use a ref to ensure this only runs once for the initial images
   const hasInitialUploadRun = useRef(false);
-  
+
   useEffect(() => {
     if (clientUploadIds) {
-      console.log("✅ Using provided client upload IDs, skipping upload step");
+      //   console.log("✅ Using provided client upload IDs, skipping upload step");
       return;
     }
 
     if (hasInitialUploadRun.current) {
-      console.log("⏭️ Initial upload already completed, skipping");
+      //   console.log("⏭️ Initial upload already completed, skipping");
       return;
     }
 
     hasInitialUploadRun.current = true;
-    console.log("🟢 Running initial upload for", images.length, "images");
+    // console.log("🟢 Running initial upload for", images.length, "images");
 
     const uploadImages = async () => {
       try {
@@ -93,7 +93,6 @@ export default function MultiUploadScreen({ route, navigation }) {
           formData.append("client_upload_ids", client_upload_id);
         });
 
-        console.log("🔵 INITIAL UPLOAD: Calling upload_and_process for initial images");
         const res = await api.post(
           "/wardrobe_items/upload_and_process",
           formData,
@@ -105,7 +104,7 @@ export default function MultiUploadScreen({ route, navigation }) {
           }
         );
 
-        console.log("✅ Upload started:", res.data);
+        // console.log("✅ Upload started:", res.data);
         setUploadStatus((prev) =>
           prev.map((status) => ({ ...status, status: "processing" }))
         );
@@ -142,7 +141,7 @@ export default function MultiUploadScreen({ route, navigation }) {
             // Check if already processed
             setProcessedWebhooks((prev) => {
               if (prev.has(webhookId)) {
-                console.log(`Webhook ${webhookId} already processed, skipping`);
+                // console.log(`Webhook ${webhookId} already processed, skipping`);
                 return prev;
               }
 
@@ -205,7 +204,7 @@ export default function MultiUploadScreen({ route, navigation }) {
 
   const handleAddMorePhotos = async () => {
     if (isUploading) {
-      console.log("Upload already in progress, ignoring request");
+      // console.log("Upload already in progress, ignoring request");
       return;
     }
 
@@ -271,7 +270,7 @@ export default function MultiUploadScreen({ route, navigation }) {
           formData.append("client_upload_ids", client_upload_id);
         });
 
-        console.log("🟡 ADD MORE PHOTOS: Calling upload_and_process for additional images");
+        // console.log("🟡 ADD MORE PHOTOS: Calling upload_and_process for additional images");
         const res = await api.post(
           "/wardrobe_items/upload_and_process",
           formData,
@@ -303,7 +302,7 @@ export default function MultiUploadScreen({ route, navigation }) {
 
   const handleTakePhoto = async () => {
     if (isUploading) {
-      console.log("Upload already in progress, ignoring request");
+      // console.log("Upload already in progress, ignoring request");
       return;
     }
 
@@ -358,7 +357,7 @@ export default function MultiUploadScreen({ route, navigation }) {
         });
         formData.append("client_upload_ids", newStatus.client_upload_id);
 
-        console.log("🟠 TAKE PHOTO: Calling upload_and_process for camera photo");
+        // console.log("🟠 TAKE PHOTO: Calling upload_and_process for camera photo");
         await api.post("/wardrobe_items/upload_and_process", formData, {
           headers: {
             "Content-Type": "multipart/form-data",
@@ -425,29 +424,34 @@ export default function MultiUploadScreen({ route, navigation }) {
   };
 
   const handleConfirmAll = async () => {
-    console.log("🚀 handleConfirmAll called - should hit bulk_embed endpoint");
+    // console.log("🚀 handleConfirmAll called - should hit bulk_embed endpoint");
     try {
       const auth = getAuth();
       const idToken = await auth.currentUser?.getIdToken();
       if (!idToken) throw new Error("Not signed in");
 
       // Debug: log all current upload statuses
-      console.log("🔍 Current upload statuses:", uploadStatus.map(s => ({ 
-        status: s.status, 
-        hasItem: !!s.item, 
-        itemId: s.item?.id,
-        manuallyReviewed: s.item?.manually_reviewed 
-      })));
+      console.log(
+        "🔍 Current upload statuses:",
+        uploadStatus.map((s) => ({
+          status: s.status,
+          hasItem: !!s.item,
+          itemId: s.item?.id,
+          manuallyReviewed: s.item?.manually_reviewed,
+        }))
+      );
 
       // Only process items that are completed and haven't been individually reviewed
       const itemsToAdd = uploadStatus.filter(
-        (status) =>
-          status.status === "completed" &&
-          status.item
-          // Removed manually_reviewed check since it's never set
+        (status) => status.status === "completed" && status.item
+        // Removed manually_reviewed check since it's never set
       );
 
-      console.log("📋 Items to add:", itemsToAdd.length, itemsToAdd.map(s => s.item?.id));
+      console.log(
+        "📋 Items to add:",
+        itemsToAdd.length,
+        itemsToAdd.map((s) => s.item?.id)
+      );
 
       if (itemsToAdd.length === 0) {
         // If no items to process, just remove all completed items and navigate
@@ -487,9 +491,9 @@ export default function MultiUploadScreen({ route, navigation }) {
         }
       );
 
-      console.log("✅ Bulk embed response:", response.data);
+      // console.log("✅ Bulk embed response:", response.data);
 
-      console.log("✅ Bulk embed completed for", itemIds.length, "items");
+      // console.log("✅ Bulk embed completed for", itemIds.length, "items");
 
       // Add all items to wardrobe context
       itemsToAdd.forEach((status) => {

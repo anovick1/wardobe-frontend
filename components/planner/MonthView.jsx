@@ -21,6 +21,8 @@ export default function MonthView({
   viewDate,
   onDaySelect,
   onMonthChange,
+  wornOutfits = {},
+  plannedOutfits = {},
 }) {
   // Use viewDate to determine which month to display
 
@@ -64,7 +66,7 @@ export default function MonthView({
           ]}
           onPress={() =>
             onMonthChange &&
-            onMonthChange(format(addMonths(monthStart, -1), "yyyy-MM-dd"))
+            onMonthChange(format(addMonths(monthStart, 0), "yyyy-MM-dd"))
           }
         >
           <Icon name="chevron-left" size={24} color="#121416" />
@@ -103,6 +105,9 @@ export default function MonthView({
                 selectedDate && isSameDay(day, parseISO(selectedDate));
               const isCurrentMonth = isSameMonth(day, monthStart);
               const dayEvents = getEventsForDay(day);
+              const dayWornOutfits = wornOutfits[dayStr] || [];
+              const dayPlannedOutfits = plannedOutfits[dayStr] || [];
+
               return (
                 <TouchableOpacity
                   key={dayStr}
@@ -124,9 +129,19 @@ export default function MonthView({
                   >
                     {format(day, "d")}
                   </Text>
-                  {dayEvents.length > 0 && (
-                    <Text style={styles.eventDot}>●</Text>
-                  )}
+
+                  {/* Activity indicators */}
+                  <View style={styles.indicators}>
+                    {dayEvents.length > 0 && (
+                      <Text style={styles.eventDot}>●</Text>
+                    )}
+                    {dayWornOutfits.length > 0 && (
+                      <Text style={styles.wornDot}>●</Text>
+                    )}
+                    {dayPlannedOutfits.length > 0 && (
+                      <Text style={styles.plannedDot}>●</Text>
+                    )}
+                  </View>
                 </TouchableOpacity>
               );
             })}
@@ -207,10 +222,29 @@ const styles = StyleSheet.create({
   dayNumOtherMonth: {
     color: "#b0b0b0",
   },
-  eventDot: {
-    fontSize: 11,
-    color: "#1877f3",
+  indicators: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
     marginTop: 2,
+    minHeight: 10,
+  },
+  eventDot: {
+    fontSize: 6,
+    color: "#f59e0b",
     fontWeight: "bold",
+    marginHorizontal: 0.5,
+  },
+  wornDot: {
+    fontSize: 6,
+    color: "#10b981",
+    fontWeight: "bold",
+    marginHorizontal: 0.5,
+  },
+  plannedDot: {
+    fontSize: 6,
+    color: "#3b82f6",
+    fontWeight: "bold",
+    marginHorizontal: 0.5,
   },
 });

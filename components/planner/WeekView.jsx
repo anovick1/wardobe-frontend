@@ -18,6 +18,8 @@ export default function WeekView({
   onDaySelect,
   weekStart = 0,
   onWeekChange,
+  wornOutfits = {},
+  plannedOutfits = {},
 }) {
   // weekStart: 0 = Sunday, 1 = Monday
   const baseDate = viewDate ? new Date(viewDate) : new Date();
@@ -69,6 +71,9 @@ export default function WeekView({
           const isSelected =
             selectedDate && isSameDay(day, parseISO(selectedDate));
           const dayEvents = getEventsForDay(day);
+          const dayWornOutfits = wornOutfits[dayStr] || [];
+          const dayPlannedOutfits = plannedOutfits[dayStr] || [];
+          
           return (
             <TouchableOpacity
               key={dayStr}
@@ -86,7 +91,13 @@ export default function WeekView({
               >
                 {format(day, "d")}
               </Text>
-              {dayEvents.length > 0 && <Text style={styles.eventDot}>●</Text>}
+              
+              {/* Activity indicators */}
+              <View style={styles.indicators}>
+                {dayEvents.length > 0 && <Text style={styles.eventDot}>●</Text>}
+                {dayWornOutfits.length > 0 && <Text style={styles.wornDot}>●</Text>}
+                {dayPlannedOutfits.length > 0 && <Text style={styles.plannedDot}>●</Text>}
+              </View>
             </TouchableOpacity>
           );
         })}
@@ -147,10 +158,29 @@ const styles = StyleSheet.create({
   dayTextSelected: {
     color: "#fff",
   },
-  eventDot: {
-    fontSize: 11,
-    color: "#1877f3",
+  indicators: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
     marginTop: 2,
+    minHeight: 12,
+  },
+  eventDot: {
+    fontSize: 8,
+    color: "#f59e0b",
     fontWeight: "bold",
+    marginHorizontal: 1,
+  },
+  wornDot: {
+    fontSize: 8,
+    color: "#10b981",
+    fontWeight: "bold",
+    marginHorizontal: 1,
+  },
+  plannedDot: {
+    fontSize: 8,
+    color: "#3b82f6",
+    fontWeight: "bold",
+    marginHorizontal: 1,
   },
 });

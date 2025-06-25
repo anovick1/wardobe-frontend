@@ -53,7 +53,7 @@ const OutfitDetail = () => {
   const [loading, setLoading] = useState(true);
   const { user } = useContext(AuthContext);
   const { removeOutfit, addOutfit, updateOutfitWornStatus } = useOutfits();
-  
+
   // Worn outfit management state
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState(() => {
@@ -152,13 +152,10 @@ const OutfitDetail = () => {
     if (!outfitId) return;
     try {
       setLoadingWornRecords(true);
-      console.log("🔍 Fetching worn records for outfit:", outfitId);
       const allWornOutfits = await wornOutfitAPI.getWornOutfits();
-      console.log("📦 All worn outfits:", allWornOutfits);
       const outfitWornRecords = allWornOutfits.filter(
-        worn => worn.outfit && worn.outfit.id === outfitId
+        (worn) => worn.outfit && worn.outfit.id === outfitId
       );
-      console.log("✅ Filtered worn records:", outfitWornRecords);
       setWornRecords(outfitWornRecords);
     } catch (error) {
       console.error("❌ Failed to fetch worn records:", error);
@@ -173,15 +170,18 @@ const OutfitDetail = () => {
     try {
       setMarkingAsWorn(true);
       await wornOutfitAPI.markAsWorn(outfitId, selectedDate);
-      
+
       // Update outfit context
       updateOutfitWornStatus(outfitId, true);
-      
+
       // Refresh outfit details and worn records
       await Promise.all([fetchOutfitDetails(), fetchWornRecords()]);
-      
+
       setShowDatePicker(false);
-      Alert.alert("Success", `Outfit marked as worn for ${selectedDate.toLocaleDateString()}!`);
+      Alert.alert(
+        "Success",
+        `Outfit marked as worn for ${selectedDate.toLocaleDateString()}!`
+      );
     } catch (error) {
       console.error("Failed to mark outfit as worn:", error);
       Alert.alert("Error", "Failed to mark outfit as worn. Please try again.");
@@ -205,20 +205,25 @@ const OutfitDetail = () => {
           onPress: async () => {
             try {
               await wornOutfitAPI.removeWornRecord(wornRecordId);
-              
+
               // Refresh outfit details and worn records
               await Promise.all([fetchOutfitDetails(), fetchWornRecords()]);
-              
+
               // Update context if no more worn records
-              const remainingRecords = wornRecords.filter(r => r.id !== wornRecordId);
+              const remainingRecords = wornRecords.filter(
+                (r) => r.id !== wornRecordId
+              );
               if (remainingRecords.length === 0) {
                 updateOutfitWornStatus(outfitId, false);
               }
-              
+
               Alert.alert("Success", "Worn record removed successfully");
             } catch (error) {
               console.error("Failed to remove worn record:", error);
-              Alert.alert("Error", "Failed to remove worn record. Please try again.");
+              Alert.alert(
+                "Error",
+                "Failed to remove worn record. Please try again."
+              );
             }
           },
         },
@@ -436,35 +441,40 @@ const OutfitDetail = () => {
                   .map((record, index) => {
                     const wornDate = new Date(record.worn_at);
                     const today = new Date();
-                    
+
                     // Compare just the date parts, ignore time
                     const wornDateStr = wornDate.toDateString();
                     const todayStr = today.toDateString();
                     const isToday = wornDateStr === todayStr;
-                    
+
                     // Check if worn date is in the future (after today)
                     const tomorrow = new Date(today);
                     tomorrow.setDate(tomorrow.getDate() + 1);
-                    const isFuture = wornDate.toDateString() >= tomorrow.toDateString();
-                    
+                    const isFuture =
+                      wornDate.toDateString() >= tomorrow.toDateString();
+
                     return (
                       <View key={record.id} style={styles.wornRecord}>
                         <View style={styles.wornRecordContent}>
-                          <Ionicons 
-                            name={isFuture ? "calendar-outline" : "checkmark-circle"} 
-                            size={16} 
-                            color={isFuture ? "#ff9500" : "#10b981"} 
+                          <Ionicons
+                            name={
+                              isFuture ? "calendar-outline" : "checkmark-circle"
+                            }
+                            size={16}
+                            color={isFuture ? "#ff9500" : "#10b981"}
                           />
                           <View style={styles.wornRecordInfo}>
                             <Text style={styles.wornRecordDate}>
-                              {isToday ? "Today" : 
-                               isFuture ? `Planned for ${wornDate.toLocaleDateString()}` :
-                               `Worn on ${wornDate.toLocaleDateString()}`}
+                              {isToday
+                                ? "Today"
+                                : isFuture
+                                ? `Planned for ${wornDate.toLocaleDateString()}`
+                                : `Worn on ${wornDate.toLocaleDateString()}`}
                             </Text>
                             <Text style={styles.wornRecordTime}>
-                              {wornDate.toLocaleTimeString([], { 
-                                hour: '2-digit', 
-                                minute: '2-digit' 
+                              {wornDate.toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
                               })}
                             </Text>
                           </View>
@@ -501,7 +511,7 @@ const OutfitDetail = () => {
             </Text>
           </View>
         </ScrollView>
-        
+
         {/* Date Picker Modal */}
         {showDatePicker && (
           <Modal
@@ -525,7 +535,9 @@ const OutfitDetail = () => {
                     style={[styles.modalButton, styles.confirmButton]}
                     disabled={markingAsWorn}
                   >
-                    <Text style={[styles.modalButtonText, styles.confirmButtonText]}>
+                    <Text
+                      style={[styles.modalButtonText, styles.confirmButtonText]}
+                    >
                       Confirm
                     </Text>
                   </TouchableOpacity>
