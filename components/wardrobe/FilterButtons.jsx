@@ -8,6 +8,8 @@ import {
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import FilterModal from "./FilterModal";
+import CategoryFilterModal from "./CategoryFilterModal";
+import { useItemFormData } from "../../hooks/useItemFormData";
 
 const FilterButtons = ({ 
   onFilterChange, 
@@ -17,7 +19,10 @@ const FilterButtons = ({
 }) => {
   const [filters, setFilters] = useState(activeFilters);
   const [modalVisible, setModalVisible] = useState(false);
+  const [categoryModalVisible, setCategoryModalVisible] = useState(false);
   const [selectedFilterType, setSelectedFilterType] = useState(null);
+  
+  const { categoryOptions, subcategoryOptions } = useItemFormData();
 
   const filterTypeOptions = ["Brand", "Category", "Color", "Tags"];
 
@@ -61,8 +66,12 @@ const FilterButtons = ({
   };
 
   const handleFilterPress = (filterType) => {
-    setSelectedFilterType(filterType.toLowerCase());
-    setModalVisible(true);
+    if (filterType.toLowerCase() === 'category') {
+      setCategoryModalVisible(true);
+    } else {
+      setSelectedFilterType(filterType.toLowerCase());
+      setModalVisible(true);
+    }
   };
 
   const handleApplyFilter = (selectedValues) => {
@@ -78,13 +87,63 @@ const FilterButtons = ({
     onFilterChange(newFilters);
   };
 
+  const handleApplyCategoryFilter = ({ categories, subcategories }) => {
+    const newFilters = { ...filters };
+    
+    // Convert hierarchical selection to legacy category filter format
+    const legacyCategories = [];
+    
+    // Add selected categories as standalone filters
+    categories.forEach(categoryId => {
+      const category = categoryOptions.find(cat => cat.id === categoryId);
+      if (category) {
+        legacyCategories.push(category.label);
+      }
+    });
+    
+    // Add selected subcategories as "Category - Subcategory" format
+    subcategories.forEach(subcategoryId => {
+      const subcategory = subcategoryOptions.find(sub => sub.id === subcategoryId);
+      if (subcategory) {
+        const parentCategory = categoryOptions.find(cat => cat.id === subcategory.category_id);
+        if (parentCategory) {
+          legacyCategories.push(`${parentCategory.label} - ${subcategory.label}`);
+        }
+      }
+    });
+    
+    // Update the legacy category filter
+    if (legacyCategories.length === 0) {
+      delete newFilters.category;
+      delete newFilters.categories;
+      delete newFilters.subcategories;
+    } else {
+      newFilters.category = legacyCategories;
+      // Store hierarchical data for UI state
+      newFilters.categories = categories;
+      newFilters.subcategories = subcategories;
+    }
+    
+    setFilters(newFilters);
+    onFilterChange(newFilters);
+  };
+
   const isFilterActive = (filterType) => {
     const type = filterType.toLowerCase();
+    if (type === 'category') {
+      return (filters.categories && filters.categories.length > 0) || 
+             (filters.subcategories && filters.subcategories.length > 0);
+    }
     return filters[type] && Array.isArray(filters[type]) && filters[type].length > 0;
   };
 
   const getFilterCount = (filterType) => {
     const type = filterType.toLowerCase();
+    if (type === 'category') {
+      const categoryCount = filters.categories ? filters.categories.length : 0;
+      const subcategoryCount = filters.subcategories ? filters.subcategories.length : 0;
+      return categoryCount + subcategoryCount;
+    }
     return filters[type] ? filters[type].length : 0;
   };
 
@@ -132,6 +191,16 @@ const FilterButtons = ({
         options={selectedFilterType ? getFilterOptions(selectedFilterType) : []}
         selectedValues={selectedFilterType ? (filters[selectedFilterType] || []) : []}
         onApply={handleApplyFilter}
+      />
+
+      <CategoryFilterModal
+        visible={categoryModalVisible}
+        onClose={() => setCategoryModalVisible(false)}
+        categories={categoryOptions}
+        subcategories={subcategoryOptions}
+        selectedCategories={filters.categories || []}
+        selectedSubcategories={filters.subcategories || []}
+        onApply={handleApplyCategoryFilter}
       />
     </>
   );

@@ -43,7 +43,25 @@ export default function WardrobeItems({ filters = {} }) {
         }
       }
 
-      // Check category filter
+      // Check category filter (hierarchical) - temporarily disabled until backend provides IDs
+      // if (filters.categories && filters.categories.length > 0) {
+      //   // Check if item's category ID is in selected categories
+      //   const itemCategoryId = item.category_id;
+      //   if (!itemCategoryId || !filters.categories.includes(itemCategoryId)) {
+      //     return false;
+      //   }
+      // }
+
+      // // Check subcategory filter (hierarchical) - temporarily disabled until backend provides IDs
+      // if (filters.subcategories && filters.subcategories.length > 0) {
+      //   // Check if item's subcategory ID is in selected subcategories
+      //   const itemSubcategoryId = item.subcategory_id;
+      //   if (!itemSubcategoryId || !filters.subcategories.includes(itemSubcategoryId)) {
+      //     return false;
+      //   }
+      // }
+
+      // Legacy category filter support (for backward compatibility)
       if (filters.category && filters.category.length > 0) {
         let itemCategory = '';
         if (item.category && item.subcategory) {

@@ -18,6 +18,7 @@ import TagsPreview from "../components/itemReview/TagsPreview";
 import { AuthContext } from "../auth/AuthContext";
 import api from "../api";
 import { useOutfits } from "../contexts/OutfitContext";
+import { validateOutfitCategories, getOutfitValidationMessage } from "../utils/outfitValidation";
 
 const CreateOutfit = () => {
   const [wardrobeItems, setWardrobeItems] = useState([]);
@@ -112,6 +113,15 @@ const CreateOutfit = () => {
 
     if (selectedItems.length === 0) {
       Alert.alert("Error", "Please select at least one item for your outfit");
+      return;
+    }
+
+    // Validate outfit category requirements
+    const selectedItemsData = wardrobeItems.filter(item => selectedItems.includes(item.id));
+    const validation = validateOutfitCategories(selectedItemsData);
+    
+    if (!validation.isValid) {
+      Alert.alert("Invalid Outfit", getOutfitValidationMessage(validation));
       return;
     }
 

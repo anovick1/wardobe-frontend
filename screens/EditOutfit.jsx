@@ -20,6 +20,7 @@ import { useOutfits } from "../contexts/OutfitContext";
 import { useWardrobe } from "../contexts/WardrobeContext";
 import api from "../api";
 import * as FileSystem from "expo-file-system";
+import { validateOutfitCategories, getOutfitValidationMessage } from "../utils/outfitValidation";
 
 const EditOutfit = () => {
   const navigation = useNavigation();
@@ -229,6 +230,15 @@ const EditOutfit = () => {
       return;
     }
 
+    // Validate outfit category requirements
+    const selectedItemsData = allItems.filter(item => selectedItems.includes(item.id));
+    const validation = validateOutfitCategories(selectedItemsData);
+    
+    if (!validation.isValid) {
+      Alert.alert("Invalid Outfit", getOutfitValidationMessage(validation));
+      return;
+    }
+
     setSaving(true);
     try {
       const currentOutfitId = outfit?.id || initialOutfit?.id || outfitId;
@@ -264,7 +274,7 @@ const EditOutfit = () => {
       }
 
       Alert.alert("Success", "Outfit updated successfully");
-      navigation.goBack();
+      navigation.navigate("WardrobeHome", { initialTab: "Outfits" });
     } catch (error) {
       Alert.alert("Error", "Failed to update outfit");
       console.error(error);
