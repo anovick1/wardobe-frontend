@@ -88,6 +88,9 @@ const OutfitDetail = () => {
     }
   };
 
+  // Daily outfits cannot be edited directly since they're AI-generated.
+  // Instead, we copy the outfit and allow editing the copy.
+  // Daily outfits also cannot be deleted to preserve the AI-generated suggestions.
   const handleCopyAndEdit = async () => {
     try {
       const copyResult = await dataManager.copyOutfit(outfitId);
@@ -243,10 +246,49 @@ const OutfitDetail = () => {
   if (loading && !outfit) {
     return (
       <SafeAreaView
-        style={styles.loadingContainer}
+        style={{ backgroundColor: "#fff", flex: 1 }}
         edges={["top", "left", "right"]}
       >
-        <ActivityIndicator size="large" color="#0000ff" />
+        <View style={styles.container}>
+          <View style={styles.header}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => {
+                navigation.goBack();
+              }}
+            >
+              <Ionicons name="arrow-back" size={24} color="#000" />
+            </TouchableOpacity>
+            <Text style={styles.title}>Outfit Details</Text>
+            <View style={styles.headerActions} />
+          </View>
+
+          <ScrollView style={styles.content}>
+            {/* Loading skeleton */}
+            <View style={styles.loadingSkeletonContainer}>
+              <View style={styles.loadingSkeletonTitle} />
+              <View style={styles.loadingSkeletonSubtitle} />
+            </View>
+
+            <View style={styles.loadingSkeletonImageContainer}>
+              <View style={styles.loadingSkeletonImage}>
+                <ActivityIndicator size="large" color="#007AFF" />
+                <Text style={styles.loadingSkeletonText}>
+                  Loading outfit...
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.loadingSkeletonSection}>
+              <View style={styles.loadingSkeletonSectionTitle} />
+              <View style={styles.loadingSkeletonItems}>
+                {[1, 2, 3].map((i) => (
+                  <View key={i} style={styles.loadingSkeletonItem} />
+                ))}
+              </View>
+            </View>
+          </ScrollView>
+        </View>
       </SafeAreaView>
     );
   }
@@ -272,11 +314,7 @@ const OutfitDetail = () => {
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => {
-              if (fromHome) {
-                navigation.navigate("Outfits");
-              } else {
-                navigation.goBack();
-              }
+              navigation.goBack();
             }}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             pointerEvents="auto"
@@ -297,27 +335,42 @@ const OutfitDetail = () => {
                 <Ionicons name="copy" size={24} color="#007AFF" />
               </TouchableOpacity>
             ) : (
-              <TouchableOpacity
-                style={styles.editButton}
-                onPress={() => navigation.navigate("EditOutfit", { outfit })}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                pointerEvents="auto"
-              >
-                <Ionicons name="pencil" size={24} color="#007AFF" />
-              </TouchableOpacity>
+              <>
+                <TouchableOpacity
+                  style={styles.editButton}
+                  onPress={() => navigation.navigate("EditOutfit", { outfit })}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  pointerEvents="auto"
+                >
+                  <Ionicons name="pencil" size={24} color="#007AFF" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.deleteButton}
+                  onPress={handleDeleteOutfit}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  pointerEvents="auto"
+                >
+                  <Ionicons name="trash-outline" size={24} color="#ff3b30" />
+                </TouchableOpacity>
+              </>
             )}
-            <TouchableOpacity
-              style={styles.deleteButton}
-              onPress={handleDeleteOutfit}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              pointerEvents="auto"
-            >
-              <Ionicons name="trash-outline" size={24} color="#ff3b30" />
-            </TouchableOpacity>
           </View>
         </View>
 
         <ScrollView style={styles.content}>
+          {/* Daily Outfit Notice */}
+          {outfit?.is_daily_outfit && (
+            <View style={styles.dailyOutfitNoticeContainer}>
+              <View style={styles.dailyOutfitNote}>
+                <Ionicons name="information-circle" size={16} color="#007AFF" />
+                <Text style={styles.dailyOutfitNoteText}>
+                  Daily outfits can't be edited or deleted. Use the copy button
+                  to create an editable version.
+                </Text>
+              </View>
+            </View>
+          )}
+
           {/* Outfit Title */}
           <View style={styles.titleContainer}>
             <Text style={styles.outfitTitle}>
@@ -451,16 +504,18 @@ const OutfitDetail = () => {
                     const wornDate = new Date(record.worn_at);
                     const today = new Date();
 
-                    // Compare just the date parts, ignore time
-                    const wornDateStr = wornDate.toDateString();
-                    const todayStr = today.toDateString();
-                    const isToday = wornDateStr === todayStr;
+                    // Set both dates to noon to avoid timezone issues when comparing
+                    const wornDateNormalized = new Date(wornDate);
+                    wornDateNormalized.setHours(12, 0, 0, 0);
 
-                    // Check if worn date is in the future (after today)
-                    const tomorrow = new Date(today);
-                    tomorrow.setDate(tomorrow.getDate() + 1);
+                    const todayNormalized = new Date(today);
+                    todayNormalized.setHours(12, 0, 0, 0);
+
+                    const isToday =
+                      wornDateNormalized.getTime() ===
+                      todayNormalized.getTime();
                     const isFuture =
-                      wornDate.toDateString() >= tomorrow.toDateString();
+                      wornDateNormalized.getTime() > todayNormalized.getTime();
 
                     return (
                       <View key={record.id} style={styles.wornRecord}>
@@ -475,7 +530,7 @@ const OutfitDetail = () => {
                           <View style={styles.wornRecordInfo}>
                             <Text style={styles.wornRecordDate}>
                               {isToday
-                                ? "Today"
+                                ? "Worn today"
                                 : isFuture
                                 ? `Planned for ${wornDate.toLocaleDateString()}`
                                 : `Worn on ${wornDate.toLocaleDateString()}`}
@@ -838,6 +893,26 @@ const styles = StyleSheet.create({
     color: "#000",
     marginBottom: 4,
   },
+  dailyOutfitNoticeContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+  dailyOutfitNote: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: "#f0f9ff",
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#e0f2fe",
+  },
+  dailyOutfitNoteText: {
+    fontSize: 13,
+    color: "#0369a1",
+    marginLeft: 8,
+    flex: 1,
+    lineHeight: 18,
+  },
   tagsSection: {
     backgroundColor: "#fff",
     marginHorizontal: 16,
@@ -1034,6 +1109,77 @@ const styles = StyleSheet.create({
     color: "#007AFF",
     fontWeight: "500",
     marginLeft: 4,
+  },
+  // Loading skeleton styles
+  loadingSkeletonContainer: {
+    padding: 16,
+    paddingBottom: 8,
+  },
+  loadingSkeletonTitle: {
+    height: 28,
+    backgroundColor: "#e5e7eb",
+    borderRadius: 4,
+    marginBottom: 8,
+    width: "70%",
+  },
+  loadingSkeletonSubtitle: {
+    height: 16,
+    backgroundColor: "#e5e7eb",
+    borderRadius: 4,
+    width: "40%",
+  },
+  loadingSkeletonImageContainer: {
+    backgroundColor: "#fff",
+    margin: 16,
+    borderRadius: 12,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  loadingSkeletonImage: {
+    width: "100%",
+    height: 300,
+    backgroundColor: "#f8f9fa",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingSkeletonText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#666",
+    fontWeight: "500",
+  },
+  loadingSkeletonSection: {
+    backgroundColor: "#fff",
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 12,
+    paddingVertical: 16,
+  },
+  loadingSkeletonSectionTitle: {
+    height: 20,
+    backgroundColor: "#e5e7eb",
+    borderRadius: 4,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    width: "50%",
+  },
+  loadingSkeletonItems: {
+    flexDirection: "row",
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  loadingSkeletonItem: {
+    width: 120,
+    height: 140,
+    backgroundColor: "#e5e7eb",
+    borderRadius: 8,
   },
 });
 

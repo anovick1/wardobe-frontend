@@ -32,8 +32,11 @@ export function WardrobeProvider({ children }) {
       try {
         if (page === 1) setLoadingWardrobe(true);
         else setLoadingMoreWardrobe(true);
-        
-        const { items, pagination } = await dataManager.getWardrobeItems(page, forceRefresh);
+
+        const { items, pagination } = await dataManager.getWardrobeItems(
+          page,
+          forceRefresh
+        );
 
         if (page === 1) {
           setWardrobeItems(items);
@@ -66,75 +69,84 @@ export function WardrobeProvider({ children }) {
     }
   }, [user, authLoading, fetchWardrobeItems]);
 
-  const addItemToWardrobe = useCallback(async (newItem, skipBackendCall = false) => {
-    if (!newItem || !newItem.id) {
-      console.error("❌ Cannot add item without ID:", newItem);
-      return;
-    }
-
-    // Optimistically update UI
-    setWardrobeItems((prev) => {
-      const exists = prev.some((item) => item.id === newItem.id);
-      if (exists) {
-        return prev.map((item) => {
-          if (item.id === newItem.id) {
-            const updated = {
-              ...item,
-              ...newItem,
-              image_url: newItem.image_url || item.image_url,
-            };
-            return updated;
-          }
-          return item;
-        });
-      } else {
-        return [newItem, ...prev];
-      }
-    });
-
-    // Invalidate cache to ensure fresh data on next load
-    if (!skipBackendCall) {
-      dataManager.invalidateWardrobeCache();
-    }
-  }, []);
-
-  const updateWardrobeItem = useCallback(async (updatedItem, skipBackendCall = false) => {
-    if (!updatedItem || !updatedItem.id) {
-      console.error("❌ Cannot update item without ID:", updatedItem);
-      return;
-    }
-
-    // Optimistically update UI
-    setWardrobeItems((prev) => {
-      const itemIndex = prev.findIndex((item) => item.id === updatedItem.id);
-      if (itemIndex === -1) {
-        return [updatedItem, ...prev];
+  const addItemToWardrobe = useCallback(
+    async (newItem, skipBackendCall = false) => {
+      if (!newItem || !newItem.id) {
+        console.error("❌ Cannot add item without ID:", newItem);
+        return;
       }
 
-      const updated = [...prev];
-      updated[itemIndex] = {
-        ...prev[itemIndex],
-        ...updatedItem,
-        image_url: updatedItem.image_url || prev[itemIndex].image_url,
-      };
-      return updated;
-    });
+      // Optimistically update UI
+      setWardrobeItems((prev) => {
+        const exists = prev.some((item) => item.id === newItem.id);
+        if (exists) {
+          return prev.map((item) => {
+            if (item.id === newItem.id) {
+              const updated = {
+                ...item,
+                ...newItem,
+                image_url: newItem.image_url || item.image_url,
+              };
+              return updated;
+            }
+            return item;
+          });
+        } else {
+          return [newItem, ...prev];
+        }
+      });
 
-    // Invalidate cache to ensure fresh data on next load
-    if (!skipBackendCall) {
-      dataManager.invalidateWardrobeCache();
-    }
-  }, []);
+      // Invalidate cache to ensure fresh data on next load
+      if (!skipBackendCall) {
+        dataManager.invalidateWardrobeCache();
+      }
+    },
+    []
+  );
 
-  const removeWardrobeItem = useCallback(async (itemId, skipBackendCall = false) => {
-    // Optimistically update UI
-    setWardrobeItems((prev) => prev.filter((item) => item.id !== itemId));
+  const updateWardrobeItem = useCallback(
+    async (updatedItem, skipBackendCall = false) => {
+      if (!updatedItem || !updatedItem.id) {
+        console.error("❌ Cannot update item without ID:", updatedItem);
+        return;
+      }
 
-    // Invalidate cache to ensure fresh data on next load
-    if (!skipBackendCall) {
-      dataManager.invalidateWardrobeCache();
-    }
-  }, []);
+      // Optimistically update UI
+      setWardrobeItems((prev) => {
+        const itemIndex = prev.findIndex((item) => item.id === updatedItem.id);
+        if (itemIndex === -1) {
+          return [updatedItem, ...prev];
+        }
+
+        const updated = [...prev];
+        updated[itemIndex] = {
+          ...prev[itemIndex],
+          ...updatedItem,
+          image_url: updatedItem.image_url || prev[itemIndex].image_url,
+        };
+        return updated;
+      });
+
+      // Invalidate cache to ensure fresh data on next load
+      if (!skipBackendCall) {
+        dataManager.invalidateWardrobeCache();
+      }
+    },
+    []
+  );
+
+  const removeWardrobeItem = useCallback(
+    async (itemId, skipBackendCall = false) => {
+      // Optimistically update UI
+      setWardrobeItems((prev) => prev.filter((item) => item.id !== itemId));
+
+      // Invalidate cache to ensure fresh data on next load
+      if (!skipBackendCall) {
+        dataManager.invalidateWardrobeCache();
+      }
+    },
+    []
+  );
 
   // Add a force refresh function as a fallback
   const loadMoreWardrobeItems = useCallback(async () => {
@@ -155,14 +167,17 @@ export function WardrobeProvider({ children }) {
   }, [fetchWardrobeItems]);
 
   // New function to get all items for selection screens
-  const getAllWardrobeItemsForSelection = useCallback(async (forceRefresh = false) => {
-    try {
-      return await dataManager.getAllWardrobeItemsForSelection(forceRefresh);
-    } catch (error) {
-      console.error("Failed to get all wardrobe items:", error);
-      return [];
-    }
-  }, []);
+  const getAllWardrobeItemsForSelection = useCallback(
+    async (forceRefresh = false) => {
+      try {
+        return await dataManager.getAllWardrobeItemsForSelection(forceRefresh);
+      } catch (error) {
+        console.error("Failed to get all wardrobe items:", error);
+        return [];
+      }
+    },
+    []
+  );
 
   return (
     <WardrobeContext.Provider

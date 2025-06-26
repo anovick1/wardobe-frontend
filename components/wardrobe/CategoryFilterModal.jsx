@@ -71,7 +71,7 @@ const CategoryFilterModal = ({
 
   const getAvailableSubcategories = () => {
     if (localSelectedCategories.length === 0) {
-      return subcategories;
+      return [];
     }
     return subcategories.filter((sub) =>
       localSelectedCategories.includes(sub.category_id),
@@ -200,7 +200,7 @@ const CategoryFilterModal = ({
                 activeView === "categories" && styles.activeTabText,
               ]}
             >
-              Categories ({localSelectedCategories.length})
+              Categories ({categories.length})
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -216,7 +216,7 @@ const CategoryFilterModal = ({
                 activeView === "subcategories" && styles.activeTabText,
               ]}
             >
-              Subcategories ({localSelectedSubcategories.length})
+              Subcategories ({getAvailableSubcategories().length})
             </Text>
           </TouchableOpacity>
         </View>

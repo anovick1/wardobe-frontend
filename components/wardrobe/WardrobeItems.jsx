@@ -17,8 +17,9 @@ import Icon from "react-native-vector-icons/MaterialIcons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as FileSystem from "expo-file-system";
 import WardrobeItemCard from "./WardrobeItemCard";
+import { searchWardrobeItems } from "../../utils/searchUtils";
 
-export default function WardrobeItems({ filters = {} }) {
+export default function WardrobeItems({ filters = {}, searchQuery = "" }) {
   const {
     wardrobeItems: rawItems,
     loadingWardrobe,
@@ -104,7 +105,9 @@ export default function WardrobeItems({ filters = {} }) {
     });
   };
 
-  const items = filterItems(rawItems);
+  // Apply search first, then filters
+  const searchedItems = searchWardrobeItems(rawItems, searchQuery);
+  const items = filterItems(searchedItems);
 
   // Cleanup unused cached images
   useEffect(() => {

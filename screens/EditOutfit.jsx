@@ -13,14 +13,52 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
+import Icon from "react-native-vector-icons/MaterialIcons";
 import ModalTagInput from "../components/common/ModalTagInput";
 import TagsPreview from "../components/itemReview/TagsPreview";
+import WardrobeItemPicker from "../components/wardrobe/WardrobeItemPicker";
+import useCachedImage from "../hooks/useCachedImage";
 import { AuthContext } from "../auth/AuthContext";
 import { useOutfits } from "../contexts/OutfitContext";
 import { useWardrobe } from "../contexts/WardrobeContext";
 import api from "../api";
 import * as FileSystem from "expo-file-system";
-import { validateOutfitCategories, getOutfitValidationMessage } from "../utils/outfitValidation";
+import {
+  validateOutfitCategories,
+  getOutfitValidationMessage,
+} from "../utils/outfitValidation";
+
+const SelectedItemCard = ({ item, onRemove }) => {
+  const { uri, loading, error } = useCachedImage(item.image_url, item.id);
+
+  return (
+    <View style={styles.selectedItemCard}>
+      <View style={styles.selectedItemImage}>
+        {loading ? (
+          <ActivityIndicator size="small" color="#6a7681" />
+        ) : error ? (
+          <Icon name="error" size={24} color="#dc2626" />
+        ) : (
+          <Image
+            source={{ uri }}
+            style={styles.selectedItemImage}
+            resizeMode="contain"
+          />
+        )}
+      </View>
+      <View style={styles.selectedItemInfo}>
+        <Text style={styles.selectedItemName}>{item.name || item.title}</Text>
+        <Text style={styles.selectedItemBrand}>{item.brand}</Text>
+      </View>
+      <TouchableOpacity
+        style={styles.removeItemButton}
+        onPress={() => onRemove(item.id)}
+      >
+        <Ionicons name="close-circle" size={24} color="#ff3b30" />
+      </TouchableOpacity>
+    </View>
+  );
+};
 
 const EditOutfit = () => {
   const navigation = useNavigation();
@@ -28,20 +66,18 @@ const EditOutfit = () => {
   const { outfit: initialOutfit, outfitId } = route.params || {};
   const { user } = useContext(AuthContext);
   const { updateOutfit, getOutfitById } = useOutfits();
-  const { wardrobeItems, fetchWardrobeItems } = useWardrobe();
+  const { getAllWardrobeItemsForSelection } = useWardrobe();
 
   const [outfit, setOutfit] = useState(null);
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
   const [tags, setTags] = useState([]);
   const [selectedItems, setSelectedItems] = useState([]);
-  const [allItems, setAllItems] = useState([]);
+  const [selectedItemsData, setSelectedItemsData] = useState([]);
   const [tagModalVisible, setTagModalVisible] = useState(false);
+  const [itemPickerVisible, setItemPickerVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [notesHeight, setNotesHeight] = useState(100);
 
   const loadOutfitData = async () => {
@@ -52,7 +88,6 @@ const EditOutfit = () => {
 
       // If we don't have outfit data but have an ID, fetch it
       if (!outfitData && outfitId) {
-        console.log("Fetching outfit by ID:", outfitId);
         outfitData = await getOutfitById(outfitId);
         if (!outfitData) {
           Alert.alert("Error", "Outfit not found");
@@ -61,57 +96,22 @@ const EditOutfit = () => {
         }
       }
 
-      // Ensure we have the first page of wardrobe items
-      if (!wardrobeItems || wardrobeItems.length === 0) {
-        await fetchWardrobeItems(1, false);
-      }
-
-      let allAvailableItems = wardrobeItems || [];
-
       // Set outfit data in state and form fields
       if (outfitData) {
-        console.log("Setting outfit data:", outfitData);
         setOutfit(outfitData);
         setTitle(outfitData.title || "");
         setNotes(outfitData.notes || "");
         setTags(outfitData.tags || []);
 
-        // If we have an outfit, check if all selected items are available
+        // Set selected items from outfit
         if (outfitData?.wardrobe_items) {
           const selectedItemIds = outfitData.wardrobe_items.map(
             (item) => item.id
           );
-          console.log("Setting selected items:", selectedItemIds);
           setSelectedItems(selectedItemIds);
-
-          const missingItems = selectedItemIds.filter(
-            (id) => !allAvailableItems.find((item) => item.id === id)
-          );
-
-          // Fetch missing items individually
-          if (missingItems.length > 0) {
-            console.log("Fetching missing items:", missingItems);
-            const missingItemPromises = missingItems.map((id) =>
-              api.get(`/wardrobe_items/${id}`).then((response) => response.data)
-            );
-
-            try {
-              const fetchedMissingItems = await Promise.all(
-                missingItemPromises
-              );
-              allAvailableItems = [
-                ...allAvailableItems,
-                ...fetchedMissingItems,
-              ];
-              console.log("Fetched missing items:", fetchedMissingItems);
-            } catch (error) {
-              console.error("Error fetching missing items:", error);
-            }
-          }
+          setSelectedItemsData(outfitData.wardrobe_items);
         }
       }
-
-      setAllItems(allAvailableItems);
     } catch (error) {
       console.error("Error loading outfit data:", error);
       Alert.alert("Error", "Failed to load outfit data");
@@ -120,38 +120,22 @@ const EditOutfit = () => {
     }
   };
 
-  const loadMoreWardrobeItems = async () => {
-    if (!loadingMore && hasMore) {
-      setLoadingMore(true);
-      try {
-        const response = await api.get(
-          `/wardrobe_items?page=${currentPage + 1}`
-        );
-        const items = response.data?.wardrobe_items || [];
-        const pagination = response.data?.pagination || {};
-
-        setAllItems((prev) => [...prev, ...items]);
-        setHasMore(pagination.has_next || false);
-        setCurrentPage((prev) => prev + 1);
-      } catch (error) {
-        console.error("Error loading more items:", error);
-      } finally {
-        setLoadingMore(false);
+  // Load selected items data when items are selected
+  useEffect(() => {
+    const loadSelectedItemsData = async () => {
+      if (selectedItems.length > 0 && selectedItemsData.length === 0) {
+        try {
+          const allItems = await getAllWardrobeItemsForSelection();
+          const selectedData = allItems.filter(item => selectedItems.includes(item.id));
+          setSelectedItemsData(selectedData);
+        } catch (error) {
+          console.error("Error loading selected items data:", error);
+        }
       }
-    }
-  };
-
-  const handleScroll = ({ nativeEvent }) => {
-    const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
-    const paddingToBottom = 20;
-
-    if (
-      layoutMeasurement.height + contentOffset.y >=
-      contentSize.height - paddingToBottom
-    ) {
-      loadMoreWardrobeItems();
-    }
-  };
+    };
+    
+    loadSelectedItemsData();
+  }, [selectedItems, selectedItemsData.length, getAllWardrobeItemsForSelection]);
 
   useEffect(() => {
     if (user && (initialOutfit || outfitId)) {
@@ -159,14 +143,13 @@ const EditOutfit = () => {
     }
   }, [user, initialOutfit, outfitId]);
 
-  const toggleItemSelection = (itemId) => {
-    setSelectedItems((prev) => {
-      if (prev.includes(itemId)) {
-        return prev.filter((id) => id !== itemId);
-      } else {
-        return [...prev, itemId];
-      }
-    });
+  const handleItemsSelected = (itemIds) => {
+    setSelectedItems(itemIds);
+  };
+
+  const removeSelectedItem = (itemId) => {
+    setSelectedItems(prev => prev.filter(id => id !== itemId));
+    setSelectedItemsData(prev => prev.filter(item => item.id !== itemId));
   };
 
   const invalidateOutfitImageCache = async (outfitId) => {
@@ -186,16 +169,11 @@ const EditOutfit = () => {
           if (info.exists) {
             await FileSystem.deleteAsync(cachePath);
             deletedCount++;
-            console.log("Deleted cached image:", cachePath);
           }
         } catch (pathError) {
           // Continue to next path if this one fails
         }
       }
-
-      console.log(
-        `Invalidated ${deletedCount} cached images for outfit ${outfitId}`
-      );
 
       // Also try to clear the entire cache directory for this outfit
       // This is more aggressive but ensures the image refreshes
@@ -209,11 +187,8 @@ const EditOutfit = () => {
 
         for (const file of outfitFiles) {
           await FileSystem.deleteAsync(`${cacheDir}${file}`);
-          console.log("Deleted outfit cache file:", file);
         }
-      } catch (dirError) {
-        console.log("Could not clear cache directory:", dirError.message);
-      }
+      } catch (dirError) {}
     } catch (error) {
       console.error("Error invalidating outfit image cache:", error);
     }
@@ -231,9 +206,8 @@ const EditOutfit = () => {
     }
 
     // Validate outfit category requirements
-    const selectedItemsData = allItems.filter(item => selectedItems.includes(item.id));
     const validation = validateOutfitCategories(selectedItemsData);
-    
+
     if (!validation.isValid) {
       Alert.alert("Invalid Outfit", getOutfitValidationMessage(validation));
       return;
@@ -255,9 +229,7 @@ const EditOutfit = () => {
         title: title.trim(),
         notes: notes.trim(),
         tags: tags,
-        wardrobe_items: allItems.filter((item) =>
-          selectedItems.includes(item.id)
-        ),
+        wardrobe_items: selectedItemsData,
         item_count: selectedItems.length,
         composite_image_url:
           response.data.composite_image_url || outfit?.composite_image_url,
@@ -319,11 +291,7 @@ const EditOutfit = () => {
           </TouchableOpacity>
         </View>
 
-        <ScrollView
-          style={styles.content}
-          onScroll={handleScroll}
-          scrollEventThrottle={400}
-        >
+        <ScrollView style={styles.content}>
           <View style={styles.formContainer}>
             <Text style={styles.label}>Title *</Text>
             <TextInput
@@ -372,69 +340,24 @@ const EditOutfit = () => {
             <Text style={styles.label}>
               Selected Items ({selectedItems.length})
             </Text>
-            <View style={styles.selectedItemsContainer}>
-              {selectedItems.map((itemId) => {
-                const item = allItems.find((i) => i.id === itemId);
-                if (!item) return null;
-                return (
-                  <View key={itemId} style={styles.selectedItemCard}>
-                    <Image
-                      source={{ uri: item.image_url }}
-                      style={styles.selectedItemImage}
-                      resizeMode="contain"
-                    />
-                    <View style={styles.selectedItemInfo}>
-                      <Text style={styles.selectedItemName}>{item.name}</Text>
-                      <Text style={styles.selectedItemBrand}>{item.brand}</Text>
-                    </View>
-                    <TouchableOpacity
-                      style={styles.removeItemButton}
-                      onPress={() => toggleItemSelection(itemId)}
-                    >
-                      <Ionicons name="close-circle" size={24} color="#ff3b30" />
-                    </TouchableOpacity>
-                  </View>
-                );
-              })}
-            </View>
-
-            <Text style={[styles.label, { marginTop: 16 }]}>
-              Add More Items
-            </Text>
-            <View style={styles.itemsGrid}>
-              {allItems
-                .filter((item) => !selectedItems.includes(item.id))
-                .map((item) => (
-                  <TouchableOpacity
-                    key={item.id}
-                    style={styles.itemCard}
-                    onPress={() => toggleItemSelection(item.id)}
-                  >
-                    <Image
-                      source={{ uri: item.image_url }}
-                      style={styles.itemImage}
-                      resizeMode="contain"
-                    />
-                    <View style={styles.itemInfo}>
-                      <Text style={styles.itemName} numberOfLines={1}>
-                        {item.name}
-                      </Text>
-                      <Text style={styles.itemBrand} numberOfLines={1}>
-                        {item.brand}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
+            
+            {selectedItemsData.length > 0 ? (
+              <View style={styles.selectedItemsContainer}>
+                {selectedItemsData.map((item) => (
+                  <SelectedItemCard key={item.id} item={item} onRemove={removeSelectedItem} />
                 ))}
-            </View>
-
-            {loadingMore && (
-              <View style={styles.loadingMoreContainer}>
-                <ActivityIndicator size="small" color="#121416" />
-                <Text style={styles.loadingMoreText}>
-                  Loading more items...
-                </Text>
               </View>
+            ) : (
+              <Text style={styles.emptyText}>No items selected yet</Text>
             )}
+
+            <TouchableOpacity
+              style={styles.addItemsButton}
+              onPress={() => setItemPickerVisible(true)}
+            >
+              <Icon name="add-circle-outline" size={24} color="#121416" />
+              <Text style={styles.addItemsButtonText}>Add Items from Wardrobe</Text>
+            </TouchableOpacity>
           </View>
         </ScrollView>
 
@@ -445,6 +368,14 @@ const EditOutfit = () => {
           tags={tags}
           onSave={setTags}
           placeholder="Add outfit tag..."
+        />
+
+        <WardrobeItemPicker
+          visible={itemPickerVisible}
+          onClose={() => setItemPickerVisible(false)}
+          onSelect={handleItemsSelected}
+          selectedItems={selectedItems}
+          title="Select Wardrobe Items"
         />
       </View>
     </SafeAreaView>
@@ -461,6 +392,35 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#f8fafc",
+  },
+  emptyText: {
+    fontSize: 16,
+    color: "#6a7681",
+    textAlign: "center",
+    marginVertical: 24,
+  },
+  addItemsButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    marginTop: 16,
+    borderWidth: 2,
+    borderColor: "#e5e7eb",
+    borderStyle: "dashed",
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  addItemsButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#121416",
+    marginLeft: 8,
   },
   header: {
     flexDirection: "row",
@@ -618,56 +578,6 @@ const styles = StyleSheet.create({
     padding: 16,
     justifyContent: "center",
     alignItems: "center",
-  },
-  itemsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 16,
-  },
-  itemCard: {
-    width: "47%",
-    backgroundColor: "#ffffff",
-    borderRadius: 16,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    borderWidth: 1,
-    borderColor: "#f1f5f9",
-  },
-  itemImage: {
-    width: "100%",
-    height: 160,
-    backgroundColor: "#f8fafc",
-  },
-  itemInfo: {
-    padding: 12,
-  },
-  itemName: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#121416",
-    marginBottom: 4,
-    letterSpacing: -0.1,
-  },
-  itemBrand: {
-    fontSize: 12,
-    color: "#6a7681",
-    fontWeight: "500",
-  },
-  loadingMoreContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: 20,
-    marginTop: 10,
-  },
-  loadingMoreText: {
-    marginLeft: 8,
-    fontSize: 14,
-    color: "#6a7681",
-    fontWeight: "500",
   },
 });
 

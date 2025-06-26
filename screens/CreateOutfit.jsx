@@ -13,81 +13,85 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
+import Icon from "react-native-vector-icons/MaterialIcons";
 import ModalTagInput from "../components/common/ModalTagInput";
 import TagsPreview from "../components/itemReview/TagsPreview";
+import WardrobeItemPicker from "../components/wardrobe/WardrobeItemPicker";
+import useCachedImage from "../hooks/useCachedImage";
 import { AuthContext } from "../auth/AuthContext";
 import api from "../api";
 import { useOutfits } from "../contexts/OutfitContext";
+import { useWardrobe } from "../contexts/WardrobeContext";
 import { validateOutfitCategories, getOutfitValidationMessage } from "../utils/outfitValidation";
 
+const SelectedItemCard = ({ item, onRemove }) => {
+  const { uri, loading, error } = useCachedImage(item.image_url, item.id);
+
+  return (
+    <View style={styles.selectedItemCard}>
+      <View style={styles.selectedItemImage}>
+        {loading ? (
+          <ActivityIndicator size="small" color="#6a7681" />
+        ) : error ? (
+          <Icon name="error" size={24} color="#dc2626" />
+        ) : (
+          <Image
+            source={{ uri }}
+            style={styles.selectedItemImage}
+            resizeMode="contain"
+          />
+        )}
+      </View>
+      <View style={styles.selectedItemInfo}>
+        <Text style={styles.selectedItemName}>{item.name || item.title}</Text>
+        <Text style={styles.selectedItemBrand}>{item.brand}</Text>
+      </View>
+      <TouchableOpacity
+        style={styles.removeItemButton}
+        onPress={() => onRemove(item.id)}
+      >
+        <Ionicons name="close-circle" size={24} color="#ff3b30" />
+      </TouchableOpacity>
+    </View>
+  );
+};
+
 const CreateOutfit = () => {
-  const [wardrobeItems, setWardrobeItems] = useState([]);
   const [selectedItems, setSelectedItems] = useState([]);
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
   const [tags, setTags] = useState([]);
   const [tagModalVisible, setTagModalVisible] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [itemPickerVisible, setItemPickerVisible] = useState(false);
   const [saving, setSaving] = useState(false);
   const [notesHeight, setNotesHeight] = useState(100);
+  const [selectedItemsData, setSelectedItemsData] = useState([]);
+  
   const navigation = useNavigation();
   const route = useRoute();
   const { selectedItem } = route.params || {};
   const { user } = useContext(AuthContext);
   const { addOutfit } = useOutfits();
+  const { getAllWardrobeItemsForSelection } = useWardrobe();
 
-  const fetchWardrobeItems = async (page = 1, append = false) => {
-    try {
-      if (page === 1) setLoading(true);
-      else setLoadingMore(true);
-
-      const response = await api.get(`/wardrobe_items?page=${page}`);
-      const items = response.data?.wardrobe_items || [];
-      const pagination = response.data?.pagination || {};
-
-      if (append) {
-        setWardrobeItems((prev) => [...prev, ...items]);
-      } else {
-        setWardrobeItems(items);
-      }
-
-      setHasMore(pagination.has_next || false);
-      setCurrentPage(page);
-    } catch (error) {
-      Alert.alert("Error", `Failed to load wardrobe items: ${error.message}`);
-      if (!append) setWardrobeItems([]);
-    } finally {
-      setLoading(false);
-      setLoadingMore(false);
-    }
-  };
-
-  const loadMoreItems = async () => {
-    if (!loadingMore && hasMore) {
-      await fetchWardrobeItems(currentPage + 1, true);
-    }
-  };
-
-  const handleScroll = ({ nativeEvent }) => {
-    const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
-    const paddingToBottom = 20;
-
-    if (
-      layoutMeasurement.height + contentOffset.y >=
-      contentSize.height - paddingToBottom
-    ) {
-      loadMoreItems();
-    }
-  };
-
+  // Load selected items data when items are selected
   useEffect(() => {
-    if (user) {
-      fetchWardrobeItems(1, false);
-    }
-  }, [user]);
+    const loadSelectedItemsData = async () => {
+      if (selectedItems.length > 0) {
+        try {
+          const allItems = await getAllWardrobeItemsForSelection();
+          const selectedData = allItems.filter(item => selectedItems.includes(item.id));
+          setSelectedItemsData(selectedData);
+        } catch (error) {
+          console.error("Error loading selected items data:", error);
+        }
+      } else {
+        setSelectedItemsData([]);
+      }
+    };
+    
+    loadSelectedItemsData();
+  }, [selectedItems, getAllWardrobeItemsForSelection]);
 
   useEffect(() => {
     if (selectedItem) {
@@ -95,14 +99,12 @@ const CreateOutfit = () => {
     }
   }, [selectedItem]);
 
-  const toggleItemSelection = (itemId) => {
-    setSelectedItems((prev) => {
-      if (prev.includes(itemId)) {
-        return prev.filter((id) => id !== itemId);
-      } else {
-        return [...prev, itemId];
-      }
-    });
+  const handleItemsSelected = (itemIds) => {
+    setSelectedItems(itemIds);
+  };
+
+  const removeSelectedItem = (itemId) => {
+    setSelectedItems(prev => prev.filter(id => id !== itemId));
   };
 
   const handleCreateOutfit = async () => {
@@ -117,7 +119,6 @@ const CreateOutfit = () => {
     }
 
     // Validate outfit category requirements
-    const selectedItemsData = wardrobeItems.filter(item => selectedItems.includes(item.id));
     const validation = validateOutfitCategories(selectedItemsData);
     
     if (!validation.isValid) {
@@ -167,15 +168,6 @@ const CreateOutfit = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#121416" />
-        <Text style={{ marginTop: 10 }}>Loading wardrobe items...</Text>
-      </View>
-    );
-  }
-
   return (
     <SafeAreaView
       style={{ backgroundColor: "#fff", flex: 1 }}
@@ -203,11 +195,7 @@ const CreateOutfit = () => {
           </TouchableOpacity>
         </View>
 
-        <ScrollView
-          style={styles.content}
-          onScroll={handleScroll}
-          scrollEventThrottle={400}
-        >
+        <ScrollView style={styles.content}>
           <View style={styles.formContainer}>
             <Text style={styles.label}>Title *</Text>
             <TextInput
@@ -256,69 +244,24 @@ const CreateOutfit = () => {
             <Text style={styles.label}>
               Selected Items ({selectedItems.length})
             </Text>
-            <View style={styles.selectedItemsContainer}>
-              {selectedItems.map((itemId) => {
-                const item = (wardrobeItems || []).find((i) => i.id === itemId);
-                if (!item) return null;
-                return (
-                  <View key={itemId} style={styles.selectedItemCard}>
-                    <Image
-                      source={{ uri: item.image_url }}
-                      style={styles.selectedItemImage}
-                      resizeMode="contain"
-                    />
-                    <View style={styles.selectedItemInfo}>
-                      <Text style={styles.selectedItemName}>{item.name}</Text>
-                      <Text style={styles.selectedItemBrand}>{item.brand}</Text>
-                    </View>
-                    <TouchableOpacity
-                      style={styles.removeItemButton}
-                      onPress={() => toggleItemSelection(itemId)}
-                    >
-                      <Ionicons name="close-circle" size={24} color="#ff3b30" />
-                    </TouchableOpacity>
-                  </View>
-                );
-              })}
-            </View>
-
-            <Text style={[styles.label, { marginTop: 16 }]}>
-              Add More Items
-            </Text>
-            <View style={styles.itemsGrid}>
-              {(wardrobeItems || [])
-                .filter((item) => !selectedItems.includes(item.id))
-                .map((item) => (
-                  <TouchableOpacity
-                    key={item.id}
-                    style={styles.itemCard}
-                    onPress={() => toggleItemSelection(item.id)}
-                  >
-                    <Image
-                      source={{ uri: item.image_url }}
-                      style={styles.itemImage}
-                      resizeMode="contain"
-                    />
-                    <View style={styles.itemInfo}>
-                      <Text style={styles.itemName} numberOfLines={1}>
-                        {item.name}
-                      </Text>
-                      <Text style={styles.itemBrand} numberOfLines={1}>
-                        {item.brand}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
+            
+            {selectedItemsData.length > 0 ? (
+              <View style={styles.selectedItemsContainer}>
+                {selectedItemsData.map((item) => (
+                  <SelectedItemCard key={item.id} item={item} onRemove={removeSelectedItem} />
                 ))}
-            </View>
-
-            {loadingMore && (
-              <View style={styles.loadingMoreContainer}>
-                <ActivityIndicator size="small" color="#121416" />
-                <Text style={styles.loadingMoreText}>
-                  Loading more items...
-                </Text>
               </View>
+            ) : (
+              <Text style={styles.emptyText}>No items selected yet</Text>
             )}
+
+            <TouchableOpacity
+              style={styles.addItemsButton}
+              onPress={() => setItemPickerVisible(true)}
+            >
+              <Icon name="add-circle-outline" size={24} color="#121416" />
+              <Text style={styles.addItemsButtonText}>Add Items from Wardrobe</Text>
+            </TouchableOpacity>
           </View>
         </ScrollView>
 
@@ -330,6 +273,14 @@ const CreateOutfit = () => {
           onSave={setTags}
           placeholder="Add outfit tag..."
         />
+
+        <WardrobeItemPicker
+          visible={itemPickerVisible}
+          onClose={() => setItemPickerVisible(false)}
+          onSelect={handleItemsSelected}
+          selectedItems={selectedItems}
+          title="Select Wardrobe Items"
+        />
       </View>
     </SafeAreaView>
   );
@@ -340,11 +291,34 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f8fafc",
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
+  emptyText: {
+    fontSize: 16,
+    color: "#6a7681",
+    textAlign: "center",
+    marginVertical: 24,
+  },
+  addItemsButton: {
+    flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f8fafc",
+    justifyContent: "center",
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    marginTop: 16,
+    borderWidth: 2,
+    borderColor: "#e5e7eb",
+    borderStyle: "dashed",
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  addItemsButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#121416",
+    marginLeft: 8,
   },
   header: {
     flexDirection: "row",
@@ -502,56 +476,6 @@ const styles = StyleSheet.create({
     padding: 16,
     justifyContent: "center",
     alignItems: "center",
-  },
-  itemsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 16,
-  },
-  itemCard: {
-    width: "47%",
-    backgroundColor: "#ffffff",
-    borderRadius: 16,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    borderWidth: 1,
-    borderColor: "#f1f5f9",
-  },
-  itemImage: {
-    width: "100%",
-    height: 160,
-    backgroundColor: "#f8fafc",
-  },
-  itemInfo: {
-    padding: 12,
-  },
-  itemName: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#121416",
-    marginBottom: 4,
-    letterSpacing: -0.1,
-  },
-  itemBrand: {
-    fontSize: 12,
-    color: "#6a7681",
-    fontWeight: "500",
-  },
-  loadingMoreContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: 20,
-    marginTop: 10,
-  },
-  loadingMoreText: {
-    marginLeft: 8,
-    fontSize: 14,
-    color: "#6a7681",
-    fontWeight: "500",
   },
 });
 

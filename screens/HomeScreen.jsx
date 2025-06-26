@@ -29,15 +29,11 @@ export default function HomeScreen() {
       const { status } = await Calendar.requestCalendarPermissionsAsync();
       if (status === "granted") {
         setCalendarPermission(true);
-        console.log("✅ Calendar access granted");
         fetchTodaysEvents();
       } else {
         setCalendarPermission(false);
-        console.log("❌ Calendar permission denied");
       }
-    } catch (err) {
-      console.error("❌ Error requesting calendar permission:", err);
-    }
+    } catch (err) {}
   };
 
   const fetchTodaysEvents = async () => {
@@ -46,11 +42,8 @@ export default function HomeScreen() {
         Calendar.EntityTypes.EVENT
       );
 
-      console.log(`📅 Found ${calendars.length} calendars`);
-
       // Check if we have any calendars (Android issue)
       if (calendars.length === 0) {
-        console.log("❌ No calendars found - cannot fetch events");
         setTodaysEvents([]);
         return;
       }
@@ -88,79 +81,72 @@ export default function HomeScreen() {
       });
 
       setTodaysEvents(todayEvents);
-      console.log(`📅 Found ${todayEvents.length} events for today`);
-    } catch (err) {
-      console.error("❌ Error fetching today's events:", err);
-    }
+    } catch (err) {}
   };
 
   return (
     <SafeAreaView
-      style={globalStyles.container}
+      style={[
+        globalStyles.container,
+        { backgroundColor: "#F6F7FB", flex: 1, paddingHorizontal: 0 },
+      ]}
       edges={["top", "left", "right"]}
     >
-      <Text style={typography.title}>
-        👋 Hi {user?.backend?.name || "there"}!
-      </Text>
+      <View style={{ paddingHorizontal: 24, paddingTop: 8 }}>
+        <Text
+          style={[
+            typography.title,
+            {
+              fontSize: 28,
+              fontWeight: "800",
+              marginBottom: 18,
+              color: "#181A20",
+            },
+          ]}
+        >
+          👋 Hi {user?.backend?.name || "there"}!
+        </Text>
+      </View>
 
-      {false && (
-        <View style={styles.weatherCard}>
-          <View style={styles.weatherHeaderRow}>
-            <Text style={styles.weatherEmoji}>
-              {weather.weather_description?.toLowerCase().includes("cloud")
-                ? "☁️"
-                : weather.weather_description?.toLowerCase().includes("rain")
-                ? "🌧️"
-                : weather.weather_description?.toLowerCase().includes("sun")
-                ? "☀️"
-                : "🌡️"}
-            </Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.weatherCity}>{city || "Your Location"}</Text>
-              <Text style={styles.weatherMain}>
-                {weather.weather_description || "Weather"}
-              </Text>
-            </View>
-            <Text style={styles.weatherTemp}>{weather.temperature}°F</Text>
-          </View>
-          <View style={styles.divider} />
-          <View style={styles.weatherHintRow}>
-            <Text style={styles.weatherHintLabel}>Clothing Tip:</Text>
-            <Text style={styles.weatherHint}>{weather.clothing_hint}</Text>
-          </View>
-        </View>
-      )}
+      {/* Daily Outfit Section */}
+      <View style={styles.ensembleCardWrapper}>
+        {!dailyOutfit && (loading || generating || initialising) ? (
+          <LoadingSkeleton text="Styling your look…" />
+        ) : dailyOutfit ? (
+          <OutfitCard
+            imageUrl={
+              dailyOutfit.composite_image_url ||
+              dailyOutfit.outfit?.composite_image_url
+            }
+            imageId={dailyOutfit.outfit_id || dailyOutfit.id}
+            title={
+              dailyOutfit.title ||
+              dailyOutfit.outfit?.title ||
+              "Today's Perfect Look"
+            }
+            explanation={
+              dailyOutfit.explanation || dailyOutfit.outfit?.explanation
+            }
+            onNewLook={generateOutfit}
+            loading={generating}
+            events={todaysEvents}
+            tags={dailyOutfit.tags || dailyOutfit.outfit?.tags || []}
+            outfitData={dailyOutfit}
+            modern
+          />
+        ) : null}
+      </View>
 
       {weatherError && (
-        <Text style={[typography.meta, { marginTop: 8 }]}>
+        <Text
+          style={[
+            typography.meta,
+            { marginTop: 8, color: "#E57373", textAlign: "center" },
+          ]}
+        >
           ⚠️ {weatherError}
         </Text>
       )}
-
-      {/* Daily Outfit Section */}
-      {!dailyOutfit && (loading || generating || initialising) ? (
-        <LoadingSkeleton text="Styling your look…" />
-      ) : dailyOutfit ? (
-        <OutfitCard
-          imageUrl={
-            dailyOutfit.composite_image_url ||
-            dailyOutfit.outfit?.composite_image_url
-          }
-          imageId={dailyOutfit.outfit_id || dailyOutfit.id}
-          title={
-            dailyOutfit.title ||
-            dailyOutfit.outfit?.title ||
-            "Today's Perfect Look"
-          }
-          explanation={
-            dailyOutfit.explanation || dailyOutfit.outfit?.explanation
-          }
-          onNewLook={generateOutfit}
-          loading={generating}
-          events={todaysEvents}
-          tags={dailyOutfit.tags || dailyOutfit.outfit?.tags || []}
-        />
-      ) : null}
 
       {/* Future: outfit suggestions, upcoming events, feed, etc. */}
     </SafeAreaView>
@@ -266,5 +252,12 @@ const styles = StyleSheet.create({
     color: "#9ca3af",
     fontStyle: "italic",
     marginTop: 2,
+  },
+  ensembleCardWrapper: {
+    flex: 1,
+    justifyContent: "flex-start",
+    alignItems: "center",
+    paddingHorizontal: 0,
+    paddingTop: 0,
   },
 });

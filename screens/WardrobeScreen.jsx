@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   View,
   Text,
@@ -6,10 +6,12 @@ import {
   StyleSheet,
   TextInput,
   ScrollView,
+  Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import { useFocusEffect } from "@react-navigation/native";
+import { debounce } from "../utils/searchUtils";
 
 import WardrobeItems from "../components/wardrobe/WardrobeItems";
 import Outfits from "../components/wardrobe/Outfits";
@@ -20,6 +22,7 @@ import AddNewModal from "../components/wardrobe/AddNewModal";
 import FilterButtons from "../components/wardrobe/FilterButtons";
 import OutfitFilterButtons from "../components/outfits/OutfitFilterButtons";
 import { useWardrobe } from "../contexts/WardrobeContext";
+import { useOutfits } from "../contexts/OutfitContext";
 
 const tabs = ["Wardrobe", "Outfits", "Boards", "Capsules", "Smart"];
 
@@ -28,8 +31,22 @@ export default function WardrobeScreen({ navigation, route }) {
   const [activeTab, setActiveTab] = useState(initialTabParam || "Wardrobe");
   const [modalVisible, setModalVisible] = useState(false);
   const [wardrobeFilters, setWardrobeFilters] = useState({});
-  const [outfitFilters, setOutfitFilters] = useState([]);
+  const [outfitFilters, setOutfitFilters] = useState({});
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const outfitsRef = useRef();
   const { wardrobeItems } = useWardrobe();
+  const { outfits: rawOutfits, allOutfits } = useOutfits();
+
+  // Debounce search query for performance
+  const debouncedSearch = useMemo(
+    () => debounce((query) => setDebouncedSearchQuery(query), 300),
+    []
+  );
+
+  useEffect(() => {
+    debouncedSearch(searchQuery);
+  }, [searchQuery, debouncedSearch]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -47,6 +64,15 @@ export default function WardrobeScreen({ navigation, route }) {
     }
   }, [route?.params?.initialTab]);
 
+  // Handle navigation to specific outfit detail
+  useEffect(() => {
+    if (route?.params?.outfitId) {
+      const outfitId = route.params.outfitId;
+      // Navigate to OutfitDetail screen
+      navigation.navigate("OutfitDetail", { outfitId });
+    }
+  }, [route?.params?.outfitId, navigation]);
+
   const handleWardrobeFilterChange = (filters) => {
     setWardrobeFilters(filters);
   };
@@ -55,21 +81,9 @@ export default function WardrobeScreen({ navigation, route }) {
     setOutfitFilters(filters);
   };
 
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case "Wardrobe":
-        return <WardrobeItems filters={wardrobeFilters} />;
-      case "Outfits":
-        return <Outfits filters={outfitFilters} />;
-      case "Boards":
-        return <VisionBoards />;
-      case "Capsules":
-        return <Capsules />;
-      case "Smart":
-        return <Recommendations />;
-      default:
-        return <Text>Select a tab</Text>;
-    }
+  // Handle tab change from tap
+  const handleTabPress = (tab) => {
+    setActiveTab(tab);
   };
 
   return (
@@ -77,14 +91,13 @@ export default function WardrobeScreen({ navigation, route }) {
       style={{ flex: 1, backgroundColor: "#fff" }}
       edges={["top", "left", "right"]}
     >
-
       {/* Tabs */}
       <View style={styles.headerContainer}>
         <View style={styles.tabRow}>
           {tabs.map((tab) => (
             <TouchableOpacity
               key={tab}
-              onPress={() => setActiveTab(tab)}
+              onPress={() => handleTabPress(tab)}
               style={[styles.tab, activeTab === tab && styles.activeTab]}
             >
               <Text
@@ -95,8 +108,8 @@ export default function WardrobeScreen({ navigation, route }) {
             </TouchableOpacity>
           ))}
         </View>
-        {/* Show search/filters on Wardrobe tab */}
-        {activeTab === "Wardrobe" && (
+        {/* Unified search/filters/actions for Wardrobe and Outfits tabs */}
+        {(activeTab === "Wardrobe" || activeTab === "Outfits") && (
           <>
             {/* Search Bar */}
             <View style={styles.searchContainer}>
@@ -108,45 +121,109 @@ export default function WardrobeScreen({ navigation, route }) {
               />
               <TextInput
                 style={styles.searchInput}
-                placeholder="Search your wardrobe"
+                placeholder={
+                  activeTab === "Wardrobe"
+                    ? "Search your wardrobe"
+                    : "Search outfits"
+                }
                 placeholderTextColor="#6a7681"
-                editable={false}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                autoCapitalize="none"
+                autoCorrect={false}
               />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity
+                  onPress={() => setSearchQuery("")}
+                  style={styles.clearButton}
+                >
+                  <Icon name="clear" size={20} color="#6a7681" />
+                </TouchableOpacity>
+              )}
             </View>
+
             {/* Filter Buttons */}
-            <FilterButtons
-              onFilterChange={handleWardrobeFilterChange}
-              activeFilters={wardrobeFilters}
-              wardrobeItems={wardrobeItems || []}
-            />
+            {activeTab === "Wardrobe" && (
+              <FilterButtons
+                onFilterChange={handleWardrobeFilterChange}
+                activeFilters={wardrobeFilters}
+                wardrobeItems={wardrobeItems || []}
+              />
+            )}
+            {activeTab === "Outfits" && (
+              <View style={styles.outfitFiltersContainer}>
+                <OutfitFilterButtons
+                  onFilterChange={handleOutfitFilterChange}
+                  activeFilters={outfitFilters}
+                  outfits={allOutfits || []}
+                />
+              </View>
+            )}
           </>
-        )}
-        
-        {/* Show outfit filters on Outfits tab */}
-        {activeTab === "Outfits" && (
-          <View style={styles.outfitFiltersContainer}>
-            <OutfitFilterButtons
-              onFilterChange={handleOutfitFilterChange}
-              activeFilters={outfitFilters}
-            />
-          </View>
         )}
       </View>
 
-      <View style={{ flex: 1, minHeight: 0 }}>{renderTabContent()}</View>
+      <View style={{ flex: 1, minHeight: 0 }}>
+        {activeTab === "Wardrobe" && (
+          <WardrobeItems
+            filters={wardrobeFilters}
+            searchQuery={debouncedSearchQuery}
+          />
+        )}
+        {activeTab === "Outfits" && (
+          <Outfits
+            ref={outfitsRef}
+            filters={outfitFilters}
+            searchQuery={debouncedSearchQuery}
+          />
+        )}
+        {activeTab === "Boards" && <VisionBoards />}
+        {activeTab === "Capsules" && <Capsules />}
+        {activeTab === "Smart" && <Recommendations />}
+      </View>
 
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => {
-          if (activeTab === "Outfits") {
-            navigation.navigate("CreateOutfit");
-          } else {
-            setModalVisible(true);
-          }
-        }}
-      >
-        <Icon name="add" size={32} color="#121416" />
-      </TouchableOpacity>
+      {/* Bottom Action Buttons */}
+      {(activeTab === "Wardrobe" || activeTab === "Outfits") && (
+        <View style={styles.bottomActionsContainer}>
+          {activeTab === "Wardrobe" && (
+            <TouchableOpacity
+              style={styles.bottomActionButton}
+              onPress={() => setModalVisible(true)}
+            >
+              <Icon name="add" size={24} color="#121416" />
+              <Text style={styles.bottomActionButtonText}>Add Item</Text>
+            </TouchableOpacity>
+          )}
+          {activeTab === "Outfits" && (
+            <>
+              <TouchableOpacity
+                style={styles.bottomActionButton}
+                onPress={() => navigation.navigate("CreateOutfit")}
+              >
+                <Icon name="add" size={24} color="#121416" />
+                <Text style={styles.bottomActionButtonText}>Create Outfit</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.bottomActionButton,
+                  styles.bottomActionButtonPrimary,
+                ]}
+                onPress={() => outfitsRef.current?.openAIGenerator()}
+              >
+                <Icon name="auto-awesome" size={24} color="#fff" />
+                <Text
+                  style={[
+                    styles.bottomActionButtonText,
+                    styles.bottomActionButtonTextPrimary,
+                  ]}
+                >
+                  AI Generate
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+      )}
 
       <AddNewModal
         visible={modalVisible}
@@ -202,11 +279,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#f8fafc",
-    borderRadius: 16,
+    borderRadius: 12,
     marginHorizontal: 16,
-    marginTop: 14,
-    marginBottom: 8,
-    height: 44,
+    marginTop: 10,
+    marginBottom: 6,
+    height: 40,
     shadowColor: "#000",
     shadowOpacity: 0.04,
     shadowRadius: 2,
@@ -220,6 +297,10 @@ const styles = StyleSheet.create({
     borderWidth: 0,
     marginLeft: 8,
     fontFamily: "System",
+  },
+  clearButton: {
+    padding: 8,
+    marginRight: 4,
   },
   filterRow: {
     flexDirection: "row",
@@ -249,21 +330,44 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     marginRight: 2,
   },
-  fab: {
-    position: "absolute",
-    bottom: 32,
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "#dce8f3",
-    justifyContent: "center",
+  bottomActionsContainer: {
+    flexDirection: "row",
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    paddingBottom: 24,
+    backgroundColor: "#fff",
+    borderTopWidth: 1,
+    borderTopColor: "#e5e7eb",
+    gap: 12,
+  },
+  bottomActionButton: {
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#fff",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    flex: 1,
     shadowColor: "#000",
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.08,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
-    zIndex: 20,
+    elevation: 4,
+  },
+  bottomActionButtonPrimary: {
+    backgroundColor: "#121416",
+    borderColor: "#121416",
+  },
+  bottomActionButtonText: {
+    color: "#121416",
+    fontSize: 14,
+    fontWeight: "600",
+    marginLeft: 6,
+  },
+  bottomActionButtonTextPrimary: {
+    color: "#fff",
   },
 });

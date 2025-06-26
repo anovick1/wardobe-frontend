@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, forwardRef, useImperativeHandle } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -23,7 +23,7 @@ import api from "../../api";
 import globalStyles from "../../styles/global";
 import { mapEventsForApi } from "../../utils/events";
 
-export default function Outfits({ filters = [] }) {
+const Outfits = forwardRef(({ filters = [], searchQuery = "" }, ref) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [generating, setGenerating] = useState(false);
@@ -37,45 +37,125 @@ export default function Outfits({ filters = [] }) {
   const {
     outfits: rawOutfits,
     loadingOutfits,
+    loadingMoreOutfits,
     currentPage,
     totalPages,
     addOutfit,
     loadMoreOutfits,
     updateOutfitWornStatus,
+    hasMoreOutfits,
   } = useOutfits();
 
   const { coordinates } = useWeather();
 
-  // Filter outfits based on active filters
+  // Filter outfits based on search query and active filters
   const filterOutfits = (outfits) => {
-    if (filters.length === 0) {
-      return outfits;
+    let filtered = outfits;
+
+    // Apply search filter first
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      
+      filtered = filtered.filter((outfit) => {
+        // Search in outfit properties only
+        const searchableText = [
+          outfit.name || '',
+          outfit.description || '',
+          outfit.generated_prompt || '',
+          outfit.prompt || '',
+          outfit.title || '',
+          outfit.notes || '',
+          // Include outfit tags if they exist
+          (outfit.tags || []).join(' '),
+          // Search through all string properties of the outfit
+          ...Object.values(outfit).filter(value => typeof value === 'string')
+        ].join(' ').toLowerCase();
+        
+        return searchableText.includes(query);
+      });
     }
 
-    return outfits.filter((outfit) => {
-      const isDailyOutfit = outfit.is_daily_outfit === true;
-      const isAIGenerated = outfit.generated_by === "chatgpt" && !isDailyOutfit;
-      const isManual = outfit.generated_by === "manual";
+    // Apply filters
+    if (Object.keys(filters).length === 0) {
+      return filtered;
+    }
 
-      // Check if outfit matches any of the selected filters
-      return filters.some(filter => {
-        switch (filter) {
-          case 'daily':
-            return isDailyOutfit;
-          case 'ai':
-            return isAIGenerated;
-          case 'you':
-            return isManual;
-          case 'worn':
-            return outfit.is_worn === true;
-          default:
-            return false;
+    return filtered.filter((outfit) => {
+      // Quick filters (worn)
+      if (filters.quick && filters.quick.length > 0) {
+        const matchesQuickFilter = filters.quick.some((filter) => {
+          switch (filter) {
+            case "worn":
+              return outfit.is_worn === true;
+            default:
+              return false;
+          }
+        });
+
+        if (!matchesQuickFilter) return false;
+      }
+
+      // Outfit Type filter
+      if (filters.outfit_type && filters.outfit_type.length > 0) {
+        const isDailyOutfit = outfit.is_daily_outfit === true;
+        const isAIGenerated = outfit.generated_by === "chatgpt" && !isDailyOutfit;
+        const isManual = outfit.generated_by === "manual";
+
+        const matchesOutfitType = filters.outfit_type.some((creator) => {
+          switch (creator) {
+            case "Daily Outfit":
+              return isDailyOutfit;
+            case "AI Generated":
+              return isAIGenerated;
+            case "Manual":
+              return isManual;
+            default:
+              return false;
+          }
+        });
+
+        if (!matchesOutfitType) return false;
+      }
+
+      // Tags filter (outfit tags only)
+      if (filters.tags && filters.tags.length > 0) {
+        if (!outfit.tags || !Array.isArray(outfit.tags)) {
+          return false;
         }
-      });
+        
+        const hasTags = outfit.tags.some(tag => filters.tags.includes(tag));
+        if (!hasTags) return false;
+      }
+
+      return true;
     });
   };
 
-  const outfits = filterOutfits(rawOutfits);
+  // Apply search first, then filters (like WardrobeItems)
+  const searchedOutfits = rawOutfits.filter((outfit) => {
+    if (!searchQuery.trim()) return true;
+    
+    const query = searchQuery.toLowerCase().trim();
+    const searchableText = [
+      outfit.name || '',
+      outfit.description || '',
+      outfit.generated_prompt || '',
+      outfit.prompt || '',
+      outfit.title || '',
+      outfit.notes || '',
+      (outfit.tags || []).join(' '),
+      ...Object.values(outfit).filter(value => typeof value === 'string')
+    ].join(' ').toLowerCase();
+    
+    return searchableText.includes(query);
+  });
+  
+  const outfits = filterOutfits(searchedOutfits);
+
+  // Expose methods to parent component
+  useImperativeHandle(ref, () => ({
+    openAIGenerator: () => setModalVisible(true)
+  }));
 
   // Fetch upcoming events when modal opens or event range changes
   useEffect(() => {
@@ -94,7 +174,6 @@ export default function Outfits({ filters = [] }) {
       const reminderStatus = await Calendar.requestRemindersPermissionsAsync();
 
       if (status !== "granted" || reminderStatus.status !== "granted") {
-        console.log("Calendar or reminders permission denied");
         // Only clear events if this is the first load (no existing events)
         if (upcomingEvents.length === 0) {
           setUpcomingEvents([]);
@@ -105,7 +184,6 @@ export default function Outfits({ filters = [] }) {
 
       const calendars = await Calendar.getCalendarsAsync();
       if (!calendars || calendars.length === 0) {
-        console.log("No calendars found");
         // Only clear events if this is the first load (no existing events)
         if (upcomingEvents.length === 0) {
           setUpcomingEvents([]);
@@ -173,7 +251,6 @@ export default function Outfits({ filters = [] }) {
       // Add selected event if chosen
       if (selectedEvent) {
         payload.selected_event = mapEventsForApi([selectedEvent])[0];
-        console.log("Event being passed to AI:", payload.selected_event);
       }
 
       const response = await api.post("/outfits/ai_generate_hybrid", payload);
@@ -202,51 +279,14 @@ export default function Outfits({ filters = [] }) {
     }
   };
 
-  const handleLoadMore = () => {
-    if (!loadingOutfits && currentPage < totalPages) {
-      loadMoreOutfits();
-    }
-  };
-
-  const renderItem = ({ item }) => (
-    <OutfitCard item={item} />
-  );
-
-  const renderFooter = () => {
-    if (!loadingOutfits || outfits.length === 0 || currentPage >= totalPages)
-      return null;
-    return (
-      <View style={styles.footerLoader}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Loading more outfits...</Text>
-      </View>
-    );
-  };
+  const renderItem = ({ item }) => <OutfitCard item={item} />;
 
   return (
     <SafeAreaView style={globalStyles.container} edges={["left", "right"]}>
-      {/* AI Generate Button always visible */}
-      <View style={styles.headerContainer}>
-        <TouchableOpacity
-          style={styles.generateButton}
-          onPress={() => setModalVisible(true)}
-          disabled={generating}
-        >
-          <Icon name="auto-awesome" size={24} color="#007AFF" />
-          <Text style={styles.generateButtonText}>Generate Outfit with AI</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Header moved to parent component */}
 
       {loadingOutfits && outfits.length === 0 ? (
-        <ActivityIndicator
-          testID="outfits-loading"
-          size="large"
-          style={{ marginTop: 40 }}
-        />
-      ) : outfits.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>No outfits yet.</Text>
-        </View>
+        <Text style={[styles.emptyText]}>No outfits yet.</Text>
       ) : (
         <FlatList
           data={outfits}
@@ -255,9 +295,19 @@ export default function Outfits({ filters = [] }) {
           numColumns={2}
           columnWrapperStyle={styles.columnWrapper}
           contentContainerStyle={styles.listContent}
-          onEndReached={handleLoadMore}
           onEndReachedThreshold={0.5}
-          ListFooterComponent={renderFooter}
+          onEndReached={() => {
+            if (hasMoreOutfits && !loadingMoreOutfits) {
+              loadMoreOutfits();
+            }
+          }}
+          ListFooterComponent={() =>
+            loadingMoreOutfits ? (
+              <View style={{ paddingVertical: 20 }}>
+                <ActivityIndicator size="small" />
+              </View>
+            ) : null
+          }
         />
       )}
 
@@ -523,7 +573,9 @@ export default function Outfits({ filters = [] }) {
       </Modal>
     </SafeAreaView>
   );
-}
+});
+
+export default Outfits;
 
 const styles = StyleSheet.create({
   headerContainer: {

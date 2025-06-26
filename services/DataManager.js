@@ -34,7 +34,7 @@ class DataManager {
 
     try {
       // Get first page to determine total pages
-      const firstResponse = await api.get('/wardrobe_items?page=1&limit=50');
+      const firstResponse = await api.get('/wardrobe_items?page=1&limit=12');
       const pagination = firstResponse.data.pagination;
       let allItems = firstResponse.data.wardrobe_items || [];
 
@@ -43,7 +43,7 @@ class DataManager {
         const additionalRequests = [];
         for (let page = 2; page <= Math.min(pagination.pages, 10); page++) { // Limit to 10 pages max
           additionalRequests.push(
-            api.get(`/wardrobe_items?page=${page}&limit=50`)
+            api.get(`/wardrobe_items?page=${page}&limit=12`)
           );
         }
 
@@ -107,8 +107,45 @@ class DataManager {
     }
   }
 
-  // Outfits Management
-  async getOutfits(page = 1, forceRefresh = false, per_page = 6) {
+  // Get all outfits for filtering (simple version - outfit properties only)
+  async getAllOutfits(forceRefresh = false) {
+    const cacheKey = 'all_outfits';
+    
+    if (!forceRefresh && dataCache.has(cacheKey)) {
+      return dataCache.get(cacheKey);
+    }
+
+    try {
+      // Get first page to determine total pages
+      const firstResponse = await api.get('/outfits/?page=1&per_page=20');
+      const pagination = firstResponse.data.pagination;
+      let allOutfits = firstResponse.data.outfits || [];
+
+      // If there are more pages, fetch them concurrently
+      if (pagination.pages > 1) {
+        const additionalRequests = [];
+        for (let page = 2; page <= Math.min(pagination.pages, 10); page++) { // Limit to 10 pages max
+          additionalRequests.push(
+            api.get(`/outfits/?page=${page}&per_page=20`)
+          );
+        }
+
+        const additionalResponses = await Promise.all(additionalRequests);
+        additionalResponses.forEach(response => {
+          allOutfits = allOutfits.concat(response.data.outfits || []);
+        });
+      }
+
+      dataCache.set(cacheKey, allOutfits, 5 * 60 * 1000); // Cache for 5 minutes
+      return allOutfits;
+    } catch (error) {
+      console.error('Error fetching all outfits:', error);
+      throw error;
+    }
+  }
+
+  // Outfits Management (paginated)
+  async getOutfits(page = 1, forceRefresh = false, per_page = 12) {
     const cacheKey = `outfits_page_${page}_per_page_${per_page}`;
     
     if (!forceRefresh && dataCache.has(cacheKey)) {
@@ -153,6 +190,7 @@ class DataManager {
       
       // Invalidate relevant caches
       dataCache.invalidatePattern('outfits');
+      dataCache.invalidate('all_outfits');
       
       return response.data;
     } catch (error) {
@@ -167,6 +205,7 @@ class DataManager {
       
       // Invalidate relevant caches
       dataCache.invalidatePattern('outfits');
+      dataCache.invalidate('all_outfits');
       
       return response.data;
     } catch (error) {
@@ -181,6 +220,7 @@ class DataManager {
       
       // Invalidate relevant caches
       dataCache.invalidatePattern('outfits');
+      dataCache.invalidate('all_outfits');
       
       return response.data;
     } catch (error) {
@@ -195,6 +235,7 @@ class DataManager {
       
       // Invalidate relevant caches
       dataCache.invalidatePattern('outfits');
+      dataCache.invalidate('all_outfits');
       dataCache.invalidate(`outfit_${outfitId}`);
       
       return response.data;
@@ -210,6 +251,7 @@ class DataManager {
       
       // Invalidate relevant caches
       dataCache.invalidatePattern('outfits');
+      dataCache.invalidate('all_outfits');
       dataCache.invalidate(`outfit_${outfitId}`);
       
       return true;
@@ -266,6 +308,7 @@ class DataManager {
 
   invalidateOutfitCache() {
     dataCache.invalidatePattern('outfits');
+    dataCache.invalidate('all_outfits');
   }
 }
 
