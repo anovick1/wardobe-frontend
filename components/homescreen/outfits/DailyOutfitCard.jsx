@@ -31,18 +31,18 @@ export default function OutfitCard({
   );
 
   const handleViewDetails = () => {
-    // For daily outfits, the outfit ID is nested in outfitData.outfit.id
     const outfitId = outfitData?.outfit?.id;
     if (outfitId) {
-      // Navigate directly to OutfitDetail in the Wardrobe stack
       navigation.navigate("Wardrobe", {
         screen: "WardrobeHome",
         params: { initialTab: "Outfits" },
       });
-      navigation.navigate("Wardrobe", {
-        screen: "OutfitDetail",
-        params: { outfitId: outfitId, fromHome: true },
-      });
+      setTimeout(() => {
+        navigation.navigate("Wardrobe", {
+          screen: "OutfitDetail",
+          params: { outfitId: outfitId, fromHome: true },
+        });
+      }, 1); // 50ms delay to allow stack to update
     }
   };
 
