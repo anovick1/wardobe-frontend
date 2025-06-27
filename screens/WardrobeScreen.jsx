@@ -7,11 +7,13 @@ import {
   TextInput,
   ScrollView,
   Dimensions,
+  Animated,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import { useFocusEffect } from "@react-navigation/native";
 import { debounce } from "../utils/searchUtils";
+import { PanGestureHandler, State } from "react-native-gesture-handler";
 
 import WardrobeItems from "../components/wardrobe/WardrobeItems";
 import Outfits from "../components/wardrobe/Outfits";
@@ -25,6 +27,7 @@ import { useWardrobe } from "../contexts/WardrobeContext";
 import { useOutfits } from "../contexts/OutfitContext";
 
 const tabs = ["Wardrobe", "Outfits", "Boards", "Capsules", "Smart"];
+const { width: screenWidth } = Dimensions.get("window");
 
 export default function WardrobeScreen({ navigation, route }) {
   const initialTabParam = route?.params?.initialTab;
@@ -37,6 +40,11 @@ export default function WardrobeScreen({ navigation, route }) {
   const outfitsRef = useRef();
   const { wardrobeItems } = useWardrobe();
   const { outfits: rawOutfits, allOutfits } = useOutfits();
+
+  // Animation values
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const tabIndicatorPosition = useRef(new Animated.Value(0)).current;
 
   // Debounce search query for performance
   const debouncedSearch = useMemo(
@@ -61,8 +69,21 @@ export default function WardrobeScreen({ navigation, route }) {
   useEffect(() => {
     if (route?.params?.initialTab) {
       setActiveTab(route.params.initialTab);
+      const newIndex = tabs.indexOf(route.params.initialTab);
+      if (newIndex !== -1) {
+        animateTabIndicator(newIndex);
+      }
     }
   }, [route?.params?.initialTab]);
+
+  // Set initial tab indicator position
+  useEffect(() => {
+    const currentIndex = tabs.indexOf(activeTab);
+    if (currentIndex !== -1) {
+      const tabWidth = screenWidth / tabs.length;
+      tabIndicatorPosition.setValue(currentIndex * tabWidth);
+    }
+  }, []);
 
   // Handle navigation to specific outfit detail
   useEffect(() => {
@@ -81,9 +102,71 @@ export default function WardrobeScreen({ navigation, route }) {
     setOutfitFilters(filters);
   };
 
+  // Animate tab transitions
+  const animateTabChange = (direction) => {
+    // Fade out and slide
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 0.6,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: direction === "left" ? -30 : 30,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      // Reset and fade back in
+      slideAnim.setValue(0);
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }).start();
+    });
+  };
+
   // Handle tab change from tap
   const handleTabPress = (tab) => {
-    setActiveTab(tab);
+    const currentIndex = tabs.indexOf(activeTab);
+    const newIndex = tabs.indexOf(tab);
+    if (currentIndex !== newIndex) {
+      animateTabChange(newIndex > currentIndex ? "left" : "right");
+      animateTabIndicator(newIndex);
+      setActiveTab(tab);
+    }
+  };
+
+  // Animate tab indicator
+  const animateTabIndicator = (index) => {
+    const tabWidth = screenWidth / tabs.length;
+    Animated.spring(tabIndicatorPosition, {
+      toValue: index * tabWidth,
+      useNativeDriver: true,
+      tension: 50,
+      friction: 8,
+    }).start();
+  };
+
+  // Handle swipe gestures
+  const handleSwipe = ({ nativeEvent }) => {
+    if (nativeEvent.state === State.END) {
+      const { translationX } = nativeEvent;
+      const currentIndex = tabs.indexOf(activeTab);
+
+      if (translationX > 50 && currentIndex > 0) {
+        // Swipe right - go to previous tab
+        animateTabChange("right");
+        animateTabIndicator(currentIndex - 1);
+        setActiveTab(tabs[currentIndex - 1]);
+      } else if (translationX < -50 && currentIndex < tabs.length - 1) {
+        // Swipe left - go to next tab
+        animateTabChange("left");
+        animateTabIndicator(currentIndex + 1);
+        setActiveTab(tabs[currentIndex + 1]);
+      }
+    }
   };
 
   return (
@@ -98,7 +181,7 @@ export default function WardrobeScreen({ navigation, route }) {
             <TouchableOpacity
               key={tab}
               onPress={() => handleTabPress(tab)}
-              style={[styles.tab, activeTab === tab && styles.activeTab]}
+              style={styles.tab}
             >
               <Text
                 style={activeTab === tab ? styles.activeText : styles.tabText}
@@ -107,6 +190,15 @@ export default function WardrobeScreen({ navigation, route }) {
               </Text>
             </TouchableOpacity>
           ))}
+          <Animated.View
+            style={[
+              styles.tabIndicator,
+              {
+                transform: [{ translateX: tabIndicatorPosition }],
+                width: screenWidth / tabs.length,
+              },
+            ]}
+          />
         </View>
         {/* Unified search/filters/actions for Wardrobe and Outfits tabs */}
         {(activeTab === "Wardrobe" || activeTab === "Outfits") && (
@@ -163,24 +255,33 @@ export default function WardrobeScreen({ navigation, route }) {
         )}
       </View>
 
-      <View style={{ flex: 1, minHeight: 0 }}>
-        {activeTab === "Wardrobe" && (
-          <WardrobeItems
-            filters={wardrobeFilters}
-            searchQuery={debouncedSearchQuery}
-          />
-        )}
-        {activeTab === "Outfits" && (
-          <Outfits
-            ref={outfitsRef}
-            filters={outfitFilters}
-            searchQuery={debouncedSearchQuery}
-          />
-        )}
-        {activeTab === "Boards" && <VisionBoards />}
-        {activeTab === "Capsules" && <Capsules />}
-        {activeTab === "Smart" && <Recommendations />}
-      </View>
+      <PanGestureHandler onHandlerStateChange={handleSwipe}>
+        <Animated.View
+          style={{
+            flex: 1,
+            minHeight: 0,
+            opacity: fadeAnim,
+            transform: [{ translateX: slideAnim }],
+          }}
+        >
+          {activeTab === "Wardrobe" && (
+            <WardrobeItems
+              filters={wardrobeFilters}
+              searchQuery={debouncedSearchQuery}
+            />
+          )}
+          {activeTab === "Outfits" && (
+            <Outfits
+              ref={outfitsRef}
+              filters={outfitFilters}
+              searchQuery={debouncedSearchQuery}
+            />
+          )}
+          {activeTab === "Boards" && <VisionBoards />}
+          {activeTab === "Capsules" && <Capsules />}
+          {activeTab === "Smart" && <Recommendations />}
+        </Animated.View>
+      </PanGestureHandler>
 
       {/* Bottom Action Buttons */}
       {(activeTab === "Wardrobe" || activeTab === "Outfits") && (
@@ -244,20 +345,17 @@ const styles = StyleSheet.create({
   },
   tabRow: {
     flexDirection: "row",
-    justifyContent: "space-around",
     paddingVertical: 5,
     backgroundColor: "#fff",
     borderBottomWidth: 1,
     borderBottomColor: "#e5e7eb",
+    position: "relative",
   },
   tab: {
     paddingVertical: 10,
     paddingHorizontal: 12,
-    borderBottomWidth: 3,
-    borderBottomColor: "transparent",
-  },
-  activeTab: {
-    borderBottomColor: "#121416",
+    flex: 1,
+    alignItems: "center",
   },
   tabText: {
     color: "#6a7681",
@@ -369,5 +467,13 @@ const styles = StyleSheet.create({
   },
   bottomActionButtonTextPrimary: {
     color: "#fff",
+  },
+  tabIndicator: {
+    position: "absolute",
+    bottom: -1,
+    height: 3,
+    backgroundColor: "#121416",
+    // left: 0,
+    marginHorizontal: 0,
   },
 });

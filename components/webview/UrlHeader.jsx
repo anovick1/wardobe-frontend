@@ -1,5 +1,5 @@
 import React from "react";
-import { View, TextInput, TouchableOpacity, StyleSheet } from "react-native";
+import { View, TextInput, TouchableOpacity, StyleSheet, Text } from "react-native";
 import Icon from "react-native-vector-icons/MaterialIcons";
 
 const UrlHeader = ({
@@ -14,8 +14,8 @@ const UrlHeader = ({
   canGoForward,
 }) => (
   <View style={styles.header}>
-    <TouchableOpacity style={styles.backButton} onPress={onBack}>
-      <Icon name="arrow-back" size={24} color="#000" />
+    <TouchableOpacity style={styles.cancelButton} onPress={onBack}>
+      <Text style={styles.cancelButtonText}>Cancel</Text>
     </TouchableOpacity>
     
     <View style={styles.navigationContainer}>
@@ -70,9 +70,14 @@ const styles = StyleSheet.create({
     borderBottomColor: "#e5e7eb",
     backgroundColor: "#ffffff",
   },
-  backButton: {
+  cancelButton: {
     padding: 8,
     marginRight: 6,
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    color: "#007AFF",
+    fontWeight: "400",
   },
   navigationContainer: {
     flexDirection: "row",

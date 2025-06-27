@@ -21,6 +21,7 @@ import { useWardrobe } from "../contexts/WardrobeContext";
 import useCachedImage from "../hooks/useCachedImage";
 import * as FileSystem from "expo-file-system";
 import { tagColorStyle } from "../utils/tagStyles";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function WardrobeItemDetail({ route, navigation }) {
   const { item } = route.params;
@@ -43,75 +44,95 @@ export default function WardrobeItemDetail({ route, navigation }) {
   } = item;
 
   return (
-    <View style={{ flex: 1 }}>
-      {/* Sticky Header */}
-      <SafeAreaView edges={["top"]} style={{ backgroundColor: "#fff" }}>
-        <View style={styles.header}>
+    <SafeAreaView
+      style={{ backgroundColor: "#fff", flex: 1 }}
+      edges={["top", "left", "right"]}
+    >
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.headerIcon}
+          onPress={() => navigation.goBack()}
+        >
+          <Icon name="arrow-back-ios" size={24} color="#121416" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Wardrobe Item Details</Text>
+        <View style={styles.headerActions}>
           <TouchableOpacity
-            style={styles.headerIcon}
-            onPress={() => navigation.goBack()}
+            style={styles.headerActionBtn}
+            onPress={() => navigation.navigate("ItemReview", { item })}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Icon name="arrow-back-ios" size={24} color="#121416" />
+            <Icon name="edit" size={24} color="#007AFF" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Item Details</Text>
-          <View style={styles.headerIcon} />
+          <TouchableOpacity
+            style={styles.headerActionBtn}
+            onPress={async () => {
+              Alert.alert(
+                "Delete Item",
+                "Are you sure you want to delete this item?",
+                [
+                  { text: "Cancel", style: "cancel" },
+                  {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: async () => {
+                      try {
+                        await api.delete(`/wardrobe_items/${item.id}`);
+                        removeWardrobeItem(item.id);
+                        Alert.alert("Success", "Item deleted successfully");
+                        navigation.goBack();
+                      } catch (err) {
+                        Alert.alert("Error", "Failed to delete item.");
+                        console.error(err);
+                      }
+                    },
+                  },
+                ]
+              );
+            }}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="trash-outline" size={24} color="#e11d48" />
+          </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </View>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Image */}
-        {image_url && (
-          <View style={styles.imageContainer}>
+        {/* Title & Brand above image */}
+        <View style={styles.titleContainer}>
+          <Text style={styles.name}>{name}</Text>
+          {brand ? <Text style={styles.brand}>{brand}</Text> : null}
+        </View>
+        {/* Image Section */}
+        <View style={styles.imageCard}>
+          {image_url ? (
             <CachedImage
               imageUrl={image_url}
               itemId={item.id}
               style={styles.image}
             />
-          </View>
-        )}
-        {/* Main Card */}
-        <View style={styles.card}>
-          <View style={styles.titleRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.name}>{name}</Text>
-              <Text style={typography.brand}>{brand}</Text>
-              {!!description && (
-                <Text style={typography.description}>{description}</Text>
-              )}
+          ) : (
+            <View style={styles.placeholderContainer}>
+              <Icon name="image" size={80} color="#ccc" />
+              <Text style={styles.placeholderText}>No item image</Text>
             </View>
-            <View style={styles.iconRow}>
-              <TouchableOpacity>
-                <Icon
-                  name={is_favorite ? "favorite" : "favorite-border"}
-                  size={28}
-                  color={is_favorite ? "#e11d48" : "#121416"}
-                />
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => {
-                  if (product_link) Linking.openURL(product_link);
-                }}
-              >
-                <Icon
-                  name="link"
-                  size={28}
-                  color={product_link ? "#121416" : "#cbd5e1"}
-                />
-              </TouchableOpacity>
-            </View>
-          </View>
-          {/* Details Grid */}
+          )}
+        </View>
+        {/* Details Card */}
+        <View style={styles.detailsCard}>
           <View style={styles.detailsGrid}>
-            {(category || subcategory) && (
+            {category && (
               <View style={styles.detailCol}>
                 <Text style={styles.detailLabel}>Category</Text>
-                <Text style={styles.detailValue}>
-                  {category && subcategory
-                    ? `${category} - ${subcategory}`
-                    : category || subcategory}
-                </Text>
+                <Text style={styles.detailValue}>{category}</Text>
+              </View>
+            )}
+            {subcategory && (
+              <View style={styles.detailCol}>
+                <Text style={styles.detailLabel}>Subcategory</Text>
+                <Text style={styles.detailValue}>{subcategory}</Text>
               </View>
             )}
             <View style={styles.detailCol}>
@@ -133,71 +154,23 @@ export default function WardrobeItemDetail({ route, navigation }) {
               <Text style={styles.detailValue}>{times_worn ?? 0}</Text>
             </View>
           </View>
-          {/* Tags */}
-          {tags.length > 0 && (
-            <View style={cardStyles.tagsRow}>
+          {!!description && (
+            <Text style={styles.description}>{description}</Text>
+          )}
+        </View>
+        {/* Tags Section */}
+        {tags.length > 0 && (
+          <View style={styles.tagsCard}>
+            <Text style={styles.tagsLabel}>Tags</Text>
+            <View style={styles.tagsRow}>
               {tags.map((tag, idx) => (
-                <View key={idx} style={[cardStyles.tag, tagColorStyle(tag)]}>
-                  <Text style={cardStyles.tagText}>{tag}</Text>
+                <View key={idx} style={styles.tag}>
+                  <Text style={styles.tagText}>{tag}</Text>
                 </View>
               ))}
             </View>
-          )}
-          {/* Action Buttons */}
-          <View style={styles.actionButtons}>
-            <TouchableOpacity
-              style={styles.editButton}
-              onPress={() => navigation.navigate("ItemReview", { item })}
-              activeOpacity={0.7}
-            >
-              <Icon
-                name="edit"
-                size={20}
-                color="#007AFF"
-                style={{ marginRight: 6 }}
-              />
-              <Text style={styles.editButtonText}>Edit Item</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.deleteButton}
-              onPress={async () => {
-                Alert.alert(
-                  "Delete Item",
-                  "Are you sure you want to delete this item?",
-                  [
-                    { text: "Cancel", style: "cancel" },
-                    {
-                      text: "Delete",
-                      style: "destructive",
-                      onPress: async () => {
-                        try {
-                          await api.delete(`/wardrobe_items/${item.id}`);
-                          removeWardrobeItem(item.id);
-                          Alert.alert("Success", "Item deleted successfully");
-                          navigation.goBack();
-                        } catch (err) {
-                          Alert.alert("Error", "Failed to delete item.");
-                          console.error(err);
-                        }
-                      },
-                    },
-                  ]
-                );
-              }}
-              activeOpacity={0.7}
-            >
-              <View style={styles.deleteButtonContent}>
-                <Icon
-                  name="delete"
-                  size={20}
-                  color="#e11d48"
-                  style={{ marginRight: 6 }}
-                />
-                <Text style={styles.deleteButtonText}>Delete Item</Text>
-              </View>
-            </TouchableOpacity>
           </View>
-        </View>
+        )}
       </ScrollView>
       {/* Sticky Add to Outfit Button */}
       <View style={styles.addToOutfitBar}>
@@ -216,7 +189,7 @@ export default function WardrobeItemDetail({ route, navigation }) {
           <Text style={styles.addToOutfitText}>Add to Outfit</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -243,13 +216,24 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#121416",
   },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+  },
+  headerActionBtn: {
+    padding: 8,
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   scrollContent: {
     paddingBottom: 120,
   },
-  imageContainer: {
+  imageCard: {
     width: "100%",
     aspectRatio: 1,
-    // backgroundColor: "#f1f5f9",
     maxHeight: 220,
     marginBottom: 0,
     marginTop: 0,
@@ -257,28 +241,30 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     alignItems: "center",
     justifyContent: "center",
+    borderRadius: 16,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   image: {
     width: "100%",
     height: "100%",
     resizeMode: "contain",
   },
-  card: {
-    // backgroundColor: "#f8f9fa",
-    borderRadius: 16,
-    marginHorizontal: 16,
-    marginTop: 8,
-    padding: 18,
-    // shadowColor: "#000",
-    // shadowOpacity: 0.05,
-    // shadowRadius: 8,
-    // shadowOffset: { width: 0, height: 2 },
-    // elevation: 2,
+  placeholderContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  titleRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 8,
+  placeholderText: {
+    color: "#ccc",
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  titleContainer: {
+    padding: 16,
   },
   name: {
     color: "#121416",
@@ -286,10 +272,16 @@ const styles = StyleSheet.create({
     fontSize: 22,
     marginBottom: 2,
   },
-  iconRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 2,
+  brand: {
+    color: "#6a7681",
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  detailsCard: {
+    padding: 16,
+    borderRadius: 16,
+    marginHorizontal: 16,
+    marginTop: 8,
   },
   detailsGrid: {
     flexDirection: "row",
@@ -320,55 +312,41 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     lineHeight: 18,
   },
-  actionButtons: {
-    marginTop: 16,
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+  tagsCard: {
+    padding: 16,
+    borderRadius: 16,
+    marginHorizontal: 16,
+    marginTop: 8,
   },
-  editButton: {
+  tagsLabel: {
+    color: "#121416",
+    fontSize: 18,
+    fontWeight: "600",
+    marginBottom: 8,
+  },
+  tagsRow: {
     flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#f0f9ff",
-    borderRadius: 10,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    justifyContent: "center",
-    minHeight: 56,
+    flexWrap: "wrap",
+    gap: 8,
   },
-  editButtonText: {
-    color: "#007AFF",
-    fontWeight: "bold",
-    fontSize: 15,
+  tag: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: "#f0f0f0",
+    marginRight: 8,
+    marginBottom: 8,
   },
-  deleteButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fef2f2",
-    borderRadius: 10,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    justifyContent: "center",
-    minHeight: 56,
-  },
-  deleteButtonContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  deleteButtonText: {
-    color: "#e11d48",
-    fontWeight: "bold",
-    fontSize: 15,
+  tagText: {
+    color: "#666",
+    fontSize: 14,
+    fontWeight: "500",
   },
   addToOutfitBar: {
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
-    // backgroundColor: "#fff",
-    // borderTopWidth: 1,
-    // borderTopColor: "#e5e7eb",
     padding: 16,
     zIndex: 20,
   },

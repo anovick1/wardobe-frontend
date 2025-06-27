@@ -15,41 +15,50 @@ export const validateOutfitCategories = (wardrobeItems) => {
       isValid: false,
       missingCategories: ["At least one item required"],
       duplicateCategories: [],
-      validCombinations: REQUIRED_CATEGORY_RULES
+      validCombinations: REQUIRED_CATEGORY_RULES,
     };
   }
 
   // Get categories from wardrobe items
   const categories = wardrobeItems
-    .map(item => item.category)
-    .filter(category => category); // Remove null/undefined
+    .map((item) => item.category)
+    .filter((category) => category); // Remove null/undefined
 
-  const presentCategories = categories.map(category => category.toLowerCase());
+  const presentCategories = categories.map((category) =>
+    category.toLowerCase(),
+  );
 
   // Check for duplicate categories
   const categoryCount = {};
   const duplicateCategories = [];
-  
-  categories.forEach(category => {
+
+  categories.forEach((category) => {
     const lowerCategory = category.toLowerCase();
     categoryCount[lowerCategory] = (categoryCount[lowerCategory] || 0) + 1;
-    if (categoryCount[lowerCategory] > 1 && !duplicateCategories.includes(category)) {
+    if (
+      categoryCount[lowerCategory] > 1 &&
+      !duplicateCategories.includes(category)
+    ) {
       duplicateCategories.push(category);
     }
   });
 
   // Check subcategories for more specific duplicates
   const subcategories = wardrobeItems
-    .map(item => item.subcategory)
-    .filter(subcategory => subcategory);
-    
+    .map((item) => item.subcategory)
+    .filter((subcategory) => subcategory);
+
   const subcategoryCount = {};
   const duplicateSubcategories = [];
-  
-  subcategories.forEach(subcategory => {
+
+  subcategories.forEach((subcategory) => {
     const lowerSubcategory = subcategory.toLowerCase();
-    subcategoryCount[lowerSubcategory] = (subcategoryCount[lowerSubcategory] || 0) + 1;
-    if (subcategoryCount[lowerSubcategory] > 1 && !duplicateSubcategories.includes(subcategory)) {
+    subcategoryCount[lowerSubcategory] =
+      (subcategoryCount[lowerSubcategory] || 0) + 1;
+    if (
+      subcategoryCount[lowerSubcategory] > 1 &&
+      !duplicateSubcategories.includes(subcategory)
+    ) {
       duplicateSubcategories.push(subcategory);
     }
   });
@@ -60,11 +69,11 @@ export const validateOutfitCategories = (wardrobeItems) => {
   // Check each rule to see if any match
   let hasValidCombination = false;
   for (const rule of REQUIRED_CATEGORY_RULES) {
-    const requiredCategories = rule.map(cat => cat.toLowerCase());
-    const hasAllRequired = requiredCategories.every(reqCat => 
-      presentCategories.includes(reqCat)
+    const requiredCategories = rule.map((cat) => cat.toLowerCase());
+    const hasAllRequired = requiredCategories.every((reqCat) =>
+      presentCategories.includes(reqCat),
     );
-    
+
     if (hasAllRequired) {
       hasValidCombination = true;
       break;
@@ -77,7 +86,7 @@ export const validateOutfitCategories = (wardrobeItems) => {
       isValid: false,
       missingCategories: [],
       duplicateCategories: allDuplicates,
-      validCombinations: REQUIRED_CATEGORY_RULES
+      validCombinations: REQUIRED_CATEGORY_RULES,
     };
   }
 
@@ -87,7 +96,7 @@ export const validateOutfitCategories = (wardrobeItems) => {
       isValid: true,
       missingCategories: [],
       duplicateCategories: [],
-      validCombinations: REQUIRED_CATEGORY_RULES
+      validCombinations: REQUIRED_CATEGORY_RULES,
     };
   }
 
@@ -96,18 +105,18 @@ export const validateOutfitCategories = (wardrobeItems) => {
   let minMissing = Infinity;
 
   for (const rule of REQUIRED_CATEGORY_RULES) {
-    const requiredCategories = rule.map(cat => cat.toLowerCase());
-    const missing = requiredCategories.filter(reqCat => 
-      !presentCategories.includes(reqCat)
+    const requiredCategories = rule.map((cat) => cat.toLowerCase());
+    const missing = requiredCategories.filter(
+      (reqCat) => !presentCategories.includes(reqCat),
     );
-    
+
     if (missing.length < minMissing) {
       minMissing = missing.length;
       bestMatch = {
         rule: rule,
-        missing: missing.map(cat => 
-          rule.find(original => original.toLowerCase() === cat)
-        )
+        missing: missing.map((cat) =>
+          rule.find((original) => original.toLowerCase() === cat),
+        ),
       };
     }
   }
@@ -116,7 +125,7 @@ export const validateOutfitCategories = (wardrobeItems) => {
     isValid: false,
     missingCategories: bestMatch ? bestMatch.missing : [],
     duplicateCategories: [],
-    validCombinations: REQUIRED_CATEGORY_RULES
+    validCombinations: REQUIRED_CATEGORY_RULES,
   };
 };
 
@@ -130,30 +139,51 @@ export const getOutfitValidationMessage = (validationResult) => {
     return "";
   }
 
-  if (validationResult.missingCategories.includes("At least one item required")) {
-    return "Please add at least one item to your outfit.";
+  if (
+    validationResult.missingCategories.includes("At least one item required")
+  ) {
+    return "Let's add some items to create your outfit! 👗";
   }
 
   // Handle duplicate categories
-  if (validationResult.duplicateCategories && validationResult.duplicateCategories.length > 0) {
+  if (
+    validationResult.duplicateCategories &&
+    validationResult.duplicateCategories.length > 0
+  ) {
     const duplicates = validationResult.duplicateCategories;
     if (duplicates.length === 1) {
-      return `You can only have one ${duplicates[0]} item per outfit. Please remove the duplicate.`;
+      return `Oops! You've already added a ${duplicates[0].toLowerCase()}. Each outfit can only have one ${duplicates[0].toLowerCase()} item.`;
     } else {
-      return `You have duplicate items: ${duplicates.join(", ")}. Please remove duplicates - only one of each type allowed per outfit.`;
+      const formattedDuplicates = duplicates
+        .map((d) => d.toLowerCase())
+        .join(" and ");
+      return `Looks like you have multiple ${formattedDuplicates} items. Try keeping just one of each type for a complete outfit!`;
     }
   }
 
-  // Handle missing categories
+  // Handle missing categories - make it more conversational
   const missing = validationResult.missingCategories;
-  const combinations = validationResult.validCombinations
-    .map(rule => rule.join(" + "))
-    .join(" OR ");
+
+  // Create user-friendly combination suggestions
+  const friendlyRules = [
+    "a top, bottom, and shoes",
+    "a dress and shoes",
+    "a one-piece outfit and shoes",
+  ];
 
   if (missing.length === 1) {
-    return `This outfit is missing a ${missing[0]}. Valid combinations: ${combinations}`;
+    const missingItem = missing[0].toLowerCase();
+    if (missingItem === "shoes") {
+      return "Don't forget the shoes! Every outfit needs footwear to be complete. 👟";
+    } else if (missingItem === "bottom") {
+      return "Your outfit needs a bottom piece (like pants, skirt, or shorts) to be complete!";
+    } else if (missingItem === "top") {
+      return "Add a top to complete this outfit! Every great look needs one.";
+    } else {
+      return `Your outfit needs a ${missingItem} to be complete! Try adding one to finish your look.`;
+    }
   } else {
-    return `This outfit is missing: ${missing.join(", ")}. Valid combinations: ${combinations}`;
+    return `Almost there! Complete your outfit with one of these combinations:\n• ${friendlyRules.join("\n• ")}`;
   }
 };
 
@@ -164,12 +194,14 @@ export const getOutfitValidationMessage = (validationResult) => {
  * @returns {Object} - { wouldBeValid: boolean, message: string }
  */
 export const validateItemRemoval = (currentItems, itemToRemove) => {
-  const remainingItems = currentItems.filter(item => item.id !== itemToRemove.id);
+  const remainingItems = currentItems.filter(
+    (item) => item.id !== itemToRemove.id,
+  );
   const validation = validateOutfitCategories(remainingItems);
-  
+
   return {
     wouldBeValid: validation.isValid,
-    message: validation.isValid ? "" : getOutfitValidationMessage(validation)
+    message: validation.isValid ? "" : getOutfitValidationMessage(validation),
   };
 };
 
@@ -182,9 +214,9 @@ export const validateItemRemoval = (currentItems, itemToRemove) => {
 export const validateItemAddition = (currentItems, itemToAdd) => {
   const newItems = [...currentItems, itemToAdd];
   const validation = validateOutfitCategories(newItems);
-  
+
   return {
     wouldBeValid: validation.isValid,
-    message: validation.isValid ? "" : getOutfitValidationMessage(validation)
+    message: validation.isValid ? "" : getOutfitValidationMessage(validation),
   };
 };

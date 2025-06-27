@@ -19,6 +19,7 @@ import api from "../api";
 import typography from "../styles/typography";
 import * as FileSystem from "expo-file-system";
 import { useWardrobe } from "../contexts/WardrobeContext";
+import { useFocusEffect } from "@react-navigation/native";
 
 const { width } = Dimensions.get("window");
 const cardWidth = (width - 48) / 2; // 2 columns with padding
@@ -44,16 +45,41 @@ export default function MultiUploadScreen({ route, navigation }) {
         skipUpload && processedItems
           ? "completed"
           : clientUploadIds
-          ? "processing"
-          : "uploading",
+            ? "processing"
+            : "uploading",
       item: skipUpload && processedItems ? processedItems[index] : null,
       error: null,
-    }))
+    })),
   );
 
   // Upload and process each image (only if clientUploadIds are not provided)
   // Use a ref to ensure this only runs once for the initial images
   const hasInitialUploadRun = useRef(false);
+
+  // Ensure tab bar is restored when this screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      const parent = navigation.getParent();
+      if (parent) {
+        parent.setOptions({ tabBarStyle: undefined });
+      }
+    }, [navigation]),
+  );
+
+  // Add useEffect to handle navigation when no items
+  useEffect(() => {
+    if (uploadStatus.length === 0 && !isUploading) {
+      const timer = setTimeout(() => {
+        navigation.reset({
+          index: 0,
+          routes: [
+            { name: "WardrobeHome", params: { initialTab: "Wardrobe" } },
+          ],
+        });
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [uploadStatus.length, isUploading, navigation]);
 
   useEffect(() => {
     if (clientUploadIds) {
@@ -101,12 +127,12 @@ export default function MultiUploadScreen({ route, navigation }) {
               "Content-Type": "multipart/form-data",
               Authorization: `Bearer ${idToken}`,
             },
-          }
+          },
         );
 
         // console.log("✅ Upload started:", res.data);
         setUploadStatus((prev) =>
-          prev.map((status) => ({ ...status, status: "processing" }))
+          prev.map((status) => ({ ...status, status: "processing" })),
         );
       } catch (err) {
         console.error("❌ Bulk upload failed:", err.message);
@@ -115,7 +141,7 @@ export default function MultiUploadScreen({ route, navigation }) {
             ...s,
             status: "error",
             error: err.message,
-          }))
+          })),
         );
       }
     };
@@ -124,13 +150,18 @@ export default function MultiUploadScreen({ route, navigation }) {
   }, [images, clientUploadIds]);
 
   useEffect(() => {
+    // Skip Firebase webhook listener if items are already processed (skipUpload = true)
+    if (skipUpload) {
+      return;
+    }
+
     const auth = getAuth();
     const unsubscribe = onSnapshot(
       collection(
         getFirestore(),
         "wardrobe_webhooks",
         auth.currentUser.uid,
-        "completed_uploads"
+        "completed_uploads",
       ),
       async (snapshot) => {
         snapshot.docChanges().forEach(async (change) => {
@@ -151,33 +182,21 @@ export default function MultiUploadScreen({ route, navigation }) {
 
               setUploadStatus((prevStatus) => {
                 const matchIndex = prevStatus.findIndex(
-                  (s) => s.client_upload_id === data.client_upload_id
+                  (s) => s.client_upload_id === data.client_upload_id,
                 );
                 if (matchIndex === -1) {
-                  console.log(
-                    `No matching upload found for client_upload_id: ${data.client_upload_id}`
-                  );
                   return prevStatus;
                 }
 
                 const currentItem = prevStatus[matchIndex];
-                console.log(
-                  `Processing webhook for item ${matchIndex}, current status: ${currentItem.status}`
-                );
 
                 // Don't update if item was already processed
                 if (!currentItem || currentItem.status === "completed") {
-                  console.log(
-                    `Item ${matchIndex} already processed, skipping webhook update`
-                  );
                   return prevStatus;
                 }
 
                 return prevStatus.map((item, i) => {
                   if (i !== matchIndex) return item;
-                  console.log(
-                    `Updating item ${i} from ${item.status} to completed`
-                  );
                   return { ...item, status: "completed", item: data };
                 });
               });
@@ -188,7 +207,7 @@ export default function MultiUploadScreen({ route, navigation }) {
                 FileSystem.downloadAsync(data.image_url, cachePath).catch(
                   (e) => {
                     console.error("Failed to cache image:", e);
-                  }
+                  },
                 );
               }
 
@@ -196,11 +215,11 @@ export default function MultiUploadScreen({ route, navigation }) {
             });
           }
         });
-      }
+      },
     );
 
     return () => unsubscribe();
-  }, []);
+  }, [skipUpload]);
 
   const handleAddMorePhotos = async () => {
     if (isUploading) {
@@ -215,7 +234,7 @@ export default function MultiUploadScreen({ route, navigation }) {
       if (status !== "granted") {
         Alert.alert(
           "Permission needed",
-          "Please grant photo library access to add more photos."
+          "Please grant photo library access to add more photos.",
         );
         return;
       }
@@ -279,7 +298,7 @@ export default function MultiUploadScreen({ route, navigation }) {
               "Content-Type": "multipart/form-data",
               Authorization: `Bearer ${idToken}`,
             },
-          }
+          },
         );
 
         // Update only the newly added statuses to processing
@@ -289,7 +308,7 @@ export default function MultiUploadScreen({ route, navigation }) {
               return { ...status, status: "processing" };
             }
             return status;
-          })
+          }),
         );
       }
     } catch (error) {
@@ -312,7 +331,7 @@ export default function MultiUploadScreen({ route, navigation }) {
       if (status !== "granted") {
         Alert.alert(
           "Permission needed",
-          "Please grant camera access to take photos."
+          "Please grant camera access to take photos.",
         );
         return;
       }
@@ -371,7 +390,7 @@ export default function MultiUploadScreen({ route, navigation }) {
               return { ...status, status: "processing" };
             }
             return status;
-          })
+          }),
         );
       }
     } catch (error) {
@@ -396,7 +415,12 @@ export default function MultiUploadScreen({ route, navigation }) {
         setTimeout(() => {
           setUploadStatus((currentStatus) => {
             if (currentStatus.length === 0) {
-              navigation.navigate("WardrobeHome", { initialTab: "Wardrobe" });
+              navigation.reset({
+                index: 0,
+                routes: [
+                  { name: "WardrobeHome", params: { initialTab: "Wardrobe" } },
+                ],
+              });
             }
             return currentStatus;
           });
@@ -419,7 +443,7 @@ export default function MultiUploadScreen({ route, navigation }) {
             setUploadStatus((prev) => prev.filter((_, i) => i !== index));
           },
         },
-      ]
+      ],
     );
   };
 
@@ -430,39 +454,31 @@ export default function MultiUploadScreen({ route, navigation }) {
       const idToken = await auth.currentUser?.getIdToken();
       if (!idToken) throw new Error("Not signed in");
 
-      // Debug: log all current upload statuses
-      console.log(
-        "🔍 Current upload statuses:",
-        uploadStatus.map((s) => ({
-          status: s.status,
-          hasItem: !!s.item,
-          itemId: s.item?.id,
-          manuallyReviewed: s.item?.manually_reviewed,
-        }))
-      );
-
-      // Only process items that are completed and haven't been individually reviewed
+      // Only process items that are completed and have valid item IDs
       const itemsToAdd = uploadStatus.filter(
-        (status) => status.status === "completed" && status.item
-        // Removed manually_reviewed check since it's never set
+        (status) =>
+          status.status === "completed" &&
+          status.item &&
+          (status.item.id || status.item.item_id),
       );
 
-      console.log(
-        "📋 Items to add:",
-        itemsToAdd.length,
-        itemsToAdd.map((s) => s.item?.id)
-      );
+      const itemCount = itemsToAdd.length;
 
       if (itemsToAdd.length === 0) {
         // If no items to process, just remove all completed items and navigate
         setUploadStatus((prev) => {
           const remaining = prev.filter(
-            (status) => status.status !== "completed"
+            (status) => status.status !== "completed",
           );
 
           if (remaining.length === 0) {
             setTimeout(() => {
-              navigation.navigate("WardrobeHome", { initialTab: "Wardrobe" });
+              navigation.reset({
+                index: 0,
+                routes: [
+                  { name: "WardrobeHome", params: { initialTab: "Wardrobe" } },
+                ],
+              });
             }, 500);
           }
 
@@ -471,14 +487,16 @@ export default function MultiUploadScreen({ route, navigation }) {
         return;
       }
 
-      // Log what we're about to process
-      console.log(
-        "🔄 Processing items for bulk embed:",
-        itemsToAdd.map((s) => ({ id: s.item.id, name: s.item.name }))
-      );
+      // Use the bulk embed endpoint - use item_id field
+      const itemIds = itemsToAdd
+        .map((status) => status.item.id || status.item.item_id)
+        .filter((id) => id);
 
-      // Use the bulk embed endpoint
-      const itemIds = itemsToAdd.map((status) => status.item.id);
+      if (itemIds.length === 0) {
+        Alert.alert("Error", "No valid items to add. Please try again.");
+        return;
+      }
+
       const response = await api.post(
         "/wardrobe_items/bulk_embed",
         {
@@ -488,7 +506,7 @@ export default function MultiUploadScreen({ route, navigation }) {
           headers: {
             Authorization: `Bearer ${idToken}`,
           },
-        }
+        },
       );
 
       // console.log("✅ Bulk embed response:", response.data);
@@ -497,19 +515,26 @@ export default function MultiUploadScreen({ route, navigation }) {
 
       // Add all items to wardrobe context
       itemsToAdd.forEach((status) => {
-        addItemToWardrobe(status.item);
+        if (status.item) {
+          addItemToWardrobe(status.item);
+        }
       });
 
       // Remove all completed items from the screen
       setUploadStatus((prev) => {
         const remaining = prev.filter(
-          (status) => status.status !== "completed"
+          (status) => status.status !== "completed",
         );
 
         // Navigate to wardrobe if no items left
         if (remaining.length === 0) {
           setTimeout(() => {
-            navigation.navigate("WardrobeHome", { initialTab: "Wardrobe" });
+            navigation.reset({
+              index: 0,
+              routes: [
+                { name: "WardrobeHome", params: { initialTab: "Wardrobe" } },
+              ],
+            });
           }, 500);
         }
 
@@ -563,10 +588,17 @@ export default function MultiUploadScreen({ route, navigation }) {
     const showCleaned =
       status.status === "completed" || status.status === "saved";
 
-    let imageUrl = image.uri;
-    if (showCleaned && status.item && status.item.image_url) {
-      // Always prefer the cleaned image URL when available
-      imageUrl = status.item.image_url;
+    let imageUrl = image.uri; // Start with the passed image URI
+
+    if (showCleaned && status.item) {
+      // Always prefer the remote cleaned URL for reliability
+      const cleanedUrl =
+        status.item.presigned_urls?.cleaned ||
+        status.item.image_url ||
+        status.item.urls?.cleaned;
+      if (cleanedUrl) {
+        imageUrl = cleanedUrl;
+      }
     }
 
     return (
@@ -626,17 +658,17 @@ export default function MultiUploadScreen({ route, navigation }) {
 
   // Only show "Add All" if there are completed items AND no items are still processing
   const hasProcessingItems = uploadStatus.some(
-    (s) => s.status === "uploading" || s.status === "processing"
+    (s) => s.status === "uploading" || s.status === "processing",
   );
   const hasCompletedItems = uploadStatus.some((s) => s.status === "completed");
   const anyUnconfirmed = hasCompletedItems && !hasProcessingItems;
 
   const completedCount = uploadStatus.filter(
-    (s) => s.status === "completed"
+    (s) => s.status === "completed",
   ).length;
 
   const processedCount = uploadStatus.filter(
-    (s) => s.status === "completed"
+    (s) => s.status === "completed",
   ).length;
 
   return (

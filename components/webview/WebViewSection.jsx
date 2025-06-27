@@ -1,7 +1,8 @@
 import React from "react";
-import { View, ActivityIndicator, StyleSheet } from "react-native";
+import { View, ActivityIndicator, StyleSheet, Alert } from "react-native";
 import { WebView } from "react-native-webview";
 import ViewShot from "react-native-view-shot";
+import { shouldAllowUrl } from "../../utils/nsfwFilter";
 
 const WebViewSection = ({
   viewShotRef,
@@ -11,35 +12,54 @@ const WebViewSection = ({
   isMounted,
   setViewReady,
   onNavigationStateChange,
-}) => (
-  <ViewShot
-    ref={viewShotRef}
-    style={styles.webViewContainer}
-    options={{ format: "jpg", quality: 0.9 }}
-    collapsable={false}
-    onLayout={() => setViewReady(true)}
-  >
-    <WebView
-      ref={webViewRef}
-      source={{ uri: urlInput }}
-      style={styles.webView}
-      onNavigationStateChange={(navState) => {
-        if (isMounted.current && navState.url) {
-          setProductUrl(navState.url);
-        }
-        if (onNavigationStateChange) {
-          onNavigationStateChange(navState);
-        }
-      }}
-      startInLoadingState={true}
-      renderLoading={() => (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#000" />
-        </View>
-      )}
-    />
-  </ViewShot>
-);
+}) => {
+  const handleShouldStartLoadWithRequest = (request) => {
+    const { url } = request;
+
+    if (!shouldAllowUrl(url)) {
+      Alert.alert(
+        "Content Blocked",
+        "This website has been blocked for containing inappropriate content.",
+        [{ text: "OK" }],
+      );
+
+      return false;
+    }
+
+    return true;
+  };
+
+  return (
+    <ViewShot
+      ref={viewShotRef}
+      style={styles.webViewContainer}
+      options={{ format: "jpg", quality: 0.9 }}
+      collapsable={false}
+      onLayout={() => setViewReady(true)}
+    >
+      <WebView
+        ref={webViewRef}
+        source={{ uri: urlInput }}
+        style={styles.webView}
+        onNavigationStateChange={(navState) => {
+          if (isMounted.current && navState.url) {
+            setProductUrl(navState.url);
+          }
+          if (onNavigationStateChange) {
+            onNavigationStateChange(navState);
+          }
+        }}
+        onShouldStartLoadWithRequest={handleShouldStartLoadWithRequest}
+        startInLoadingState={true}
+        renderLoading={() => (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#000" />
+          </View>
+        )}
+      />
+    </ViewShot>
+  );
+};
 
 const styles = StyleSheet.create({
   webViewContainer: {

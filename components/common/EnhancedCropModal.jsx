@@ -25,7 +25,7 @@ const EnhancedCropModal = ({
 
     try {
       setIsProcessing(true);
-      
+
       // Try to use the advanced cropper with all features
       const cropped = await ExpoImageCropTool.openCropperAsync({
         imageUri: imageUri,
@@ -50,7 +50,7 @@ const EnhancedCropModal = ({
         gridColor: "rgba(255, 255, 255, 0.3)",
         gridLineWidth: 1,
         // Instructions
-        instructions: "Drag to move, pinch to zoom, rotate with two fingers",
+        // instructions: "Drag to move, pinch to zoom, rotate with two fingers", // Removed to prevent lingering overlay
       });
 
       if (!cropped || !cropped.path) {
@@ -60,12 +60,12 @@ const EnhancedCropModal = ({
       onCropComplete(cropped.path);
     } catch (err) {
       console.error("Crop error:", err);
-      
+
       if (err.message.includes("cancel")) {
         onCancel();
         return;
       }
-      
+
       // If advanced cropping fails, try basic cropping
       try {
         console.log("Falling back to basic cropping...");
@@ -74,11 +74,11 @@ const EnhancedCropModal = ({
           format: "jpeg",
           compressImageQuality: 0.9,
         });
-        
+
         if (!basicCropped || !basicCropped.path) {
           throw new Error("Basic cropping also failed");
         }
-        
+
         onCropComplete(basicCropped.path);
       } catch (basicErr) {
         console.error("Basic crop also failed:", basicErr);
@@ -117,7 +117,7 @@ const EnhancedCropModal = ({
               <Icon name="close" size={24} color="#000" />
             </TouchableOpacity>
           </View>
-          
+
           <View style={styles.content}>
             <View style={styles.featureList}>
               <View style={styles.featureItem}>
@@ -137,7 +137,7 @@ const EnhancedCropModal = ({
                 <Text style={styles.featureText}>Resize crop area</Text>
               </View>
             </View>
-            
+
             <View style={styles.buttonContainer}>
               <TouchableOpacity
                 style={[styles.button, styles.cancelButton]}
@@ -146,7 +146,7 @@ const EnhancedCropModal = ({
               >
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity
                 style={[styles.button, styles.cropButton]}
                 onPress={handleCrop}
@@ -156,7 +156,12 @@ const EnhancedCropModal = ({
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
                   <>
-                    <Icon name="crop" size={18} color="#fff" style={styles.buttonIcon} />
+                    <Icon
+                      name="crop"
+                      size={18}
+                      color="#fff"
+                      style={styles.buttonIcon}
+                    />
                     <Text style={styles.cropButtonText}>Start Cropping</Text>
                   </>
                 )}
@@ -170,88 +175,87 @@ const EnhancedCropModal = ({
 };
 
 const styles = StyleSheet.create({
-    modalContainer: {
-      flex: 1,
-      backgroundColor: "rgba(0, 0, 0, 0.75)",
-      justifyContent: "center",
-      alignItems: "center",
-    },
-    previewContainer: {
-      backgroundColor: "#fff",
-      borderRadius: 20,
-      width: "92%",
-      maxWidth: 400,
-      maxHeight: "85%",
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 10 },
-      shadowOpacity: 0.2,
-      shadowRadius: 20,
-      elevation: 10,
-    },
-    header: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      padding: 20,
-      borderBottomWidth: 1,
-      borderBottomColor: "#e5e7eb",
-    },
-    previewTitle: {
-      fontSize: 18,
-      fontWeight: "700",
-      color: "#111827",
-    },
-    closeButton: {
-      padding: 4,
-    },
-    content: {
-      padding: 20,
-    },
-    featureList: {
-      marginBottom: 24,
-    },
-    featureItem: {
-      flexDirection: "row",
-      alignItems: "center",
-      marginBottom: 12,
-    },
-    featureText: {
-      marginLeft: 12,
-      fontSize: 15,
-      color: "#4b5563",
-    },
-    buttonContainer: {
-      flexDirection: "row",
-      gap: 12,
-    },
-    button: {
-      flex: 1,
-      paddingVertical: 12,
-      borderRadius: 10,
-      alignItems: "center",
-      flexDirection: "row",
-      justifyContent: "center",
-    },
-    cancelButton: {
-      backgroundColor: "#f3f4f6",
-    },
-    cropButton: {
-      backgroundColor: "#111827",
-    },
-    cancelButtonText: {
-      color: "#374151",
-      fontSize: 15,
-      fontWeight: "600",
-    },
-    cropButtonText: {
-      color: "#fff",
-      fontSize: 15,
-      fontWeight: "600",
-    },
-    buttonIcon: {
-      marginRight: 6,
-    },
-  });
-  
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.75)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  previewContainer: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    width: "92%",
+    maxWidth: 400,
+    maxHeight: "85%",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+  },
+  previewTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#111827",
+  },
+  closeButton: {
+    padding: 4,
+  },
+  content: {
+    padding: 20,
+  },
+  featureList: {
+    marginBottom: 24,
+  },
+  featureItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  featureText: {
+    marginLeft: 12,
+    fontSize: 15,
+    color: "#4b5563",
+  },
+  buttonContainer: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  button: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
+  },
+  cancelButton: {
+    backgroundColor: "#f3f4f6",
+  },
+  cropButton: {
+    backgroundColor: "#111827",
+  },
+  cancelButtonText: {
+    color: "#374151",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  cropButtonText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  buttonIcon: {
+    marginRight: 6,
+  },
+});
 
-export default EnhancedCropModal; 
+export default EnhancedCropModal;

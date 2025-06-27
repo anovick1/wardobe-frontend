@@ -1,4 +1,9 @@
-import React, { useState, useEffect, forwardRef, useImperativeHandle } from "react";
+import React, {
+  useState,
+  useEffect,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -55,22 +60,24 @@ const Outfits = forwardRef(({ filters = [], searchQuery = "" }, ref) => {
     // Apply search filter first
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
-      
+
       filtered = filtered.filter((outfit) => {
         // Search in outfit properties only
         const searchableText = [
-          outfit.name || '',
-          outfit.description || '',
-          outfit.generated_prompt || '',
-          outfit.prompt || '',
-          outfit.title || '',
-          outfit.notes || '',
+          outfit.name || "",
+          outfit.description || "",
+          outfit.generated_prompt || "",
+          outfit.prompt || "",
+          outfit.title || "",
+          outfit.notes || "",
           // Include outfit tags if they exist
-          (outfit.tags || []).join(' '),
+          (outfit.tags || []).join(" "),
           // Search through all string properties of the outfit
-          ...Object.values(outfit).filter(value => typeof value === 'string')
-        ].join(' ').toLowerCase();
-        
+          ...Object.values(outfit).filter((value) => typeof value === "string"),
+        ]
+          .join(" ")
+          .toLowerCase();
+
         return searchableText.includes(query);
       });
     }
@@ -98,16 +105,17 @@ const Outfits = forwardRef(({ filters = [], searchQuery = "" }, ref) => {
       // Outfit Type filter
       if (filters.outfit_type && filters.outfit_type.length > 0) {
         const isDailyOutfit = outfit.is_daily_outfit === true;
-        const isAIGenerated = outfit.generated_by === "chatgpt" && !isDailyOutfit;
+        const isAIGenerated =
+          outfit.generated_by === "chatgpt" && !isDailyOutfit;
         const isManual = outfit.generated_by === "manual";
 
         const matchesOutfitType = filters.outfit_type.some((creator) => {
           switch (creator) {
             case "Daily Outfit":
               return isDailyOutfit;
-            case "AI Generated":
+            case "AI Styled":
               return isAIGenerated;
-            case "Manual":
+            case "Created by Me":
               return isManual;
             default:
               return false;
@@ -122,8 +130,8 @@ const Outfits = forwardRef(({ filters = [], searchQuery = "" }, ref) => {
         if (!outfit.tags || !Array.isArray(outfit.tags)) {
           return false;
         }
-        
-        const hasTags = outfit.tags.some(tag => filters.tags.includes(tag));
+
+        const hasTags = outfit.tags.some((tag) => filters.tags.includes(tag));
         if (!hasTags) return false;
       }
 
@@ -134,27 +142,29 @@ const Outfits = forwardRef(({ filters = [], searchQuery = "" }, ref) => {
   // Apply search first, then filters (like WardrobeItems)
   const searchedOutfits = rawOutfits.filter((outfit) => {
     if (!searchQuery.trim()) return true;
-    
+
     const query = searchQuery.toLowerCase().trim();
     const searchableText = [
-      outfit.name || '',
-      outfit.description || '',
-      outfit.generated_prompt || '',
-      outfit.prompt || '',
-      outfit.title || '',
-      outfit.notes || '',
-      (outfit.tags || []).join(' '),
-      ...Object.values(outfit).filter(value => typeof value === 'string')
-    ].join(' ').toLowerCase();
-    
+      outfit.name || "",
+      outfit.description || "",
+      outfit.generated_prompt || "",
+      outfit.prompt || "",
+      outfit.title || "",
+      outfit.notes || "",
+      (outfit.tags || []).join(" "),
+      ...Object.values(outfit).filter((value) => typeof value === "string"),
+    ]
+      .join(" ")
+      .toLowerCase();
+
     return searchableText.includes(query);
   });
-  
+
   const outfits = filterOutfits(searchedOutfits);
 
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
-    openAIGenerator: () => setModalVisible(true)
+    openAIGenerator: () => setModalVisible(true),
   }));
 
   // Fetch upcoming events when modal opens or event range changes
@@ -285,7 +295,12 @@ const Outfits = forwardRef(({ filters = [], searchQuery = "" }, ref) => {
     <SafeAreaView style={globalStyles.container} edges={["left", "right"]}>
       {/* Header moved to parent component */}
 
-      {loadingOutfits && outfits.length === 0 ? (
+      {loadingOutfits && outfits.length <= 1 ? (
+        <View style={styles.emptyContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
+          <Text style={styles.loadingText}>Loading outfits...</Text>
+        </View>
+      ) : outfits.length === 0 ? (
         <Text style={[styles.emptyText]}>No outfits yet.</Text>
       ) : (
         <FlatList

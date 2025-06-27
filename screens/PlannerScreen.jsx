@@ -62,7 +62,7 @@ export default function PlannerScreen() {
       } else {
         setPermissionGranted(false);
         setStatus(
-          "📅 Calendar access needed to view events. Tap to grant permission."
+          "📅 Calendar access needed to view events. Tap to grant permission.",
         );
       }
     } catch (err) {
@@ -92,7 +92,7 @@ export default function PlannerScreen() {
   const getWritableCalendarId = async () => {
     if (!permissionGranted) throw new Error("Calendar permission not granted");
     const calendars = await Calendar.getCalendarsAsync(
-      Calendar.EntityTypes.EVENT
+      Calendar.EntityTypes.EVENT,
     );
     const writable = calendars.find((c) => c.allowsModifications);
     if (!writable) throw new Error("No writable calendar found");
@@ -107,7 +107,7 @@ export default function PlannerScreen() {
     if (!permissionGranted) {
       Alert.alert(
         "Calendar permission needed",
-        "Please grant calendar access first."
+        "Please grant calendar access first.",
       );
       return;
     }
@@ -139,12 +139,11 @@ export default function PlannerScreen() {
     if (!permissionGranted) return;
     try {
       const calendars = await Calendar.getCalendarsAsync(
-        Calendar.EntityTypes.EVENT
+        Calendar.EntityTypes.EVENT,
       );
 
       // Check if we have any calendars (Android issue)
       if (calendars.length === 0) {
-        console.log("❌ PlannerScreen - No calendars found");
         setEvents([]);
         return;
       }
@@ -155,7 +154,7 @@ export default function PlannerScreen() {
       const allEvents = await Calendar.getEventsAsync(
         calendars.map((c) => c.id),
         startOfDay,
-        endOfDay
+        endOfDay,
       );
       // Show all events that overlap the day
       const filteredEvents = allEvents.filter((event) => {
@@ -221,7 +220,7 @@ export default function PlannerScreen() {
       (outfit) =>
         outfit.is_worn &&
         outfit.last_worn_at &&
-        outfit.last_worn_at.split("T")[0] === dateStr
+        outfit.last_worn_at.split("T")[0] === dateStr,
     );
     const plannedOutfitsForDate = plannedOutfits[dateStr] || [];
     return { worn: wornOutfits, planned: plannedOutfitsForDate };
@@ -473,7 +472,7 @@ export default function PlannerScreen() {
                 // navigation.navigate('CreateEvent');
                 Alert.alert(
                   "Coming Soon",
-                  "Event creation will be available soon!"
+                  "Event creation will be available soon!",
                 );
               }}
             >
@@ -487,7 +486,7 @@ export default function PlannerScreen() {
                 // navigation.navigate('CreateTrip');
                 Alert.alert(
                   "Coming Soon",
-                  "Trip planning will be available soon!"
+                  "Trip planning will be available soon!",
                 );
               }}
             >

@@ -9,10 +9,10 @@ import {
 import Icon from "react-native-vector-icons/MaterialIcons";
 import FilterModal from "../wardrobe/FilterModal";
 
-const OutfitFilterButtons = ({ 
-  onFilterChange, 
-  activeFilters = {}, 
-  outfits = []
+const OutfitFilterButtons = ({
+  onFilterChange,
+  activeFilters = {},
+  outfits = [],
 }) => {
   const [filters, setFilters] = useState(activeFilters);
   const [modalVisible, setModalVisible] = useState(false);
@@ -34,58 +34,58 @@ const OutfitFilterButtons = ({
 
   // Extract unique values for simplified filters (outfit properties only)
   const getFilterOptions = (filterType) => {
-    const type = filterType.toLowerCase().replace(' ', '_');
-    
-    if (type === 'outfit_type') {
-      return ['Manual', 'AI Generated', 'Daily Outfit'];
+    const type = filterType.toLowerCase().replace(" ", "_");
+
+    if (type === "outfit_type") {
+      return ["Created by Me", "AI Styled", "Daily Outfit"];
     }
-    
-    if (type === 'tags') {
+
+    if (type === "tags") {
       const uniqueTags = new Set();
-      
-      outfits.forEach(outfit => {
+
+      outfits.forEach((outfit) => {
         if (outfit.tags && Array.isArray(outfit.tags)) {
-          outfit.tags.forEach(tag => uniqueTags.add(tag));
+          outfit.tags.forEach((tag) => uniqueTags.add(tag));
         }
       });
-      
+
       return Array.from(uniqueTags).sort();
     }
-    
+
     return [];
   };
 
   const handleQuickFilterPress = (filterKey) => {
     const newFilters = { ...filters };
     const currentQuickFilters = newFilters.quick || [];
-    
+
     if (currentQuickFilters.includes(filterKey)) {
-      newFilters.quick = currentQuickFilters.filter(f => f !== filterKey);
+      newFilters.quick = currentQuickFilters.filter((f) => f !== filterKey);
       if (newFilters.quick.length === 0) {
         delete newFilters.quick;
       }
     } else {
       newFilters.quick = [...currentQuickFilters, filterKey];
     }
-    
+
     setFilters(newFilters);
     onFilterChange(newFilters);
   };
 
   const handleModalFilterPress = (filterType) => {
-    setSelectedFilterType(filterType.toLowerCase().replace(' ', '_'));
+    setSelectedFilterType(filterType.toLowerCase().replace(" ", "_"));
     setModalVisible(true);
   };
 
   const handleApplyFilter = (selectedValues) => {
     const newFilters = { ...filters };
-    
+
     if (selectedValues.length === 0) {
       delete newFilters[selectedFilterType];
     } else {
       newFilters[selectedFilterType] = selectedValues;
     }
-    
+
     setFilters(newFilters);
     onFilterChange(newFilters);
   };
@@ -95,12 +95,14 @@ const OutfitFilterButtons = ({
   };
 
   const isModalFilterActive = (filterType) => {
-    const type = filterType.toLowerCase().replace(' ', '_');
-    return filters[type] && Array.isArray(filters[type]) && filters[type].length > 0;
+    const type = filterType.toLowerCase().replace(" ", "_");
+    return (
+      filters[type] && Array.isArray(filters[type]) && filters[type].length > 0
+    );
   };
 
   const getModalFilterCount = (filterType) => {
-    const type = filterType.toLowerCase().replace(' ', '_');
+    const type = filterType.toLowerCase().replace(" ", "_");
     return filters[type] ? filters[type].length : 0;
   };
 
@@ -153,17 +155,20 @@ const OutfitFilterButtons = ({
               key={filterType}
               style={[
                 styles.modalFilterButton,
-                isModalFilterActive(filterType) && styles.activeModalFilterButton,
+                isModalFilterActive(filterType) &&
+                  styles.activeModalFilterButton,
               ]}
               onPress={() => handleModalFilterPress(filterType)}
             >
               <Text
                 style={[
                   styles.modalFilterText,
-                  isModalFilterActive(filterType) && styles.activeModalFilterText,
+                  isModalFilterActive(filterType) &&
+                    styles.activeModalFilterText,
                 ]}
               >
-                {filterType}{count > 0 ? ` (${count})` : ''}
+                {filterType}
+                {count > 0 ? ` (${count})` : ""}
               </Text>
               <Icon
                 name="expand-more"
@@ -180,7 +185,9 @@ const OutfitFilterButtons = ({
         onClose={() => setModalVisible(false)}
         filterType={selectedFilterType}
         options={selectedFilterType ? getFilterOptions(selectedFilterType) : []}
-        selectedValues={selectedFilterType ? (filters[selectedFilterType] || []) : []}
+        selectedValues={
+          selectedFilterType ? filters[selectedFilterType] || [] : []
+        }
         onApply={handleApplyFilter}
       />
     </>

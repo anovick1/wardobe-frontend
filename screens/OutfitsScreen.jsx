@@ -28,14 +28,14 @@ const OutfitItemWithCache = ({ item, onPress, onDelete }) => {
   const isUserGenerated = item.generated_by === "manual";
 
   const getOutfitTypeInfo = () => {
-    if (isDailyOutfit) {
+    if (item.is_daily_outfit) {
       return {
-        icon: "calendar",
+        icon: "today",
         text: "Daily",
         color: "#FF6B6B",
         backgroundColor: "#FFE8E8",
       };
-    } else if (isAIGenerated) {
+    } else if (item.generated_by === "chatgpt") {
       return {
         icon: "sparkles",
         text: "AI",
@@ -45,7 +45,7 @@ const OutfitItemWithCache = ({ item, onPress, onDelete }) => {
     } else {
       return {
         icon: "person",
-        text: "Manual",
+        text: "You",
         color: "#45B7D1",
         backgroundColor: "#E8F4FD",
       };
@@ -180,7 +180,7 @@ const OutfitsScreen = () => {
             onPress={() => navigation.navigate("GenerateOutfit")}
           >
             <Ionicons name="sparkles" size={24} color="#007AFF" />
-            <Text style={styles.generateButtonText}>AI Generate</Text>
+            <Text style={styles.generateButtonText}>AI Style</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.addButton}

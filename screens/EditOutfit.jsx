@@ -27,6 +27,7 @@ import {
   validateOutfitCategories,
   getOutfitValidationMessage,
 } from "../utils/outfitValidation";
+import { useUnsavedChangesWarning } from "../hooks/useUnsavedChangesWarning";
 
 const SelectedItemCard = ({ item, onRemove }) => {
   const { uri, loading, error } = useCachedImage(item.image_url, item.id);
@@ -80,6 +81,16 @@ const EditOutfit = () => {
   const [saving, setSaving] = useState(false);
   const [notesHeight, setNotesHeight] = useState(100);
 
+  // Check if there are unsaved changes by comparing with initial values
+  const hasUnsavedChanges =
+    outfit &&
+    (title !== (outfit.title || "") ||
+      notes !== (outfit.notes || "") ||
+      JSON.stringify(tags) !== JSON.stringify(outfit.tags || []) ||
+      JSON.stringify(selectedItems) !==
+        JSON.stringify(outfit.wardrobe_items?.map((item) => item.id) || []));
+  const { showExitWarning } = useUnsavedChangesWarning(hasUnsavedChanges);
+
   const loadOutfitData = async () => {
     setLoading(true);
 
@@ -90,7 +101,7 @@ const EditOutfit = () => {
       if (!outfitData && outfitId) {
         outfitData = await getOutfitById(outfitId);
         if (!outfitData) {
-          Alert.alert("Error", "Outfit not found");
+          Alert.alert("Oops!", "We couldn't find that outfit. Let's go back.");
           navigation.goBack();
           return;
         }
@@ -106,7 +117,7 @@ const EditOutfit = () => {
         // Set selected items from outfit
         if (outfitData?.wardrobe_items) {
           const selectedItemIds = outfitData.wardrobe_items.map(
-            (item) => item.id
+            (item) => item.id,
           );
           setSelectedItems(selectedItemIds);
           setSelectedItemsData(outfitData.wardrobe_items);
@@ -114,7 +125,7 @@ const EditOutfit = () => {
       }
     } catch (error) {
       console.error("Error loading outfit data:", error);
-      Alert.alert("Error", "Failed to load outfit data");
+      Alert.alert("Oops!", "We couldn't load this outfit. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -126,16 +137,22 @@ const EditOutfit = () => {
       if (selectedItems.length > 0 && selectedItemsData.length === 0) {
         try {
           const allItems = await getAllWardrobeItemsForSelection();
-          const selectedData = allItems.filter(item => selectedItems.includes(item.id));
+          const selectedData = allItems.filter((item) =>
+            selectedItems.includes(item.id),
+          );
           setSelectedItemsData(selectedData);
         } catch (error) {
           console.error("Error loading selected items data:", error);
         }
       }
     };
-    
+
     loadSelectedItemsData();
-  }, [selectedItems, selectedItemsData.length, getAllWardrobeItemsForSelection]);
+  }, [
+    selectedItems,
+    selectedItemsData.length,
+    getAllWardrobeItemsForSelection,
+  ]);
 
   useEffect(() => {
     if (user && (initialOutfit || outfitId)) {
@@ -148,8 +165,8 @@ const EditOutfit = () => {
   };
 
   const removeSelectedItem = (itemId) => {
-    setSelectedItems(prev => prev.filter(id => id !== itemId));
-    setSelectedItemsData(prev => prev.filter(item => item.id !== itemId));
+    setSelectedItems((prev) => prev.filter((id) => id !== itemId));
+    setSelectedItemsData((prev) => prev.filter((item) => item.id !== itemId));
   };
 
   const invalidateOutfitImageCache = async (outfitId) => {
@@ -182,7 +199,7 @@ const EditOutfit = () => {
         const files = await FileSystem.readDirectoryAsync(cacheDir);
         const outfitFiles = files.filter(
           (file) =>
-            file.includes(outfitId) || file.includes(`wardrobe-${outfitId}`)
+            file.includes(outfitId) || file.includes(`wardrobe-${outfitId}`),
         );
 
         for (const file of outfitFiles) {
@@ -196,12 +213,15 @@ const EditOutfit = () => {
 
   const handleSaveOutfit = async () => {
     if (!title.trim()) {
-      Alert.alert("Error", "Please enter a title for your outfit");
+      Alert.alert("Almost there!", "Give your outfit a name to save it 😊");
       return;
     }
 
     if (selectedItems.length === 0) {
-      Alert.alert("Error", "Please select at least one item for your outfit");
+      Alert.alert(
+        "Let's build an outfit!",
+        "Pick some items from your wardrobe to continue 👗",
+      );
       return;
     }
 
@@ -209,7 +229,7 @@ const EditOutfit = () => {
     const validation = validateOutfitCategories(selectedItemsData);
 
     if (!validation.isValid) {
-      Alert.alert("Invalid Outfit", getOutfitValidationMessage(validation));
+      Alert.alert("Outfit Guidelines", getOutfitValidationMessage(validation));
       return;
     }
 
@@ -245,10 +265,10 @@ const EditOutfit = () => {
         updateOutfit(updatedOutfit);
       }
 
-      Alert.alert("Success", "Outfit updated successfully");
+      Alert.alert("Nice work!", "Your outfit changes have been saved ✨");
       navigation.navigate("WardrobeHome", { initialTab: "Outfits" });
     } catch (error) {
-      Alert.alert("Error", "Failed to update outfit");
+      Alert.alert("Oops!", "Something went wrong. Please try again.");
       console.error(error);
     } finally {
       setSaving(false);
@@ -272,10 +292,10 @@ const EditOutfit = () => {
       <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
+            style={styles.cancelButton}
+            onPress={() => showExitWarning(() => navigation.goBack())}
           >
-            <Ionicons name="arrow-back" size={24} color="#000" />
+            <Text style={styles.cancelButtonText}>Cancel</Text>
           </TouchableOpacity>
           <Text style={styles.title}>Edit Outfit</Text>
           <TouchableOpacity
@@ -329,8 +349,8 @@ const EditOutfit = () => {
                 setNotesHeight(
                   Math.max(
                     100,
-                    Math.min(200, event.nativeEvent.contentSize.height + 16)
-                  )
+                    Math.min(200, event.nativeEvent.contentSize.height + 16),
+                  ),
                 )
               }
             />
@@ -340,11 +360,15 @@ const EditOutfit = () => {
             <Text style={styles.label}>
               Selected Items ({selectedItems.length})
             </Text>
-            
+
             {selectedItemsData.length > 0 ? (
               <View style={styles.selectedItemsContainer}>
                 {selectedItemsData.map((item) => (
-                  <SelectedItemCard key={item.id} item={item} onRemove={removeSelectedItem} />
+                  <SelectedItemCard
+                    key={item.id}
+                    item={item}
+                    onRemove={removeSelectedItem}
+                  />
                 ))}
               </View>
             ) : (
@@ -356,7 +380,9 @@ const EditOutfit = () => {
               onPress={() => setItemPickerVisible(true)}
             >
               <Icon name="add-circle-outline" size={24} color="#121416" />
-              <Text style={styles.addItemsButtonText}>Add Items from Wardrobe</Text>
+              <Text style={styles.addItemsButtonText}>
+                Add Items from Wardrobe
+              </Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -437,17 +463,13 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     zIndex: 1,
   },
-  backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#f8fafc",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.04,
-    shadowRadius: 2,
-    shadowOffset: { width: 0, height: 1 },
+  cancelButton: {
+    padding: 8,
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    color: "#007AFF",
+    fontWeight: "400",
   },
   title: {
     fontSize: 24,

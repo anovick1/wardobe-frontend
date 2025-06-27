@@ -8,21 +8,33 @@ import {
   TouchableOpacity,
   Platform,
   Keyboard,
+  TextInput,
+  Image,
+  ScrollView,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { auth } from "../firebase";
 import api from "../api";
 import { useNavigation } from "@react-navigation/native";
 import { Shadow } from "react-native-shadow-2";
-import InstructionBanner from "../components/webview/InstructionBanner";
-import UrlHeader from "../components/webview/UrlHeader";
 import WebViewSection from "../components/webview/WebViewSection";
 import EnhancedCropModal from "../components/common/EnhancedCropModal";
 import PendingUploadsBar from "../components/webview/PendingUploadsBar";
+import { useUnsavedChangesWarning } from "../hooks/useUnsavedChangesWarning";
 import * as FileSystem from "expo-file-system";
+import Icon from "react-native-vector-icons/MaterialIcons";
+import UploadDrawer from "../components/webview/UploadDrawer";
+
+const NAV_BAR_HEIGHT = 56;
+const PENDING_BAR_COLLAPSED_HEIGHT = 64;
+const PENDING_BAR_EXPANDED_HEIGHT = 300; // match PendingUploadsBar expanded height
 
 const WebViewScreen = ({}) => {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
   const [urlInput, setUrlInput] = useState("https://www.google.com");
   const [productUrl, setProductUrl] = useState(null);
@@ -39,12 +51,23 @@ const WebViewScreen = ({}) => {
   // State for processed uploads
   const [processedUploads, setProcessedUploads] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [pendingBarExpanded, setPendingBarExpanded] = useState(false);
+
+  // WebView should always show warning when leaving (regardless of captures)
+  const { showExitWarning } = useUnsavedChangesWarning(true);
 
   // Navigation state
   const [navigationState, setNavigationState] = useState({
     canGoBack: false,
     canGoForward: false,
   });
+
+  // Calculate bottom padding for WebViewSection
+  const webViewBottomPad = pendingBarExpanded
+    ? PENDING_BAR_EXPANDED_HEIGHT + insets.bottom
+    : NAV_BAR_HEIGHT + PENDING_BAR_COLLAPSED_HEIGHT + insets.bottom;
+
+  const [showUploadDrawer, setShowUploadDrawer] = useState(false);
 
   useEffect(() => {
     isMounted.current = true;
@@ -58,7 +81,16 @@ const WebViewScreen = ({}) => {
     if (parent) {
       parent.setOptions({ tabBarStyle: { display: "none" } });
     }
+
+    // Listen for navigation events to restore tab bar
+    const unsubscribeFocus = navigation.addListener("beforeRemove", () => {
+      if (parent) {
+        parent.setOptions({ tabBarStyle: undefined });
+      }
+    });
+
     return () => {
+      unsubscribeFocus();
       if (parent) {
         parent.setOptions({ tabBarStyle: undefined });
       }
@@ -73,7 +105,7 @@ const WebViewScreen = ({}) => {
       const response = await api.post(
         "/wardrobe_items/extract_product_metadata",
         { url },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       const { item_id, status } = response.data;
       if (item_id && status === "processing") {
@@ -85,7 +117,7 @@ const WebViewScreen = ({}) => {
     } catch (err) {
       Alert.alert(
         "Error",
-        err?.response?.data?.error || err.message || "Failed to add product."
+        err?.response?.data?.error || err.message || "Failed to add product.",
       );
     } finally {
       setLoading(false);
@@ -96,7 +128,7 @@ const WebViewScreen = ({}) => {
     if (!viewReady) {
       Alert.alert(
         "Error",
-        "View is not ready yet. Please try again in a moment."
+        "View is not ready yet. Please try again in a moment.",
       );
       return;
     }
@@ -114,7 +146,7 @@ const WebViewScreen = ({}) => {
     } catch (err) {
       Alert.alert(
         "Error",
-        "Failed to capture screenshot. Please try again. Error: " + err.message
+        "Failed to capture screenshot. Please try again. Error: " + err.message,
       );
     } finally {
       setProcessingImage(false);
@@ -134,6 +166,7 @@ const WebViewScreen = ({}) => {
       status: "processing",
     };
     setProcessedUploads((prev) => [...prev, newProcessedUpload]);
+    setShowUploadDrawer(true); // Auto-open drawer after upload
 
     await processProductImage(croppedUri, itemId);
   };
@@ -164,27 +197,16 @@ const WebViewScreen = ({}) => {
             Authorization: `Bearer ${token}`,
             "Content-Type": "multipart/form-data",
           },
-        }
+        },
       );
-
-      console.log("✅ Image processing response:", imageResponse.data);
 
       // Check for different possible field names for the cleaned image URL
       const cleanedImageUrl =
         imageResponse.data.urls?.cleaned ||
-        imageResponse.data.cleaned_image_url ||
+        imageResponse.data.cleaned ||
         imageResponse.data.image_url ||
         imageResponse.data.url ||
         imageResponse.data.cleaned_url;
-
-      console.log("🔍 Looking for cleaned image URL in response fields:", {
-        urls: imageResponse.data.urls,
-        cleaned_image_url: imageResponse.data.cleaned_image_url,
-        image_url: imageResponse.data.image_url,
-        url: imageResponse.data.url,
-        cleaned_url: imageResponse.data.cleaned_url,
-        allKeys: Object.keys(imageResponse.data),
-      });
 
       // Only cache if we have a valid cleaned image URL
       if (cleanedImageUrl) {
@@ -192,7 +214,6 @@ const WebViewScreen = ({}) => {
         const cachePath = `${FileSystem.cacheDirectory}wardrobe-${item_id}.jpg`;
         try {
           await FileSystem.downloadAsync(cleanedImageUrl, cachePath);
-          console.log("✅ Cached cleaned image:", cachePath);
         } catch (e) {
           console.error("Failed to cache cleaned image:", e);
         }
@@ -202,19 +223,18 @@ const WebViewScreen = ({}) => {
           prev.map((upload) =>
             upload.itemId === item_id
               ? { ...upload, cleanedImageUrl, cachedImagePath: cachePath }
-              : upload
-          )
+              : upload,
+          ),
         );
       } else {
-        console.warn(
-          "⚠️ No cleaned_image_url in response:",
-          imageResponse.data
-        );
+        console.warn("⚠️ No cleaned in response:", imageResponse.data);
         // Update the existing upload without cleaned image URL
         setProcessedUploads((prev) =>
           prev.map((upload) =>
-            upload.itemId === item_id ? { ...upload, status: "failed" } : upload
-          )
+            upload.itemId === item_id
+              ? { ...upload, status: "failed" }
+              : upload,
+          ),
         );
       }
 
@@ -224,7 +244,7 @@ const WebViewScreen = ({}) => {
           `/wardrobe_items/${item_id}/status`,
           {
             headers: { Authorization: `Bearer ${token}` },
-          }
+          },
         );
         return itemResponse.data;
       };
@@ -238,8 +258,8 @@ const WebViewScreen = ({}) => {
             prev.map((upload) =>
               upload.itemId === item_id
                 ? { ...upload, status: "completed", item: status }
-                : upload
-            )
+                : upload,
+            ),
           );
           // Don't navigate - stay on web page
         } else if (status.status === "failed") {
@@ -248,8 +268,8 @@ const WebViewScreen = ({}) => {
             prev.map((upload) =>
               upload.itemId === item_id
                 ? { ...upload, status: "failed", item: status }
-                : upload
-            )
+                : upload,
+            ),
           );
           // Don't navigate - stay on web page
         } else {
@@ -266,8 +286,8 @@ const WebViewScreen = ({}) => {
       // Update the existing upload to failed status
       setProcessedUploads((prev) =>
         prev.map((upload) =>
-          upload.itemId === item_id ? { ...upload, status: "failed" } : upload
-        )
+          upload.itemId === item_id ? { ...upload, status: "failed" } : upload,
+        ),
       );
 
       Alert.alert("Error", "Failed to process image. Please try again.");
@@ -276,22 +296,68 @@ const WebViewScreen = ({}) => {
     }
   };
 
+  // Delete all processed uploads from backend and clear state
+  const deleteAllProcessedUploads = async () => {
+    try {
+      await Promise.all(
+        processedUploads.map(async (upload) => {
+          if (upload.itemId) {
+            try {
+              await api.delete(`/wardrobe_items/${upload.itemId}`);
+            } catch (err) {
+              // Ignore individual errors, log for debugging
+              console.error("Failed to delete item", upload.itemId, err);
+            }
+          }
+        }),
+      );
+    } catch (err) {
+      // Ignore
+    }
+    setProcessedUploads([]);
+  };
+
+  // Remove a single processed upload and delete from backend, with confirmation
   const removeProcessedUpload = (uploadId) => {
-    setProcessedUploads((prev) =>
-      prev.filter((upload) => upload.id !== uploadId)
+    Alert.alert(
+      "Remove Item",
+      "Are you sure you want to remove this processed image?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove",
+          style: "destructive",
+          onPress: async () => {
+            const upload = processedUploads.find((u) => u.id === uploadId);
+            if (upload && upload.itemId) {
+              try {
+                await api.delete(`/wardrobe_items/${upload.itemId}`);
+              } catch (err) {
+                console.error("Failed to delete item", upload.itemId, err);
+              }
+            }
+            setProcessedUploads((prev) =>
+              prev.filter((upload) => upload.id !== uploadId),
+            );
+          },
+        },
+      ],
     );
   };
 
   const handleUploadAll = () => {
-    // Filter only completed uploads that have items
+    // Filter only completed uploads that have items AND valid itemIds
     const completedUploads = processedUploads.filter(
-      (upload) => upload.status === "completed" && upload.item
+      (upload) =>
+        upload.status === "completed" &&
+        upload.item &&
+        (upload.item.id || upload.item.item_id),
     );
 
     if (completedUploads.length === 0) {
       Alert.alert(
         "No Items Ready",
-        "No items have finished processing yet. Please wait for the processing to complete."
+        "No items have finished processing yet. Please wait for the processing to complete.",
       );
       return;
     }
@@ -302,79 +368,184 @@ const WebViewScreen = ({}) => {
         uri: upload.cachedImagePath || upload.croppedUri,
       })),
       clientUploadIds: completedUploads.map((upload) => upload.id),
-      processedItems: completedUploads.map((upload) => upload.item),
+      processedItems: completedUploads.map((upload) => ({
+        ...upload.item,
+        id: upload.item.id || upload.item.item_id, // Normalize id field for addItemToWardrobe
+        image_url: upload.item.presigned_urls?.cleaned || upload.item.image_url, // Normalize image_url field for wardrobe display
+      })),
       skipUpload: true, // Add flag to indicate items are already processed
     });
   };
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
-      <InstructionBanner text="For best results, find a product photo with a clean background and no people or models in the image." />
-      <UrlHeader
-        urlInput={urlInput}
-        setUrlInput={setUrlInput}
-        handleUrlSubmit={() => {
-          let url = urlInput.trim();
-          if (!url.startsWith("http://") && !url.startsWith("https://")) {
-            url = "https://" + url;
-          }
-          setUrlInput(url);
-          setProductUrl(url);
-          Keyboard.dismiss();
-          webViewRef.current?.reload();
-        }}
-        isUrlFocused={isUrlFocused}
-        setIsUrlFocused={setIsUrlFocused}
-        webViewRef={webViewRef}
-        onBack={() => navigation.goBack()}
-        canGoBack={navigationState.canGoBack}
-        canGoForward={navigationState.canGoForward}
-      />
-      <WebViewSection
-        viewShotRef={viewShotRef}
-        webViewRef={webViewRef}
-        urlInput={urlInput}
-        setProductUrl={setProductUrl}
-        isMounted={isMounted}
-        setViewReady={setViewReady}
-        onNavigationStateChange={setNavigationState}
-      />
+      <View style={styles.headerContainer}>
+        <Text style={styles.instructionText}>
+          For best results, find a product photo with a clean background and no
+          people or models in the image.
+        </Text>
+        <View style={styles.urlBarContainer}>
+          <TouchableOpacity
+            onPress={() =>
+              showExitWarning(async () => {
+                await deleteAllProcessedUploads();
+                navigation.goBack();
+              })
+            }
+            style={styles.cancelButton}
+          >
+            <Text style={styles.cancelText}>Cancel</Text>
+          </TouchableOpacity>
+          <View style={styles.urlInputWrapper}>
+            <TextInput
+              style={styles.urlInput}
+              placeholder="Enter URL"
+              value={urlInput}
+              onChangeText={setUrlInput}
+              onSubmitEditing={() => {
+                let url = urlInput.trim();
+                if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                  url = "https://" + url;
+                }
+                setUrlInput(url);
+                setProductUrl(url);
+                Keyboard.dismiss();
+                webViewRef.current?.reload();
+              }}
+              onFocus={() => setIsUrlFocused(true)}
+              onBlur={() => setIsUrlFocused(false)}
+              autoCapitalize="none"
+              keyboardType="url"
+              returnKeyType="go"
+            />
+          </View>
+          <TouchableOpacity
+            onPress={() => webViewRef.current?.reload()}
+            style={styles.refreshButton}
+          >
+            <Text style={styles.refreshIcon}>↻</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={{ flex: 1, paddingBottom: 64 + insets.bottom }}>
+        <WebViewSection
+          viewShotRef={viewShotRef}
+          webViewRef={webViewRef}
+          urlInput={urlInput}
+          setProductUrl={setProductUrl}
+          isMounted={isMounted}
+          setViewReady={setViewReady}
+          onNavigationStateChange={(navState) => {
+            setNavigationState(navState);
+            // Only update urlInput if user is not actively typing in the URL bar
+            // and if the URL change is significant (not just a search query change)
+            if (!isUrlFocused && urlInput !== navState.url && navState.url) {
+              // Don't update for search result URLs or query parameters
+              const currentDomain = urlInput.split("?")[0].split("#")[0];
+              const newDomain = navState.url.split("?")[0].split("#")[0];
+
+              // Only update if the base domain changed, not just query parameters
+              if (currentDomain !== newDomain) {
+                setUrlInput(navState.url);
+              }
+            }
+          }}
+        />
+      </View>
+
       {/* Loading overlay */}
       {loading && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color="#000" />
         </View>
       )}
-      {/* Floating button - redesigned for better integration */}
+
+      {/* Unified Bottom Bar */}
       {!loading && (
         <View
           style={[
-            styles.footer,
-            processedUploads.length > 0 && styles.footerWithPending,
+            styles.bottomBar,
+            {
+              paddingBottom: insets.bottom,
+              height: 64 + insets.bottom,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              backgroundColor: "#fff",
+              borderTopWidth: 1,
+              borderTopColor: "#e5e7eb",
+              position: "absolute",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 100,
+            },
           ]}
         >
-          <View style={styles.captureButtonContainer}>
-            <TouchableOpacity
-              style={styles.captureButton}
-              onPress={handleCaptureProduct}
-              disabled={loading}
+          <TouchableOpacity
+            style={{ padding: 8 }}
+            onPress={() => webViewRef.current?.goBack()}
+            disabled={!navigationState.canGoBack}
+          >
+            <Icon
+              name="arrow-back-ios"
+              size={28}
+              color={navigationState.canGoBack ? "#007AFF" : "#ccc"}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              backgroundColor: "#007AFF",
+              borderRadius: 24,
+              paddingHorizontal: 24,
+              paddingVertical: 10,
+            }}
+            onPress={handleCaptureProduct}
+            disabled={loading}
+          >
+            <Icon name="camera-alt" size={20} color="#fff" />
+            <Text
+              style={{
+                color: "#fff",
+                fontSize: 16,
+                fontWeight: "600",
+                marginLeft: 6,
+              }}
             >
-              <Text style={styles.captureButtonText}>
-                {processedUploads.length > 0
-                  ? `+${processedUploads.length}`
-                  : "Capture"}
+              Capture
+            </Text>
+          </TouchableOpacity>
+          {/* Upload badge/button */}
+          {processedUploads.length > 0 ? (
+            <TouchableOpacity
+              style={{ padding: 8, flexDirection: "row", alignItems: "center" }}
+              onPress={() => setShowUploadDrawer((v) => !v)}
+            >
+              <Icon name="cloud-upload" size={24} color="#007AFF" />
+              <Text
+                style={{ color: "#007AFF", fontWeight: "bold", marginLeft: 4 }}
+              >
+                {processedUploads.length}
               </Text>
             </TouchableOpacity>
-            {processedUploads.length > 0 && (
-              <View style={styles.pendingIndicator}>
-                <Text style={styles.pendingIndicatorText}>
-                  {processedUploads.length}
-                </Text>
-              </View>
-            )}
-          </View>
+          ) : null}
+          <TouchableOpacity
+            style={{ padding: 8 }}
+            onPress={() => webViewRef.current?.goForward()}
+            disabled={!navigationState.canGoForward}
+          >
+            <Icon
+              name="arrow-forward-ios"
+              size={28}
+              color={navigationState.canGoForward ? "#007AFF" : "#ccc"}
+            />
+          </TouchableOpacity>
         </View>
       )}
+
       <EnhancedCropModal
         visible={showCropModal}
         imageUri={screenshotUri}
@@ -382,13 +553,21 @@ const WebViewScreen = ({}) => {
         onCancel={handleCropCancel}
         processingImage={processingImage}
       />
-      <PendingUploadsBar
-        pendingUploads={processedUploads}
-        onRemoveUpload={removeProcessedUpload}
-        onUploadAll={handleUploadAll}
-        isUploading={isProcessing}
-        uploadCount={processedUploads.length}
-      />
+
+      {/* Upload Drawer */}
+      {processedUploads.length > 0 && (
+        <UploadDrawer
+          visible={showUploadDrawer}
+          onClose={() => setShowUploadDrawer(false)}
+          onCloseComplete={() => setShowUploadDrawer(false)}
+          processedUploads={processedUploads}
+          onRemoveUpload={removeProcessedUpload}
+          onUploadAll={handleUploadAll}
+          isUploading={isProcessing}
+          safeBottom={insets.bottom}
+          barHeight={64}
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -396,7 +575,109 @@ const WebViewScreen = ({}) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f9fafb",
+    backgroundColor: "#ffffff",
+  },
+  headerContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 12,
+    backgroundColor: "#ffffff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  instructionText: {
+    fontSize: 15,
+    color: "#6b7280",
+    textAlign: "center",
+    marginBottom: 12,
+    lineHeight: 20,
+  },
+  urlBarContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  cancelButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+  },
+  cancelText: {
+    fontSize: 16,
+    color: "#007AFF",
+    fontWeight: "400",
+  },
+  urlInputWrapper: {
+    flex: 1,
+    backgroundColor: "#f5f5f5",
+    borderRadius: 18,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  urlInput: {
+    fontSize: 16,
+    color: "#000",
+  },
+  refreshButton: {
+    padding: 8,
+  },
+  refreshIcon: {
+    fontSize: 24,
+    color: "#000",
+  },
+  bottomBar: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    backgroundColor: "#ffffff",
+    borderTopWidth: 1,
+    borderTopColor: "#e5e7eb",
+  },
+  navButtonBottom: {
+    padding: 6,
+  },
+  captureButtonBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#007AFF",
+    borderRadius: 24,
+    paddingHorizontal: 24,
+    paddingVertical: 8,
+  },
+  captureButtonWithCountBar: {
+    backgroundColor: "#0056b3",
+  },
+  captureButtonTextBar: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "600",
+    marginLeft: 6,
+  },
+  pendingCountBadge: {
+    backgroundColor: "#ef4444",
+    borderRadius: 10,
+    marginLeft: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    minWidth: 20,
+    alignItems: "center",
+  },
+  pendingCountText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "bold",
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(255,255,255,0.8)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 999,
   },
   footer: {
     position: "absolute",
@@ -421,27 +702,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 6,
     elevation: 4,
-  },
-  captureButton: {
-    backgroundColor: "#111827",
-    borderRadius: 24,
-    paddingVertical: 10,
-    paddingHorizontal: 24,
-    alignItems: "center",
-    justifyContent: "center",
-    minWidth: 100,
-  },
-  captureButtonText: {
-    color: "#fff",
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(255,255,255,0.8)",
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 999,
   },
   pendingIndicator: {
     backgroundColor: "#ef4444",

@@ -42,10 +42,11 @@ export function OutfitProvider({ children }) {
     async (page = 1, forceRefresh = false) => {
       if (!user?.firebase) return;
 
-      // Use ref to check if we've already loaded to avoid dependency on state
-      if (hasLoadedRef.current && page === 1 && !forceRefresh) {
-        return;
-      }
+      // Skip the hasLoadedRef check to ensure outfits load immediately on app start
+      // The original check was causing a delay where only daily outfit would show
+      // if (hasLoadedRef.current && page === 1 && !forceRefresh) {
+      //   return;
+      // }
 
       try {
         if (page === 1) setLoadingOutfits(true);

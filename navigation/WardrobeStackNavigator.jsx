@@ -26,8 +26,16 @@ export default function WardrobeStackNavigator() {
 
       {/* Outfit screens */}
       <Stack.Screen name="OutfitDetail" component={OutfitDetail} />
-      <Stack.Screen name="CreateOutfit" component={CreateOutfit} />
-      <Stack.Screen name="EditOutfit" component={EditOutfit} />
+      <Stack.Screen 
+        name="CreateOutfit" 
+        component={CreateOutfit}
+        options={{ gestureEnabled: false }}
+      />
+      <Stack.Screen 
+        name="EditOutfit" 
+        component={EditOutfit}
+        options={{ gestureEnabled: false }}
+      />
       <Stack.Screen name="GenerateOutfit" component={GenerateOutfitScreen} />
 
       {/* Wardrobe item screens */}
@@ -35,8 +43,17 @@ export default function WardrobeStackNavigator() {
 
       {/* Upload and review screens */}
       <Stack.Screen name="MultiUpload" component={MultiUploadScreen} />
-      <Stack.Screen name="ItemReview" component={ItemReviewScreen} />
-      <Stack.Screen name="WebView" component={WebViewScreen} />
+      <Stack.Screen 
+        name="ItemReview" 
+        component={ItemReviewScreen}
+        options={{ gestureEnabled: false }}
+      />
+      <Stack.Screen 
+        name="WebView" 
+        component={WebViewScreen}
+        options={{ gestureEnabled: false }}
+      />
+
     </Stack.Navigator>
   );
 }

@@ -27,6 +27,7 @@ import ItemFormSection from "../components/itemReview/ItemFormSection";
 import TagsPreview from "../components/itemReview/TagsPreview";
 import { useItemFormData } from "../hooks/useItemFormData";
 import { validateItemData, buildSavePayload } from "../utils/itemValidation";
+import { useUnsavedChangesWarning } from "../hooks/useUnsavedChangesWarning";
 
 export default function ItemReviewScreen({ route }) {
   const navigation = useNavigation();
@@ -89,6 +90,23 @@ export default function ItemReviewScreen({ route }) {
         )
       : [];
   }, [category, subcategoryOptions, categoryOptions]);
+
+  // Check if there are unsaved changes
+  const hasUnsavedChanges =
+    name !== (item?.name || "") ||
+    brand !== (item?.brand || null) ||
+    category !== (item?.category || null) ||
+    subcategory !== (item?.subcategory || null) ||
+    description !== (item?.description || item?.gpt_metadata?.raw || "") ||
+    primaryColor !== (item?.primary_color || item?.color || "") ||
+    price !== (item?.price ? String(item.price) : "") ||
+    productLink !== (item?.product_link || item?.product_link || "") ||
+    JSON.stringify(tags) !==
+      JSON.stringify(
+        Array.isArray(item?.tags) ? item.tags : item?.gpt_metadata?.tags || []
+      );
+
+  const { showExitWarning } = useUnsavedChangesWarning(hasUnsavedChanges);
 
   // Clear subcategory when category changes
   useEffect(() => {
@@ -155,12 +173,6 @@ export default function ItemReviewScreen({ route }) {
       );
       const updatedItem = response.data;
 
-      console.log(
-        "📝 PUT response received:",
-        updatedItem?.id,
-        updatedItem?.name
-      );
-
       // Update context
       updateWardrobeItem(updatedItem);
       await new Promise((resolve) => setTimeout(resolve, 100));
@@ -190,13 +202,13 @@ export default function ItemReviewScreen({ route }) {
 
   return (
     <View style={styles.container}>
-      <SafeAreaView edges={["top"]} style={{ backgroundColor: "#fff" }}>
+      <SafeAreaView edges={["top"]} style={{ backgroundColor: "#f3f4f6" }}>
         <View style={styles.header}>
           <TouchableOpacity
-            style={styles.headerIcon}
-            onPress={() => navigation.goBack()}
+            style={styles.cancelButton}
+            onPress={() => showExitWarning(() => navigation.goBack())}
           >
-            <Icon name="arrow-back-ios" size={24} color="#121416" />
+            <Text style={styles.cancelButtonText}>Cancel</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Review Item</Text>
           <View style={styles.headerIcon} />
@@ -598,6 +610,14 @@ const styles = StyleSheet.create({
   },
   headerIcon: {
     padding: 8,
+  },
+  cancelButton: {
+    padding: 8,
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    color: "#007AFF",
+    fontWeight: "400",
   },
   headerTitle: {
     fontSize: 20,

@@ -31,7 +31,7 @@ export default function OutfitCard({
   );
 
   const handleViewDetails = () => {
-    const outfitId = outfitData?.outfit?.id;
+    const outfitId = outfitData?.outfit_id || outfitData?.outfit?.id || outfitData?.id;
     if (outfitId) {
       navigation.navigate("Wardrobe", {
         screen: "WardrobeHome",

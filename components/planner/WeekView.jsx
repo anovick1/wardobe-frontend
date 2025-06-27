@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Image } from "react-native";
 import {
   format,
   startOfWeek,
@@ -74,6 +74,10 @@ export default function WeekView({
           const dayWornOutfits = wornOutfits[dayStr] || [];
           const dayPlannedOutfits = plannedOutfits[dayStr] || [];
 
+          // Prepare images for worn outfits (up to 3)
+          const imagesToShow = dayWornOutfits.slice(0, 3);
+          const extraCount = dayWornOutfits.length - 3;
+
           return (
             <TouchableOpacity
               key={dayStr}
@@ -81,6 +85,42 @@ export default function WeekView({
               onPress={() => onDaySelect && onDaySelect(dayStr)}
               activeOpacity={0.85}
             >
+              {/* Worn outfit images row */}
+              <View style={styles.outfitImagesRow}>
+                {imagesToShow.length === 0 ? (
+                  <View style={styles.outfitImagePlaceholder}>
+                    <Icon name="tshirt-crew" size={18} color="#cbd5e1" />
+                  </View>
+                ) : (
+                  imagesToShow.map((outfit, idx) => (
+                    <View
+                      key={outfit.id || idx}
+                      style={styles.outfitImageWrapper}
+                    >
+                      {idx === 2 && extraCount > 0 ? (
+                        <View style={styles.outfitImageBadgeWrapper}>
+                          <Image
+                            source={{ uri: outfit.composite_image_url }}
+                            style={styles.outfitImage}
+                            resizeMode="contain"
+                          />
+                          <View style={styles.extraBadge}>
+                            <Text
+                              style={styles.extraBadgeText}
+                            >{`+${extraCount}`}</Text>
+                          </View>
+                        </View>
+                      ) : (
+                        <Image
+                          source={{ uri: outfit.composite_image_url }}
+                          style={styles.outfitImage}
+                          resizeMode="contain"
+                        />
+                      )}
+                    </View>
+                  ))
+                )}
+              </View>
               <Text
                 style={[styles.dayText, isSelected && styles.dayTextSelected]}
               >
@@ -91,13 +131,9 @@ export default function WeekView({
               >
                 {format(day, "d")}
               </Text>
-
-              {/* Activity indicators */}
+              {/* Activity indicators (events/planned) */}
               <View style={styles.indicators}>
                 {dayEvents.length > 0 && <Text style={styles.eventDot}>●</Text>}
-                {dayWornOutfits.length > 0 && (
-                  <Text style={styles.wornDot}>●</Text>
-                )}
                 {dayPlannedOutfits.length > 0 && (
                   <Text style={styles.plannedDot}>●</Text>
                 )}
@@ -145,6 +181,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#f1f5f9",
     marginHorizontal: 2,
     minWidth: 38,
+    minHeight: 74, // increased for images
   },
   dayPillSelected: {
     backgroundColor: "#121416",
@@ -186,5 +223,65 @@ const styles = StyleSheet.create({
     color: "#3b82f6",
     fontWeight: "bold",
     marginHorizontal: 1,
+  },
+  outfitImagesRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 2,
+    minHeight: 22,
+    gap: 2,
+  },
+  outfitImageWrapper: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    overflow: "hidden",
+    backgroundColor: "#f8fafc",
+    marginHorizontal: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  outfitImage: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    backgroundColor: "#f8fafc",
+  },
+  outfitImagePlaceholder: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    backgroundColor: "#f8fafc",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  outfitImageBadgeWrapper: {
+    position: "relative",
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    overflow: "hidden",
+    backgroundColor: "#f8fafc",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  extraBadge: {
+    position: "absolute",
+    right: 0,
+    bottom: 0,
+    backgroundColor: "#121416",
+    borderRadius: 8,
+    paddingHorizontal: 2,
+    paddingVertical: 0,
+    minWidth: 14,
+    minHeight: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  extraBadgeText: {
+    color: "#fff",
+    fontSize: 9,
+    fontWeight: "700",
   },
 });

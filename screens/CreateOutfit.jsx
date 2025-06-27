@@ -22,7 +22,11 @@ import { AuthContext } from "../auth/AuthContext";
 import api from "../api";
 import { useOutfits } from "../contexts/OutfitContext";
 import { useWardrobe } from "../contexts/WardrobeContext";
-import { validateOutfitCategories, getOutfitValidationMessage } from "../utils/outfitValidation";
+import {
+  validateOutfitCategories,
+  getOutfitValidationMessage,
+} from "../utils/outfitValidation";
+import { useUnsavedChangesWarning } from "../hooks/useUnsavedChangesWarning";
 
 const SelectedItemCard = ({ item, onRemove }) => {
   const { uri, loading, error } = useCachedImage(item.image_url, item.id);
@@ -66,7 +70,7 @@ const CreateOutfit = () => {
   const [saving, setSaving] = useState(false);
   const [notesHeight, setNotesHeight] = useState(100);
   const [selectedItemsData, setSelectedItemsData] = useState([]);
-  
+
   const navigation = useNavigation();
   const route = useRoute();
   const { selectedItem } = route.params || {};
@@ -74,13 +78,20 @@ const CreateOutfit = () => {
   const { addOutfit } = useOutfits();
   const { getAllWardrobeItemsForSelection } = useWardrobe();
 
+  // Check if there are unsaved changes
+  const hasUnsavedChanges =
+    title.trim() || notes.trim() || tags.length > 0 || selectedItems.length > 0;
+  const { showExitWarning } = useUnsavedChangesWarning(hasUnsavedChanges);
+
   // Load selected items data when items are selected
   useEffect(() => {
     const loadSelectedItemsData = async () => {
       if (selectedItems.length > 0) {
         try {
           const allItems = await getAllWardrobeItemsForSelection();
-          const selectedData = allItems.filter(item => selectedItems.includes(item.id));
+          const selectedData = allItems.filter((item) =>
+            selectedItems.includes(item.id),
+          );
           setSelectedItemsData(selectedData);
         } catch (error) {
           console.error("Error loading selected items data:", error);
@@ -89,7 +100,7 @@ const CreateOutfit = () => {
         setSelectedItemsData([]);
       }
     };
-    
+
     loadSelectedItemsData();
   }, [selectedItems, getAllWardrobeItemsForSelection]);
 
@@ -104,25 +115,28 @@ const CreateOutfit = () => {
   };
 
   const removeSelectedItem = (itemId) => {
-    setSelectedItems(prev => prev.filter(id => id !== itemId));
+    setSelectedItems((prev) => prev.filter((id) => id !== itemId));
   };
 
   const handleCreateOutfit = async () => {
     if (!title.trim()) {
-      Alert.alert("Error", "Please enter a title for your outfit");
+      Alert.alert("Almost there!", "Give your outfit a name to save it 😊");
       return;
     }
 
     if (selectedItems.length === 0) {
-      Alert.alert("Error", "Please select at least one item for your outfit");
+      Alert.alert(
+        "Let's build an outfit!",
+        "Pick some items from your wardrobe to get started 👗",
+      );
       return;
     }
 
     // Validate outfit category requirements
     const validation = validateOutfitCategories(selectedItemsData);
-    
+
     if (!validation.isValid) {
-      Alert.alert("Invalid Outfit", getOutfitValidationMessage(validation));
+      Alert.alert("Outfit Guidelines", getOutfitValidationMessage(validation));
       return;
     }
 
@@ -142,26 +156,20 @@ const CreateOutfit = () => {
         try {
           const fetched = await api.get(`/outfits/${newOutfit.id}`);
           newOutfit = fetched.data;
-        } catch (fetchErr) {
-          // If fetch fails, fall back to original payload
-          console.log(
-            "Failed to fetch full outfit details, using initial payload",
-            fetchErr
-          );
-        }
+        } catch (fetchErr) {}
       }
 
       if (newOutfit && addOutfit) {
         addOutfit(newOutfit);
       }
 
-      Alert.alert("Success", "Outfit created successfully");
+      Alert.alert("Awesome!", "Your outfit has been saved to your wardrobe ✨");
       navigation.navigate("Wardrobe", {
         screen: "WardrobeHome",
         params: { initialTab: "Outfits" },
       });
     } catch (error) {
-      Alert.alert("Error", "Failed to create outfit");
+      Alert.alert("Oops!", "Something went wrong. Please try again.");
       console.error(error);
     } finally {
       setSaving(false);
@@ -176,10 +184,10 @@ const CreateOutfit = () => {
       <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
+            style={styles.cancelButton}
+            onPress={() => showExitWarning(() => navigation.goBack())}
           >
-            <Ionicons name="arrow-back" size={24} color="#000" />
+            <Text style={styles.cancelButtonText}>Cancel</Text>
           </TouchableOpacity>
           <Text style={styles.title}>Create Outfit</Text>
           <TouchableOpacity
@@ -233,8 +241,8 @@ const CreateOutfit = () => {
                 setNotesHeight(
                   Math.max(
                     100,
-                    Math.min(200, event.nativeEvent.contentSize.height + 16)
-                  )
+                    Math.min(200, event.nativeEvent.contentSize.height + 16),
+                  ),
                 )
               }
             />
@@ -244,11 +252,15 @@ const CreateOutfit = () => {
             <Text style={styles.label}>
               Selected Items ({selectedItems.length})
             </Text>
-            
+
             {selectedItemsData.length > 0 ? (
               <View style={styles.selectedItemsContainer}>
                 {selectedItemsData.map((item) => (
-                  <SelectedItemCard key={item.id} item={item} onRemove={removeSelectedItem} />
+                  <SelectedItemCard
+                    key={item.id}
+                    item={item}
+                    onRemove={removeSelectedItem}
+                  />
                 ))}
               </View>
             ) : (
@@ -260,7 +272,9 @@ const CreateOutfit = () => {
               onPress={() => setItemPickerVisible(true)}
             >
               <Icon name="add-circle-outline" size={24} color="#121416" />
-              <Text style={styles.addItemsButtonText}>Add Items from Wardrobe</Text>
+              <Text style={styles.addItemsButtonText}>
+                Add Items from Wardrobe
+              </Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -335,17 +349,13 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     zIndex: 1,
   },
-  backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#f8fafc",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.04,
-    shadowRadius: 2,
-    shadowOffset: { width: 0, height: 1 },
+  cancelButton: {
+    padding: 8,
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    color: "#007AFF",
+    fontWeight: "400",
   },
   title: {
     fontSize: 24,
