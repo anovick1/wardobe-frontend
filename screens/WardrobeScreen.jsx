@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
   },
   tab: {
     paddingVertical: 10,
-    paddingHorizontal: 12,
+    paddingHorizontal: 5,
     flex: 1,
     alignItems: "center",
   },

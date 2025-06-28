@@ -9,6 +9,7 @@ import {
   ScrollView,
   Animated,
   Dimensions,
+  Alert,
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialIcons";
 
@@ -93,7 +94,18 @@ const UploadDrawer = ({
         contentContainerStyle={[styles.scrollContent, { marginBottom: 8 }]}
       >
         {processedUploads.map((upload, index) => (
-          <View key={upload.id} style={styles.uploadItemContainer}>
+          <Animated.View 
+            key={upload.id} 
+            style={[
+              styles.uploadItemContainer,
+              {
+                opacity: upload.animatedValue || 1,
+                transform: [{
+                  scale: upload.animatedValue || 1
+                }]
+              }
+            ]}
+          >
             <View style={styles.uploadItem}>
               <Image
                 source={{ uri: upload.croppedUri }}
@@ -111,7 +123,11 @@ const UploadDrawer = ({
               )}
               {upload.status === "failed" && (
                 <View style={styles.statusIndicatorFailed}>
-                  <Text style={styles.statusText}>✗</Text>
+                  <Icon 
+                    name={upload.isClothingError ? "checkroom" : "close"} 
+                    size={12} 
+                    color="#fff" 
+                  />
                 </View>
               )}
               <TouchableOpacity
@@ -124,7 +140,14 @@ const UploadDrawer = ({
                 <Text style={styles.uploadNumberText}>{index + 1}</Text>
               </View>
             </View>
-          </View>
+            {upload.status === "failed" && upload.errorMessage && (
+              <View style={styles.errorTooltip}>
+                <Text style={styles.errorTooltipText} numberOfLines={2}>
+                  {upload.errorMessage}
+                </Text>
+              </View>
+            )}
+          </Animated.View>
         ))}
       </ScrollView>
     </Animated.View>
@@ -268,6 +291,22 @@ const styles = StyleSheet.create({
     color: "#111827",
     fontSize: 10,
     fontWeight: "bold",
+  },
+  errorTooltip: {
+    position: "absolute",
+    bottom: -20,
+    left: 0,
+    right: 0,
+    backgroundColor: "#ef4444",
+    borderRadius: 4,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    minWidth: 72,
+  },
+  errorTooltipText: {
+    color: "#fff",
+    fontSize: 9,
+    textAlign: "center",
   },
 });
 

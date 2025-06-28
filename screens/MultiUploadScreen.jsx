@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
+  Animated,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { getAuth } from "firebase/auth";
@@ -49,6 +50,7 @@ export default function MultiUploadScreen({ route, navigation }) {
             : "uploading",
       item: skipUpload && processedItems ? processedItems[index] : null,
       error: null,
+      animatedValue: new Animated.Value(1), // For fade out animation
     })),
   );
 
@@ -221,6 +223,79 @@ export default function MultiUploadScreen({ route, navigation }) {
     return () => unsubscribe();
   }, [skipUpload]);
 
+  useEffect(() => {
+    // Skip if items are already processed
+    if (skipUpload) {
+      return;
+    }
+
+    const auth = getAuth();
+    const unsubscribe = onSnapshot(
+      collection(
+        getFirestore(),
+        "wardrobe_webhooks",
+        auth.currentUser.uid,
+        "upload_errors",
+      ),
+      (snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === "added") {
+            const data = change.doc.data();
+            
+            setUploadStatus((prevStatus) => {
+              const matchIndex = prevStatus.findIndex(
+                (s) => s.client_upload_id === data.client_upload_id,
+              );
+              
+              if (matchIndex === -1) {
+                return prevStatus;
+              }
+
+              const newStatus = prevStatus.map((item, i) => {
+                if (i !== matchIndex) return item;
+                return { 
+                  ...item, 
+                  status: "error", 
+                  error: data.error_message || "Upload failed",
+                  isClothingError: data.error_message === "Image is not a clothing item"
+                };
+              });
+              
+              // Show alert for clothing errors
+              if (data.error_message === "Image is not a clothing item") {
+                Alert.alert(
+                  "Not a Clothing Item",
+                  "The uploaded image doesn't appear to contain a clothing item. Please upload photos of clothing items only.",
+                  [{ text: "OK", style: "default" }]
+                );
+                
+                // Animate the item away after a short delay
+                setTimeout(() => {
+                  const itemToRemove = newStatus[matchIndex];
+                  if (itemToRemove && itemToRemove.animatedValue) {
+                    Animated.timing(itemToRemove.animatedValue, {
+                      toValue: 0,
+                      duration: 500,
+                      useNativeDriver: true,
+                    }).start(() => {
+                      // Remove the item after animation completes
+                      setUploadStatus((prev) => prev.filter((_, i) => i !== matchIndex));
+                      setImages((prev) => prev.filter((_, i) => i !== matchIndex));
+                    });
+                  }
+                }, 1500); // Wait 1.5 seconds before starting animation
+              }
+              
+              return newStatus;
+            });
+          }
+        });
+      },
+    );
+
+    return () => unsubscribe();
+  }, [skipUpload]);
+
   const handleAddMorePhotos = async () => {
     if (isUploading) {
       // console.log("Upload already in progress, ignoring request");
@@ -263,6 +338,7 @@ export default function MultiUploadScreen({ route, navigation }) {
           status: "uploading",
           item: null,
           error: null,
+          animatedValue: new Animated.Value(1),
         }));
 
         setUploadStatus((prev) => [...prev, ...newStatuses]);
@@ -355,6 +431,7 @@ export default function MultiUploadScreen({ route, navigation }) {
           status: "uploading",
           item: null,
           error: null,
+          animatedValue: new Animated.Value(1),
         };
 
         setUploadStatus((prev) => [...prev, newStatus]);
@@ -554,7 +631,7 @@ export default function MultiUploadScreen({ route, navigation }) {
     }
   };
 
-  const getStatusIcon = (status) => {
+  const getStatusIcon = (status, isClothingError) => {
     switch (status) {
       case "uploading":
       case "processing":
@@ -562,6 +639,9 @@ export default function MultiUploadScreen({ route, navigation }) {
       case "completed":
         return <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />;
       case "error":
+        if (isClothingError) {
+          return <Ionicons name="shirt-outline" size={20} color="#FF9800" />;
+        }
         return <Ionicons name="close-circle" size={20} color="#F44336" />;
       default:
         return null;
@@ -602,13 +682,24 @@ export default function MultiUploadScreen({ route, navigation }) {
     }
 
     return (
-      <View key={index} style={styles.itemCard}>
+      <Animated.View 
+        key={index} 
+        style={[
+          styles.itemCard,
+          {
+            opacity: status.animatedValue,
+            transform: [{
+              scale: status.animatedValue
+            }]
+          }
+        ]}
+      >
         <View style={styles.imageContainer}>
           <Image source={{ uri: imageUrl }} style={styles.itemImage} />
 
           {/* Status overlay */}
           <View style={styles.statusOverlay}>
-            {getStatusIcon(status.status)}
+            {getStatusIcon(status.status, status.isClothingError)}
           </View>
 
           {/* Remove button */}
@@ -623,10 +714,14 @@ export default function MultiUploadScreen({ route, navigation }) {
         </View>
 
         <View style={styles.itemInfo}>
-          <Text style={styles.statusText}>{getStatusText(status.status)}</Text>
+          <Text style={styles.statusText}>
+            {status.isClothingError ? "Not a clothing item" : getStatusText(status.status)}
+          </Text>
           {status.error && (
             <Text style={styles.errorText} numberOfLines={2}>
-              {status.error}
+              {status.isClothingError 
+                ? "Please upload images of clothing items only" 
+                : status.error}
             </Text>
           )}
 
@@ -652,7 +747,7 @@ export default function MultiUploadScreen({ route, navigation }) {
             </TouchableOpacity>
           )}
         </View>
-      </View>
+      </Animated.View>
     );
   };
 

@@ -11,6 +11,7 @@ import {
   TextInput,
   Image,
   ScrollView,
+  Animated,
 } from "react-native";
 import {
   SafeAreaView,
@@ -164,6 +165,7 @@ const WebViewScreen = ({}) => {
       cleanedImageUrl: null,
       itemId: itemId,
       status: "processing",
+      animatedValue: new Animated.Value(1),
     };
     setProcessedUploads((prev) => [...prev, newProcessedUpload]);
     setShowUploadDrawer(true); // Auto-open drawer after upload
@@ -282,15 +284,52 @@ const WebViewScreen = ({}) => {
       pollStatus();
     } catch (err) {
       console.error("Image processing failed:", err);
+      
+      // Check if it's a clothing detection error
+      const isClothingError = err?.response?.data?.error === "Image is not a clothing item";
+      const errorMessage = isClothingError 
+        ? "The image doesn't appear to contain a clothing item. Please try capturing a different image that shows clothing clearly."
+        : "Failed to process image. Please try again.";
 
       // Update the existing upload to failed status
       setProcessedUploads((prev) =>
         prev.map((upload) =>
-          upload.itemId === item_id ? { ...upload, status: "failed" } : upload,
+          upload.itemId === item_id 
+            ? { 
+                ...upload, 
+                status: "failed",
+                errorMessage: isClothingError ? "Not a clothing item" : "Processing failed",
+                isClothingError 
+              } 
+            : upload,
         ),
       );
 
-      Alert.alert("Error", "Failed to process image. Please try again.");
+      Alert.alert(
+        isClothingError ? "Not a Clothing Item" : "Error", 
+        errorMessage,
+        [{ text: "OK", style: "default" }]
+      );
+      
+      // For clothing errors, animate away automatically after alert
+      if (isClothingError) {
+        setTimeout(() => {
+          setProcessedUploads((prevUploads) => {
+            const failedUpload = prevUploads.find(u => u.itemId === item_id);
+            if (failedUpload && failedUpload.animatedValue) {
+              Animated.timing(failedUpload.animatedValue, {
+                toValue: 0,
+                duration: 500,
+                useNativeDriver: true,
+              }).start(() => {
+                // Remove the item after animation completes
+                setProcessedUploads((current) => current.filter(u => u.itemId !== item_id));
+              });
+            }
+            return prevUploads;
+          });
+        }, 1000); // Wait 1 second after alert, then animate away
+      }
     } finally {
       setIsProcessing(false);
     }
