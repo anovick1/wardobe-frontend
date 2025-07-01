@@ -44,7 +44,10 @@ export default function WardrobeScreen({ navigation, route }) {
   // Animation values
   const slideAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(1)).current;
-  const tabIndicatorPosition = useRef(new Animated.Value(0)).current;
+  // Initialize tab indicator position based on initial tab
+  const initialTabIndex = tabs.indexOf(initialTabParam || "Wardrobe");
+  const initialPosition = initialTabIndex !== -1 ? initialTabIndex * (screenWidth / tabs.length) : 0;
+  const tabIndicatorPosition = useRef(new Animated.Value(initialPosition)).current;
 
   // Debounce search query for performance
   const debouncedSearch = useMemo(
@@ -76,14 +79,6 @@ export default function WardrobeScreen({ navigation, route }) {
     }
   }, [route?.params?.initialTab]);
 
-  // Set initial tab indicator position
-  useEffect(() => {
-    const currentIndex = tabs.indexOf(activeTab);
-    if (currentIndex !== -1) {
-      const tabWidth = screenWidth / tabs.length;
-      tabIndicatorPosition.setValue(currentIndex * tabWidth);
-    }
-  }, []);
 
   // Handle navigation to specific outfit detail
   useEffect(() => {
@@ -247,7 +242,7 @@ export default function WardrobeScreen({ navigation, route }) {
                 <OutfitFilterButtons
                   onFilterChange={handleOutfitFilterChange}
                   activeFilters={outfitFilters}
-                  outfits={allOutfits || []}
+                  outfits={rawOutfits || []}
                 />
               </View>
             )}
