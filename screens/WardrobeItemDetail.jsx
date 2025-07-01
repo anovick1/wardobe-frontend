@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Alert,
   TouchableOpacity,
   Linking,
+  ActivityIndicator,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import api from "../api";
@@ -24,8 +25,32 @@ import { tagColorStyle } from "../utils/tagStyles";
 import { Ionicons } from "@expo/vector-icons";
 
 export default function WardrobeItemDetail({ route, navigation }) {
-  const { item } = route.params;
+  const { item: initialItem } = route.params;
   const { removeWardrobeItem } = useWardrobe();
+  const [item, setItem] = useState(initialItem);
+  const [loading, setLoading] = useState(false);
+
+  // Check if we need to fetch full item details
+  const needsFullDetails = !item.category && !item.primary_color && !item.size;
+
+  useEffect(() => {
+    if (needsFullDetails && item.id) {
+      fetchFullItemDetails();
+    }
+  }, [item.id]);
+
+  const fetchFullItemDetails = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get(`/wardrobe_items/${item.id}`);
+      setItem(response.data);
+    } catch (error) {
+      console.error("Error fetching item details:", error);
+      Alert.alert("Error", "Failed to load item details");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const {
     name,
@@ -96,6 +121,12 @@ export default function WardrobeItemDetail({ route, navigation }) {
           </TouchableOpacity>
         </View>
       </View>
+      {loading && needsFullDetails ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#121416" />
+          <Text style={styles.loadingText}>Loading item details...</Text>
+        </View>
+      ) : (
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -172,6 +203,7 @@ export default function WardrobeItemDetail({ route, navigation }) {
           </View>
         )}
       </ScrollView>
+      )}
       {/* Sticky Add to Outfit Button */}
       <View style={styles.addToOutfitBar}>
         <TouchableOpacity
@@ -363,5 +395,16 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "bold",
     fontSize: 16,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 40,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#6a7681",
   },
 });

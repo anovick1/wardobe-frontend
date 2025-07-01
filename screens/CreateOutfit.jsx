@@ -30,9 +30,18 @@ import { useUnsavedChangesWarning } from "../hooks/useUnsavedChangesWarning";
 
 const SelectedItemCard = ({ item, onRemove }) => {
   const { uri, loading, error } = useCachedImage(item.image_url, item.id);
+  const navigation = useNavigation();
+
+  const handleItemPress = () => {
+    navigation.navigate("WardrobeItemDetail", { item });
+  };
 
   return (
-    <View style={styles.selectedItemCard}>
+    <TouchableOpacity 
+      style={styles.selectedItemCard}
+      onPress={handleItemPress}
+      activeOpacity={0.7}
+    >
       <View style={styles.selectedItemImage}>
         {loading ? (
           <ActivityIndicator size="small" color="#6a7681" />
@@ -52,11 +61,14 @@ const SelectedItemCard = ({ item, onRemove }) => {
       </View>
       <TouchableOpacity
         style={styles.removeItemButton}
-        onPress={() => onRemove(item.id)}
+        onPress={(e) => {
+          e.stopPropagation();
+          onRemove(item.id);
+        }}
       >
         <Ionicons name="close-circle" size={24} color="#ff3b30" />
       </TouchableOpacity>
-    </View>
+    </TouchableOpacity>
   );
 };
 
@@ -83,39 +95,32 @@ const CreateOutfit = () => {
     title.trim() || notes.trim() || tags.length > 0 || selectedItems.length > 0;
   const { showExitWarning } = useUnsavedChangesWarning(hasUnsavedChanges);
 
-  // Load selected items data when items are selected
-  useEffect(() => {
-    const loadSelectedItemsData = async () => {
-      if (selectedItems.length > 0) {
-        try {
-          const allItems = await getAllWardrobeItemsForSelection();
-          const selectedData = allItems.filter((item) =>
-            selectedItems.includes(item.id),
-          );
-          setSelectedItemsData(selectedData);
-        } catch (error) {
-          console.error("Error loading selected items data:", error);
-        }
-      } else {
-        setSelectedItemsData([]);
-      }
-    };
-
-    loadSelectedItemsData();
-  }, [selectedItems, getAllWardrobeItemsForSelection]);
 
   useEffect(() => {
     if (selectedItem) {
       setSelectedItems([selectedItem.id]);
+      setSelectedItemsData([selectedItem]);
     }
   }, [selectedItem]);
 
-  const handleItemsSelected = (itemIds) => {
+  const handleItemsSelected = async (itemIds) => {
     setSelectedItems(itemIds);
+    
+    // Load the data for newly selected items
+    try {
+      const allItems = await getAllWardrobeItemsForSelection();
+      const selectedData = allItems.filter((item) =>
+        itemIds.includes(item.id),
+      );
+      setSelectedItemsData(selectedData);
+    } catch (error) {
+      console.error("Error loading selected items data:", error);
+    }
   };
 
   const removeSelectedItem = (itemId) => {
     setSelectedItems((prev) => prev.filter((id) => id !== itemId));
+    setSelectedItemsData((prev) => prev.filter((item) => item.id !== itemId));
   };
 
   const handleCreateOutfit = async () => {
