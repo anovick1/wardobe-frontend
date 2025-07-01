@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -13,87 +13,177 @@ import { useWardrobe } from "../../contexts/WardrobeContext";
 import cardStyles from "../../styles/card";
 import typography from "../../styles/typography";
 import globalStyles from "../../styles/global";
+import Icon from "react-native-vector-icons/MaterialIcons";
+import { SafeAreaView } from "react-native-safe-area-context";
+import * as FileSystem from "expo-file-system";
+import WardrobeItemCard from "./WardrobeItemCard";
+import { searchWardrobeItems } from "../../utils/searchUtils";
 
-export default function WardrobeItems() {
-  const { wardrobeItems: rawItems, loadingWardrobe } = useWardrobe();
-  const wardrobeItems = [...rawItems].sort(
-    (a, b) => new Date(b.created_at) - new Date(a.created_at)
-  );
+export default function WardrobeItems({ filters = {}, searchQuery = "" }) {
+  const {
+    wardrobeItems: rawItems,
+    loadingWardrobe,
+    loadingMoreWardrobe,
+    loadMoreWardrobeItems,
+    currentPage,
+    totalPages,
+    hasMoreWardrobe,
+  } = useWardrobe();
 
-  const navigation = useNavigation();
-  const [deletedItemIds, setDeletedItemIds] = React.useState([]);
+  // Filter items based on active filters
+  const filterItems = (items) => {
+    if (Object.keys(filters).length === 0) {
+      return items;
+    }
 
-  const renderItem = ({ item }) => {
-    if (deletedItemIds.includes(item.id)) return null;
-    return (
-      <TouchableOpacity
-        onPress={() =>
-          navigation.navigate("WardrobeItemDetail", {
-            item,
-            onDelete: () => setDeletedItemIds((ids) => [...ids, item.id]),
-          })
+    return items.filter((item) => {
+      // Check brand filter
+      if (filters.brand && filters.brand.length > 0) {
+        if (!item.brand || !filters.brand.includes(item.brand)) {
+          return false;
         }
-      >
-        <View style={cardStyles.card}>
-          {item.image_url && (
-            <Image source={{ uri: item.image_url }} style={styles.image} />
-          )}
+      }
 
-          {item.brand && (
-            <Text style={typography.meta}>
-              Brand: <Text style={{ fontWeight: "bold" }}>{item.brand}</Text>
-            </Text>
-          )}
+      // Check category filter (hierarchical) - temporarily disabled until backend provides IDs
+      // if (filters.categories && filters.categories.length > 0) {
+      //   // Check if item's category ID is in selected categories
+      //   const itemCategoryId = item.category_id;
+      //   if (!itemCategoryId || !filters.categories.includes(itemCategoryId)) {
+      //     return false;
+      //   }
+      // }
 
-          <Text style={typography.name}>{item.name || "Unnamed item"}</Text>
+      // // Check subcategory filter (hierarchical) - temporarily disabled until backend provides IDs
+      // if (filters.subcategories && filters.subcategories.length > 0) {
+      //   // Check if item's subcategory ID is in selected subcategories
+      //   const itemSubcategoryId = item.subcategory_id;
+      //   if (!itemSubcategoryId || !filters.subcategories.includes(itemSubcategoryId)) {
+      //     return false;
+      //   }
+      // }
 
-          {!!item.description && (
-            <Text style={typography.description}>{item.description}</Text>
-          )}
+      // Legacy category filter support (for backward compatibility)
+      if (filters.category && filters.category.length > 0) {
+        let itemCategory = '';
+        if (item.category && item.subcategory) {
+          itemCategory = `${item.category} - ${item.subcategory}`;
+        } else if (item.category) {
+          itemCategory = item.category;
+        } else if (item.subcategory) {
+          itemCategory = item.subcategory;
+        }
+        
+        if (!itemCategory || !filters.category.includes(itemCategory)) {
+          return false;
+        }
+      }
 
-          <Text style={typography.category}>
-            {item.primary_color || "Unknown color"} – {item.size || "No size"}
-          </Text>
+      // Check color filter
+      if (filters.color && filters.color.length > 0) {
+        if (!item.primary_color || !filters.color.includes(item.primary_color)) {
+          return false;
+        }
+      }
 
-          <Text style={typography.meta}>
-            Times worn: {item.times_worn ?? 0} • Favorite:{" "}
-            {item.is_favorite ? "Yes" : "No"}
-          </Text>
-        </View>
-      </TouchableOpacity>
-    );
+      // Check tags filter
+      if (filters.tags && filters.tags.length > 0) {
+        if (!item.tags || !Array.isArray(item.tags)) {
+          return false;
+        }
+        
+        // Check if item has at least one of the selected tags
+        const hasMatchingTag = filters.tags.some(selectedTag => 
+          item.tags.includes(selectedTag)
+        );
+        
+        if (!hasMatchingTag) {
+          return false;
+        }
+      }
+
+      return true;
+    });
   };
 
+  // Apply search first, then filters
+  const searchedItems = searchWardrobeItems(rawItems, searchQuery);
+  const items = filterItems(searchedItems);
+
+  // Cleanup unused cached images
+  useEffect(() => {
+    async function cleanupCache() {
+      try {
+        const files = await FileSystem.readDirectoryAsync(
+          FileSystem.cacheDirectory
+        );
+        const validIds = new Set(items.map((i) => `wardrobe-${i.id}.jpg`));
+        await Promise.all(
+          files
+            .filter((f) => f.startsWith("wardrobe-") && !validIds.has(f))
+            .map((f) =>
+              FileSystem.deleteAsync(FileSystem.cacheDirectory + f, {
+                idempotent: true,
+              })
+            )
+        );
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+    }
+    if (items.length > 0) cleanupCache();
+  }, [items]);
+
+  const navigation = useNavigation();
+
+  const renderItem = ({ item }) => (
+    <WardrobeItemCard item={item} navigation={navigation} />
+  );
+
   return (
-    <View style={globalStyles.container}>
-      {loadingWardrobe ? (
-        <ActivityIndicator
-          testID="wardrobe-loading"
-          size="large"
-          style={{ marginTop: 40 }}
-        />
-      ) : wardrobeItems.length === 0 ? (
-        <Text style={[typography.meta, { marginTop: 30 }]}>
-          No wardrobe items yet.
-        </Text>
+    <SafeAreaView style={globalStyles.container} edges={["left", "right"]}>
+      {loadingWardrobe && items.length === 0 ? (
+        <Text style={[styles.emptyText]}>No wardrobe items yet.</Text>
       ) : (
         <FlatList
-          data={wardrobeItems}
+          data={items}
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderItem}
-          contentContainerStyle={globalStyles.list}
-          extraData={deletedItemIds}
+          numColumns={2}
+          columnWrapperStyle={styles.columnWrapper}
+          contentContainerStyle={styles.listContent}
+          onEndReachedThreshold={0.5}
+          onEndReached={() => {
+            if (hasMoreWardrobe && !loadingMoreWardrobe) {
+              loadMoreWardrobeItems();
+            }
+          }}
+          ListFooterComponent={() =>
+            loadingMoreWardrobe ? (
+              <View style={{ paddingVertical: 20 }}>
+                <ActivityIndicator size="small" />
+              </View>
+            ) : null
+          }
         />
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  image: {
-    width: "100%",
-    height: 180,
-    borderRadius: 10,
-    marginBottom: 10,
+  columnWrapper: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  listContent: {
+    paddingHorizontal: 15,
+    paddingTop: 0,
+    paddingBottom: 16,
+  },
+  emptyText: {
+    color: "#6a7681",
+    textAlign: "center",
+    marginTop: 30,
+    fontSize: 15,
   },
 });

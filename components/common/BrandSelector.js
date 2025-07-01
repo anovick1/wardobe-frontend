@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from "react";
-import { View, TextInput, FlatList, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import {
+  View,
+  TextInput,
+  FlatList,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+} from "react-native";
 import api from "../../api";
 
 export default function BrandSelector({ selectedBrand, onBrandSelect }) {
@@ -8,14 +16,15 @@ export default function BrandSelector({ selectedBrand, onBrandSelect }) {
   const [filtered, setFiltered] = useState([]);
 
   useEffect(() => {
-    api.get("/brands/")
-      .then(res => setBrands(res.data))
-      .catch(err => console.error("Failed to load brands", err));
+    api
+      .get("/brands/")
+      .then((res) => setBrands(res.data))
+      .catch((err) => {});
   }, []);
 
   useEffect(() => {
     const q = query.toLowerCase();
-    setFiltered(brands.filter(b => b.name.toLowerCase().includes(q)));
+    setFiltered(brands.filter((b) => b.name.toLowerCase().includes(q)));
   }, [query, brands]);
 
   const handleSelect = (brand) => {
@@ -34,7 +43,9 @@ export default function BrandSelector({ selectedBrand, onBrandSelect }) {
     }
   };
 
-  const brandExists = brands.some(b => b.name.toLowerCase() === query.toLowerCase());
+  const brandExists = brands.some(
+    (b) => b.name.toLowerCase() === query.toLowerCase()
+  );
 
   return (
     <View>

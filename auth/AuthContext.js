@@ -11,8 +11,6 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      console.log("🔥 Firebase restored user:", firebaseUser?.email || null);
-
       if (!firebaseUser) {
         setUser(null);
         setLoading(false);
@@ -21,17 +19,15 @@ export const AuthProvider = ({ children }) => {
 
       try {
         const idToken = await firebaseUser.getIdToken(); // ← get token explicitly
-        console.log(idToken)
+        console.log(idToken);
         const backendUser = await createOrFetchUser(firebaseUser);
 
         setUser({
           firebase: firebaseUser,
           backend: backendUser,
         });
-
-        console.log("✅ Backend user loaded:", backendUser.email);
       } catch (error) {
-        console.error("❌ Failed to fetch backend user:", error);
+        console.error("Failed to fetch backend user:", error);
         setUser(null);
       } finally {
         setLoading(false);

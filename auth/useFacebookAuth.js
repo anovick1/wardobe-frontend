@@ -11,8 +11,6 @@ import { createOrFetchUser } from "../api/user";
 WebBrowser.maybeCompleteAuthSession();
 
 export const useFacebookAuth = (setUser) => {
-  console.log("🧠 Facebook Auth Hook Loaded");
-
   const isAndroid = Platform.OS === "android";
 
   // const redirectUri = "https://auth.expo.io/@averynov/wardrobe-frontend";
@@ -31,24 +29,17 @@ export const useFacebookAuth = (setUser) => {
     useProxy: false, // we’re skipping auth.expo.io
   });
 
-  console.log("🔁 Redirect URI:", redirectUri);
-
   const [request, response, promptAsync] = Facebook.useAuthRequest(
     {
       clientId: Constants.expoConfig.extra.FACEBOOK_APP_ID,
       scopes: ["public_profile", "email"],
-      redirectUri, // ← stays in the config
+      redirectUri,
     },
     {
-      useProxy: false, // ← MUST live here
+      useProxy: false,
       preferEphemeralSession: true,
     }
   );
-  // ✅ Debug output
-  // useEffect(() => {
-  //   console.log("📦 Facebook Auth Request Object:", request);
-  // }, [request]);
-  console.log(response);
 
   useEffect(() => {
     const authenticate = async () => {
@@ -68,7 +59,7 @@ export const useFacebookAuth = (setUser) => {
 
           setUser({ firebase: userCred.user, backend: backendUser });
         } catch (err) {
-          console.error("❌ Firebase sign-in failed:", err);
+          console.error("Firebase sign-in failed:", err);
         }
       }
     };

@@ -1,4 +1,5 @@
 import "dotenv/config";
+const devIP = process.env.DEV_API_IP;
 
 export default {
   expo: {
@@ -25,7 +26,8 @@ export default {
       supportsTablet: true,
       infoPlist: {
         NSAppTransportSecurity: {
-          NSAllowsArbitraryLoads: true,
+          NSAllowsArbitraryLoads: false,
+          NSAllowsArbitraryLoadsInWebContent: true,
           NSExceptionDomains: {
             "oauth2.googleapis.com": {
               NSIncludesSubdomains: true,
@@ -70,4 +72,13 @@ export default {
       FACEBOOK_APP_ID: process.env.FACEBOOK_APP_ID,
     },
   },
+  plugins: [
+    [
+      "expo-image-picker",
+      {
+        photosPermission:
+          "This app accesses your photos to let you crop and upload product screenshots.",
+      },
+    ],
+  ],
 };

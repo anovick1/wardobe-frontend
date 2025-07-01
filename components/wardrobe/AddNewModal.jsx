@@ -1,21 +1,14 @@
-import React from "react";
-import {
-  Modal,
-  View,
-  Text,
-  Pressable,
-  StyleSheet,
-  Alert,
-} from "react-native";
+import React, { useState } from "react";
+import { Modal, View, Text, Pressable, StyleSheet, Alert } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import { handleImageUploadFlow } from "../../flows/handleImageUploadFlow";
 import { useWardrobe } from "../../contexts/WardrobeContext";
+import cardStyles from "../../styles/card";
+import typography from "../../styles/typography";
 
 export default function AddNewModal({
   visible,
   onClose,
   navigation,
-  setProcessing,
 }) {
   const { addWardrobeItem } = useWardrobe();
 
@@ -23,18 +16,13 @@ export default function AddNewModal({
     const res = await launchFn({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 1,
+      allowsMultipleSelection: true,
+      selectionLimit: 10,
     });
 
     if (!res.canceled) {
-      setProcessing(true);
       onClose();
-      await handleImageUploadFlow(
-        () => Promise.resolve(res),
-        navigation,
-        false,
-        setProcessing,
-        addWardrobeItem
-      );
+      navigation.navigate("MultiUpload", { images: res.assets });
     }
   };
 
@@ -53,7 +41,7 @@ export default function AddNewModal({
 
   const handleLinkUpload = () => {
     onClose();
-    navigation.navigate("AddLink", { addWardrobeItem });
+    navigation.navigate("WebView");
   };
 
   return (
@@ -64,21 +52,21 @@ export default function AddNewModal({
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        <View style={styles.sheet}>
-          <Pressable style={styles.opt} onPress={launchCamera}>
-            <Text style={styles.optText}>📷 Take Photo</Text>
+        <View style={cardStyles.modalSheet}>
+          <Pressable onPress={launchCamera}>
+            <Text style={typography.modalOption}>📷 Take Photo</Text>
           </Pressable>
-
-          <Pressable style={styles.opt} onPress={launchGallery}>
-            <Text style={styles.optText}>🖼️ Upload Photo</Text>
+          <View style={styles.divider} />
+          <Pressable onPress={launchGallery}>
+            <Text style={typography.modalOption}>🖼️ Upload Photos</Text>
           </Pressable>
-
-          <Pressable style={styles.opt} onPress={handleLinkUpload}>
-            <Text style={styles.optText}>🔗 Paste Product Link</Text>
+          <View style={styles.divider} />
+          <Pressable onPress={handleLinkUpload}>
+            <Text style={typography.modalOption}>🔗 Add Item via Web</Text>
           </Pressable>
-
+          <View style={styles.divider} />
           <Pressable onPress={onClose}>
-            <Text style={[styles.optText, { color: "#888" }]}>Cancel</Text>
+            <Text style={typography.modalOptionCancel}>Cancel</Text>
           </Pressable>
         </View>
       </View>
@@ -92,12 +80,10 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
     backgroundColor: "rgba(0,0,0,0.4)",
   },
-  sheet: {
-    backgroundColor: "#fff",
-    padding: 20,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+  divider: {
+    height: 1,
+    backgroundColor: "#f1f5f9",
+    marginVertical: 2,
+    alignSelf: "stretch",
   },
-  opt: { paddingVertical: 12 },
-  optText: { fontSize: 16 },
 });

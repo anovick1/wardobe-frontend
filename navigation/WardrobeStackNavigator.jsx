@@ -1,20 +1,59 @@
 import React from "react";
-import { createStackNavigator } from "@react-navigation/stack";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
+// Screen imports
 import WardrobeScreen from "../screens/WardrobeScreen";
-import ItemReviewScreen from "../screens/ItemReviewScreen";
-import AddLinkScreen from '../screens/AddLinkScreen';
+import OutfitDetail from "../screens/OutfitDetail";
+import CreateOutfit from "../screens/CreateOutfit";
+import EditOutfit from "../screens/EditOutfit";
+import GenerateOutfitScreen from "../screens/GenerateOutfitScreen";
 import WardrobeItemDetail from "../screens/WardrobeItemDetail";
+import MultiUploadScreen from "../screens/MultiUploadScreen";
+import ItemReviewScreen from "../screens/ItemReviewScreen";
+import WebViewScreen from "../screens/WebViewScreen";
 
-const Stack = createStackNavigator();
+const Stack = createNativeStackNavigator();
 
 export default function WardrobeStackNavigator() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="WardrobeMain" component={WardrobeScreen} />
-      <Stack.Screen name="ItemReview" component={ItemReviewScreen} />
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+      }}
+    >
+      {/* Main wardrobe screens */}
+      <Stack.Screen name="WardrobeHome" component={WardrobeScreen} />
+
+      {/* Outfit screens */}
+      <Stack.Screen name="OutfitDetail" component={OutfitDetail} />
+      <Stack.Screen 
+        name="CreateOutfit" 
+        component={CreateOutfit}
+        options={{ gestureEnabled: false }}
+      />
+      <Stack.Screen 
+        name="EditOutfit" 
+        component={EditOutfit}
+        options={{ gestureEnabled: false }}
+      />
+      <Stack.Screen name="GenerateOutfit" component={GenerateOutfitScreen} />
+
+      {/* Wardrobe item screens */}
       <Stack.Screen name="WardrobeItemDetail" component={WardrobeItemDetail} />
-       <Stack.Screen name="AddLink" component={AddLinkScreen} />
+
+      {/* Upload and review screens */}
+      <Stack.Screen name="MultiUpload" component={MultiUploadScreen} />
+      <Stack.Screen 
+        name="ItemReview" 
+        component={ItemReviewScreen}
+        options={{ gestureEnabled: false }}
+      />
+      <Stack.Screen 
+        name="WebView" 
+        component={WebViewScreen}
+        options={{ gestureEnabled: false }}
+      />
+
     </Stack.Navigator>
   );
 }

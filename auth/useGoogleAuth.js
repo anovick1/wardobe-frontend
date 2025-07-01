@@ -25,7 +25,6 @@ export const useGoogleAuth = (setUser) => {
 
     useProxy: !isAndroid,
   });
-  console.log("🔁 Redirect URI:", redirectUri);
 
   const clientId = isAndroid
     ? Constants.expoConfig.extra.ANDROID_GOOGLE_CLIENT_ID
@@ -57,7 +56,7 @@ export const useGoogleAuth = (setUser) => {
 
           setUser({ firebase: userCred.user, backend: backendUser });
         } catch (err) {
-          console.error("❌ Firebase sign-in or backend sync failed:", err);
+          console.error("Firebase sign-in or backend sync failed:", err);
         }
       }
     };

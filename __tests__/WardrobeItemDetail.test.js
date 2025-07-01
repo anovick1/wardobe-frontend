@@ -30,6 +30,8 @@ const baseMockItem = {
   is_favorite: true,
   image_url: "",
   tags: ["casual", "summer"],
+  category: "Clothing",
+  subcategory: "Tops",
 };
 
 describe("WardrobeItemDetail", () => {
@@ -47,8 +49,9 @@ describe("WardrobeItemDetail", () => {
     expect(getByText("M")).toBeTruthy();
     expect(getByText("$25")).toBeTruthy();
     expect(getByText("3")).toBeTruthy();
-    expect(getByText("Yes")).toBeTruthy();
-    expect(getByText("casual, summer")).toBeTruthy();
+    expect(getByText("Clothing - Tops")).toBeTruthy();
+    expect(getByText("casual")).toBeTruthy();
+    expect(getByText("summer")).toBeTruthy();
   });
 
   it("shows N/A for missing optional fields", () => {

@@ -49,15 +49,24 @@ export async function handleImageUploadFlow(
       }
     );
 
-    console.log("✅ navigating to ItemReview with item:", data);
-
     // ✅ Navigate directly to the screen inside the stack
     setTimeout(() => {
       navigation.navigate("ItemReview", { item: data });
     }, 100);
   } catch (e) {
     console.error("Upload failed:", e);
-    Alert.alert("Upload failed", e?.response?.data?.error || e.message);
+    
+    // Check if it's a clothing detection error from the bulk upload response
+    const errorMessage = e?.response?.data?.error || e.message;
+    const isClothingError = errorMessage === "Image is not a clothing item";
+    
+    Alert.alert(
+      isClothingError ? "Not a Clothing Item" : "Upload Failed",
+      isClothingError 
+        ? "The image doesn't appear to contain a clothing item. Please try taking a photo of clothing items only."
+        : errorMessage,
+      [{ text: "OK", style: "default" }]
+    );
   } finally {
     if (setProcessing) setProcessing(false);
   }

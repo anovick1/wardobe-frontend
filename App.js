@@ -2,13 +2,13 @@ import React, { useContext } from "react";
 import { StatusBar } from "expo-status-bar";
 import { AuthProvider, AuthContext } from "./auth/AuthContext";
 import { WeatherProvider } from "./contexts/WeatherContext";
-import { WardrobeProvider } from "./contexts/WardrobeContext"; // ✅ Add this line
+import { WardrobeProvider } from "./contexts/WardrobeContext";
+import { OutfitProvider } from "./contexts/OutfitContext";
 import LoginScreen from "./screens/LoginScreen";
 import RootNavigator from "./navigation/RootNavigator";
 
 function AppContent() {
   const { user, loading } = useContext(AuthContext);
-  console.log("🧠 AppContent state →", { loading, user });
 
   if (loading) return null;
 
@@ -20,37 +20,12 @@ export default function App() {
     <AuthProvider>
       <WeatherProvider>
         <WardrobeProvider>
-          <AppContent />
-          <StatusBar style="auto" />
+          <OutfitProvider>
+            <AppContent />
+            <StatusBar style="auto" />
+          </OutfitProvider>
         </WardrobeProvider>
       </WeatherProvider>
     </AuthProvider>
   );
 }
-
-// import React, { useContext } from "react";
-// import { AuthProvider, AuthContext } from "./auth/AuthContext";
-// import { WeatherProvider } from "./contexts/WeatherContext"; // ✅ NEW
-// import LoginScreen from "./screens/LoginScreen";
-// import HomeScreen from "./screens/HomeScreen";
-// import { StatusBar } from "expo-status-bar";
-
-// function AppContent() {
-//   const { user, loading } = useContext(AuthContext);
-//   console.log("🧠 AppContent state →", { loading, user });
-
-//   if (loading) return null;
-//   return user ? <HomeScreen /> : <LoginScreen />;
-// }
-
-// export default function App() {
-//   return (
-//     <AuthProvider>
-//       <WeatherProvider>
-//         {/* ✅ Wrap in weather context */}
-//         <AppContent />
-//         <StatusBar style="auto" />
-//       </WeatherProvider>
-//     </AuthProvider>
-//   );
-// }
