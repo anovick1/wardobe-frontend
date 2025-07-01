@@ -36,6 +36,7 @@ export default function MultiUploadScreen({ route, navigation }) {
   const [images, setImages] = useState(initialImages);
   const [isUploading, setIsUploading] = useState(false);
   const [processedWebhooks, setProcessedWebhooks] = useState(new Set());
+  const [shouldNavigateToWardrobe, setShouldNavigateToWardrobe] = useState(false);
   const [uploadStatus, setUploadStatus] = useState(
     initialImages.map((_, index) => ({
       id: index,
@@ -68,9 +69,9 @@ export default function MultiUploadScreen({ route, navigation }) {
     }, [navigation]),
   );
 
-  // Add useEffect to handle navigation when no items
+  // Handle navigation when flag is set
   useEffect(() => {
-    if (uploadStatus.length === 0 && !isUploading) {
+    if (shouldNavigateToWardrobe) {
       const timer = setTimeout(() => {
         navigation.reset({
           index: 0,
@@ -78,10 +79,17 @@ export default function MultiUploadScreen({ route, navigation }) {
             { name: "WardrobeHome", params: { initialTab: "Wardrobe" } },
           ],
         });
-      }, 100);
+      }, 500);
       return () => clearTimeout(timer);
     }
-  }, [uploadStatus.length, isUploading, navigation]);
+  }, [shouldNavigateToWardrobe, navigation]);
+
+  // Check if we should navigate when upload status changes
+  useEffect(() => {
+    if (uploadStatus.length === 0 && !isUploading) {
+      setShouldNavigateToWardrobe(true);
+    }
+  }, [uploadStatus.length, isUploading]);
 
   useEffect(() => {
     if (clientUploadIds) {
@@ -488,16 +496,11 @@ export default function MultiUploadScreen({ route, navigation }) {
         setUploadStatus((prev) => prev.filter((_, i) => i !== index));
         setImages((prev) => prev.filter((_, i) => i !== index));
 
-        // Check if all items are now processed and navigate if empty
+        // Check if all items are now processed and set navigation flag if empty
         setTimeout(() => {
           setUploadStatus((currentStatus) => {
             if (currentStatus.length === 0) {
-              navigation.reset({
-                index: 0,
-                routes: [
-                  { name: "WardrobeHome", params: { initialTab: "Wardrobe" } },
-                ],
-              });
+              setShouldNavigateToWardrobe(true);
             }
             return currentStatus;
           });
@@ -549,14 +552,7 @@ export default function MultiUploadScreen({ route, navigation }) {
           );
 
           if (remaining.length === 0) {
-            setTimeout(() => {
-              navigation.reset({
-                index: 0,
-                routes: [
-                  { name: "WardrobeHome", params: { initialTab: "Wardrobe" } },
-                ],
-              });
-            }, 500);
+            setShouldNavigateToWardrobe(true);
           }
 
           return remaining;
@@ -603,16 +599,9 @@ export default function MultiUploadScreen({ route, navigation }) {
           (status) => status.status !== "completed",
         );
 
-        // Navigate to wardrobe if no items left
+        // Set navigation flag if no items left
         if (remaining.length === 0) {
-          setTimeout(() => {
-            navigation.reset({
-              index: 0,
-              routes: [
-                { name: "WardrobeHome", params: { initialTab: "Wardrobe" } },
-              ],
-            });
-          }, 500);
+          setShouldNavigateToWardrobe(true);
         }
 
         return remaining;
