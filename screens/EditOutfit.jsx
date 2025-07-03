@@ -132,7 +132,19 @@ const EditOutfit = () => {
             (item) => item.id,
           );
           setSelectedItems(selectedItemIds);
-          setSelectedItemsData(outfitData.wardrobe_items);
+          
+          // Always fetch fresh wardrobe item data to ensure we have categories
+          try {
+            const allItems = await getAllWardrobeItemsForSelection();
+            const selectedData = allItems.filter((item) =>
+              selectedItemIds.includes(item.id),
+            );
+            setSelectedItemsData(selectedData);
+          } catch (itemsError) {
+            console.error("Error loading wardrobe items for outfit:", itemsError);
+            // Fallback to outfit data if wardrobe fetch fails
+            setSelectedItemsData(outfitData.wardrobe_items);
+          }
         }
       }
     } catch (error) {
@@ -405,6 +417,13 @@ const EditOutfit = () => {
           selectedItems={selectedItems}
           title="Select Wardrobe Items"
         />
+
+        {saving && (
+          <View style={styles.savingOverlay}>
+            <ActivityIndicator size="large" color="#000" />
+            <Text style={styles.savingText}>Saving outfit...</Text>
+          </View>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -602,6 +621,23 @@ const styles = StyleSheet.create({
     padding: 16,
     justifyContent: "center",
     alignItems: "center",
+  },
+  savingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 9999,
+  },
+  savingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#000",
+    fontWeight: "500",
   },
 });
 

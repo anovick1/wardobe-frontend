@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import * as WebBrowser from "expo-web-browser";
 import * as Facebook from "expo-auth-session/providers/facebook";
 import { FacebookAuthProvider, signInWithCredential } from "firebase/auth";
@@ -11,6 +11,7 @@ import { createOrFetchUser } from "../api/user";
 WebBrowser.maybeCompleteAuthSession();
 
 export const useFacebookAuth = (setUser) => {
+  const [signingIn, setSigningIn] = useState(false);
   const isAndroid = Platform.OS === "android";
 
   // const redirectUri = "https://auth.expo.io/@averynov/wardrobe-frontend";
@@ -47,10 +48,12 @@ export const useFacebookAuth = (setUser) => {
         const { authentication } = response;
         if (!authentication?.accessToken) {
           console.warn("❌ No Facebook access token");
+          setSigningIn(false);
           return;
         }
 
         try {
+          setSigningIn(true);
           const credential = FacebookAuthProvider.credential(
             authentication.accessToken
           );
@@ -60,7 +63,11 @@ export const useFacebookAuth = (setUser) => {
           setUser({ firebase: userCred.user, backend: backendUser });
         } catch (err) {
           console.error("Firebase sign-in failed:", err);
+        } finally {
+          setSigningIn(false);
         }
+      } else if (response?.type === "cancel" || response?.type === "error") {
+        setSigningIn(false);
       }
     };
 
@@ -68,7 +75,11 @@ export const useFacebookAuth = (setUser) => {
   }, [response]);
 
   return {
-    login: () => promptAsync(),
+    login: () => {
+      setSigningIn(true);
+      promptAsync();
+    },
     ready: !!request,
+    signingIn,
   };
 };

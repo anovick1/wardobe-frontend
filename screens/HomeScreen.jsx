@@ -2,23 +2,38 @@ import React, { useContext, useState, useEffect } from "react";
 import { View, Text, StyleSheet, Alert } from "react-native";
 import { AuthContext } from "../auth/AuthContext";
 import { useWeather } from "../contexts/WeatherContext";
+import { useWardrobe } from "../contexts/WardrobeContext";
 import typography from "../styles/typography";
 import globalStyles from "../styles/global";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useDailyOutfit } from "../components/homescreen/outfits/useDailyOutfit";
 import OutfitCard from "../components/homescreen/outfits/DailyOutfitCard";
 import LoadingSkeleton from "../components/homescreen/outfits/LoadingSkeleton";
+import InsufficientWardrobeCard from "../components/homescreen/outfits/InsufficientWardrobeCard";
+import {
+  canCreateDailyOutfit,
+  getWardrobeValidationMessage,
+} from "../utils/wardrobeValidation";
 import * as Calendar from "expo-calendar";
 
 export default function HomeScreen() {
   const { user } = useContext(AuthContext);
   const { weather, error: weatherError, city, coordinates } = useWeather();
+  const { wardrobeItems, loadingWardrobe } = useWardrobe();
   const [calendarPermission, setCalendarPermission] = useState(false);
   const [todaysEvents, setTodaysEvents] = useState([]);
 
-  // Daily outfit hook
+  // Check if user can create daily outfits
+  const wardrobeValidation = canCreateDailyOutfit(wardrobeItems);
+  const validationMessage = getWardrobeValidationMessage(wardrobeValidation);
+
+  // Daily outfit hook - only use if wardrobe is valid
   const { dailyOutfit, loading, generating, initialising, generateOutfit } =
-    useDailyOutfit(coordinates?.lat, coordinates?.lon, todaysEvents);
+    useDailyOutfit(
+      wardrobeValidation.canCreate ? coordinates?.lat : null,
+      wardrobeValidation.canCreate ? coordinates?.lon : null,
+      todaysEvents
+    );
 
   useEffect(() => {
     requestCalendarPermissions();
@@ -110,7 +125,11 @@ export default function HomeScreen() {
 
       {/* Daily Outfit Section */}
       <View style={styles.ensembleCardWrapper}>
-        {!dailyOutfit && (loading || generating || initialising) ? (
+        {loadingWardrobe ? (
+          <LoadingSkeleton text="Loading wardrobe…" />
+        ) : !wardrobeValidation.canCreate && validationMessage ? (
+          <InsufficientWardrobeCard validationMessage={validationMessage} />
+        ) : !dailyOutfit && (loading || generating || initialising) ? (
           <LoadingSkeleton text="Styling your look…" />
         ) : dailyOutfit ? (
           <OutfitCard

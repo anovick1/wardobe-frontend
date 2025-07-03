@@ -79,6 +79,15 @@ export default function WardrobeScreen({ navigation, route }) {
     }
   }, [route?.params?.initialTab]);
 
+  // Handle showAddModal parameter
+  useEffect(() => {
+    if (route?.params?.showAddModal) {
+      setModalVisible(true);
+      // Clear the param to prevent reopening on subsequent navigations
+      navigation.setParams({ showAddModal: false });
+    }
+  }, [route?.params?.showAddModal, navigation]);
+
 
   // Handle navigation to specific outfit detail
   useEffect(() => {

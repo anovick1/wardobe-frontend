@@ -6,11 +6,12 @@ import { WardrobeProvider } from "./contexts/WardrobeContext";
 import { OutfitProvider } from "./contexts/OutfitContext";
 import LoginScreen from "./screens/LoginScreen";
 import RootNavigator from "./navigation/RootNavigator";
+import LoadingScreen from "./components/common/LoadingScreen";
 
 function AppContent() {
   const { user, loading } = useContext(AuthContext);
 
-  if (loading) return null;
+  if (loading) return <LoadingScreen message="Loading your wardrobe..." />;
 
   return user ? <RootNavigator /> : <LoginScreen />;
 }

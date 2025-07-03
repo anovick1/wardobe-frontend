@@ -29,6 +29,7 @@ export default function WardrobeItemDetail({ route, navigation }) {
   const { removeWardrobeItem } = useWardrobe();
   const [item, setItem] = useState(initialItem);
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Check if we need to fetch full item details
   const needsFullDetails = !item.category && !item.primary_color && !item.size;
@@ -102,6 +103,7 @@ export default function WardrobeItemDetail({ route, navigation }) {
                     style: "destructive",
                     onPress: async () => {
                       try {
+                        setDeleting(true);
                         await api.delete(`/wardrobe_items/${item.id}`);
                         removeWardrobeItem(item.id);
                         Alert.alert("Success", "Item deleted successfully");
@@ -109,6 +111,8 @@ export default function WardrobeItemDetail({ route, navigation }) {
                       } catch (err) {
                         Alert.alert("Error", "Failed to delete item.");
                         console.error(err);
+                      } finally {
+                        setDeleting(false);
                       }
                     },
                   },
@@ -221,6 +225,13 @@ export default function WardrobeItemDetail({ route, navigation }) {
           <Text style={styles.addToOutfitText}>Add to Outfit</Text>
         </TouchableOpacity>
       </View>
+
+      {deleting && (
+        <View style={styles.deletingOverlay}>
+          <ActivityIndicator size="large" color="#000" />
+          <Text style={styles.deletingText}>Deleting item...</Text>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -406,5 +417,22 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 16,
     color: "#6a7681",
+  },
+  deletingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 9999,
+  },
+  deletingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#000",
+    fontWeight: "500",
   },
 });
