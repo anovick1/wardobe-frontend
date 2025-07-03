@@ -1,5 +1,5 @@
 // // ✅ useGoogleAuth.js
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import * as WebBrowser from "expo-web-browser";
 import * as Google from "expo-auth-session/providers/google";
 import { signInWithCredential, GoogleAuthProvider } from "firebase/auth";
@@ -12,6 +12,7 @@ import { createOrFetchUser } from "../api/user";
 WebBrowser.maybeCompleteAuthSession();
 
 export const useGoogleAuth = (setUser) => {
+  const [signingIn, setSigningIn] = useState(false);
   const isAndroid = Platform.OS === "android";
 
   const redirectUri = makeRedirectUri({
@@ -43,10 +44,12 @@ export const useGoogleAuth = (setUser) => {
         const { authentication } = response;
         if (!authentication?.idToken) {
           console.warn("❌ No ID token from Google");
+          setSigningIn(false);
           return;
         }
 
         try {
+          setSigningIn(true);
           const credential = GoogleAuthProvider.credential(
             authentication.idToken
           );
@@ -57,7 +60,11 @@ export const useGoogleAuth = (setUser) => {
           setUser({ firebase: userCred.user, backend: backendUser });
         } catch (err) {
           console.error("Firebase sign-in or backend sync failed:", err);
+        } finally {
+          setSigningIn(false);
         }
+      } else if (response?.type === "cancel" || response?.type === "error") {
+        setSigningIn(false);
       }
     };
 
@@ -65,7 +72,11 @@ export const useGoogleAuth = (setUser) => {
   }, [response]);
 
   return {
-    login: () => promptAsync(),
+    login: () => {
+      setSigningIn(true);
+      promptAsync();
+    },
     ready: !!request,
+    signingIn,
   };
 };

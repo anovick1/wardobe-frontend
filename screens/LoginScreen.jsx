@@ -1,5 +1,5 @@
 import React, { useContext } from "react";
-import { View, TouchableOpacity, Text, StyleSheet, Image } from "react-native";
+import { View, TouchableOpacity, Text, StyleSheet, ActivityIndicator } from "react-native";
 import { useGoogleAuth } from "../auth/useGoogleAuth";
 import { useFacebookAuth } from "../auth/useFacebookAuth";
 import { AuthContext } from "../auth/AuthContext";
@@ -7,14 +7,21 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import typography from "../styles/typography";
 import globalStyles from "../styles/global";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
+import LoadingScreen from "../components/common/LoadingScreen";
 // If you have a local Google G icon, import it here:
 // import GoogleG from "../assets/google_g.png";
 
 export default function LoginScreen() {
   const { setUser } = useContext(AuthContext);
 
-  const { login: loginWithGoogle } = useGoogleAuth(setUser);
-  const { login: loginWithFacebook } = useFacebookAuth(setUser);
+  const { login: loginWithGoogle, signingIn: googleSigningIn } = useGoogleAuth(setUser);
+  const { login: loginWithFacebook, signingIn: facebookSigningIn } = useFacebookAuth(setUser);
+
+  const isSigningIn = googleSigningIn || facebookSigningIn;
+
+  if (isSigningIn) {
+    return <LoadingScreen message="Signing you in..." />;
+  }
 
   return (
     <SafeAreaView
@@ -25,30 +32,52 @@ export default function LoginScreen() {
         Sign in to Wardrobe
       </Text>
       <TouchableOpacity
-        style={[styles.button, styles.googleButton]}
+        style={[
+          styles.button, 
+          styles.googleButton,
+          isSigningIn && styles.buttonDisabled
+        ]}
         onPress={loginWithGoogle}
+        disabled={isSigningIn}
       >
         {/* Use local Google G icon if available, else fallback to icon */}
         {/* <Image source={GoogleG} style={styles.googleIcon} /> */}
-        <Icon
-          name="google"
-          size={22}
-          color="#4285F4"
-          style={styles.googleIcon}
-        />
-        <Text style={styles.googleButtonText}>Sign in with Google</Text>
+        {googleSigningIn ? (
+          <ActivityIndicator size="small" color="#4285F4" />
+        ) : (
+          <Icon
+            name="google"
+            size={22}
+            color="#4285F4"
+            style={styles.googleIcon}
+          />
+        )}
+        <Text style={styles.googleButtonText}>
+          {googleSigningIn ? "Signing in..." : "Sign in with Google"}
+        </Text>
       </TouchableOpacity>
       <TouchableOpacity
-        style={[styles.button, styles.facebookButton]}
+        style={[
+          styles.button, 
+          styles.facebookButton,
+          isSigningIn && styles.buttonDisabled
+        ]}
         onPress={loginWithFacebook}
+        disabled={isSigningIn}
       >
-        <Icon
-          name="facebook"
-          size={22}
-          color="#fff"
-          style={styles.buttonIcon}
-        />
-        <Text style={styles.buttonText}>Sign in with Facebook</Text>
+        {facebookSigningIn ? (
+          <ActivityIndicator size="small" color="#fff" />
+        ) : (
+          <Icon
+            name="facebook"
+            size={22}
+            color="#fff"
+            style={styles.buttonIcon}
+          />
+        )}
+        <Text style={styles.buttonText}>
+          {facebookSigningIn ? "Signing in..." : "Sign in with Facebook"}
+        </Text>
       </TouchableOpacity>
     </SafeAreaView>
   );
@@ -105,5 +134,8 @@ const styles = StyleSheet.create({
   },
   buttonIcon: {
     marginRight: 2,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
 });

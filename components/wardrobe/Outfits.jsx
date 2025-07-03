@@ -24,9 +24,15 @@ import Icon from "react-native-vector-icons/MaterialIcons";
 import OutfitCard from "./OutfitCard";
 import { useOutfits } from "../../contexts/OutfitContext";
 import { useWeather } from "../../contexts/WeatherContext";
+import { useWardrobe } from "../../contexts/WardrobeContext";
 import api from "../../api";
 import globalStyles from "../../styles/global";
 import { mapEventsForApi } from "../../utils/events";
+import {
+  canCreateDailyOutfit,
+  getWardrobeValidationMessage,
+} from "../../utils/wardrobeValidation";
+import InsufficientWardrobeModal from "./InsufficientWardrobeModal";
 
 const Outfits = forwardRef(({ filters = [], searchQuery = "" }, ref) => {
   const [modalVisible, setModalVisible] = useState(false);
@@ -37,6 +43,7 @@ const Outfits = forwardRef(({ filters = [], searchQuery = "" }, ref) => {
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [eventDays, setEventDays] = useState(7); // Default to 7 days
   const [showEmptyEvents, setShowEmptyEvents] = useState(false);
+  const [showWardrobeValidationModal, setShowWardrobeValidationModal] = useState(false);
   const navigation = useNavigation();
 
   const {
@@ -52,6 +59,7 @@ const Outfits = forwardRef(({ filters = [], searchQuery = "" }, ref) => {
   } = useOutfits();
 
   const { coordinates } = useWeather();
+  const { wardrobeItems } = useWardrobe();
 
   // Filter outfits based on search query and active filters
   const filterOutfits = (outfits) => {
@@ -164,7 +172,15 @@ const Outfits = forwardRef(({ filters = [], searchQuery = "" }, ref) => {
 
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
-    openAIGenerator: () => setModalVisible(true),
+    openAIGenerator: () => {
+      // Check wardrobe validation first
+      const wardrobeValidation = canCreateDailyOutfit(wardrobeItems);
+      if (!wardrobeValidation.canCreate) {
+        setShowWardrobeValidationModal(true);
+      } else {
+        setModalVisible(true);
+      }
+    },
   }));
 
   // Fetch upcoming events when modal opens or event range changes
@@ -586,6 +602,13 @@ const Outfits = forwardRef(({ filters = [], searchQuery = "" }, ref) => {
           </View>
         </View>
       </Modal>
+
+      {/* Wardrobe Validation Modal */}
+      <InsufficientWardrobeModal
+        visible={showWardrobeValidationModal}
+        onClose={() => setShowWardrobeValidationModal(false)}
+        validationMessage={getWardrobeValidationMessage(canCreateDailyOutfit(wardrobeItems))}
+      />
     </SafeAreaView>
   );
 });

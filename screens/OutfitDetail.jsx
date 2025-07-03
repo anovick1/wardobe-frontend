@@ -59,6 +59,7 @@ const OutfitDetail = () => {
   const [outfit, setOutfit] = useState(null);
   const outfitId = initialOutfit?.id || paramOutfitId;
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
   const { user } = useContext(AuthContext);
   const { removeOutfit, addOutfit, updateOutfitWornStatus } = useOutfits();
 
@@ -73,6 +74,7 @@ const OutfitDetail = () => {
   const [markingAsWorn, setMarkingAsWorn] = useState(false);
   const [wornRecords, setWornRecords] = useState([]);
   const [loadingWornRecords, setLoadingWornRecords] = useState(false);
+  const [copying, setCopying] = useState(false);
 
   const fetchOutfitDetails = async () => {
     if (!user || !outfitId) return;
@@ -93,6 +95,7 @@ const OutfitDetail = () => {
   // Daily outfits also cannot be deleted to preserve the AI-generated suggestions.
   const handleCopyAndEdit = async () => {
     try {
+      setCopying(true);
       const copyResult = await dataManager.copyOutfit(outfitId);
       Alert.alert("Success", "Outfit copied successfully!", [
         {
@@ -113,6 +116,8 @@ const OutfitDetail = () => {
     } catch (error) {
       Alert.alert("Error", "Failed to copy outfit");
       console.error(error);
+    } finally {
+      setCopying(false);
     }
   };
 
@@ -145,6 +150,7 @@ const OutfitDetail = () => {
           style: "destructive",
           onPress: async () => {
             try {
+              setDeleting(true);
               await api.delete(`/outfits/${outfitId}`);
               removeOutfit(outfitId);
               Alert.alert("Success", "Outfit deleted successfully");
@@ -152,6 +158,8 @@ const OutfitDetail = () => {
             } catch (error) {
               Alert.alert("Error", "Failed to delete outfit");
               console.error(error);
+            } finally {
+              setDeleting(false);
             }
           },
         },
@@ -676,6 +684,20 @@ const OutfitDetail = () => {
             </View>
           </Modal>
         )}
+
+        {copying && (
+          <View style={styles.copyingOverlay}>
+            <ActivityIndicator size="large" color="#000" />
+            <Text style={styles.copyingText}>Copying outfit...</Text>
+          </View>
+        )}
+
+        {deleting && (
+          <View style={styles.deletingOverlay}>
+            <ActivityIndicator size="large" color="#000" />
+            <Text style={styles.deletingText}>Deleting outfit...</Text>
+          </View>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -1180,6 +1202,40 @@ const styles = StyleSheet.create({
     height: 140,
     backgroundColor: "#e5e7eb",
     borderRadius: 8,
+  },
+  copyingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 9999,
+  },
+  copyingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#000",
+    fontWeight: "500",
+  },
+  deletingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 9999,
+  },
+  deletingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#000",
+    fontWeight: "500",
   },
 });
 
