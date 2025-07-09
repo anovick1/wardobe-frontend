@@ -26,6 +26,7 @@ export default function ModalTextInput({
   isPriceInput = false,
 }) {
   const [text, setText] = useState(value || "");
+  const [isFocused, setIsFocused] = useState(true); // Start focused since autoFocus is true
 
   // Update local text when value prop changes
   useEffect(() => {
@@ -40,13 +41,28 @@ export default function ModalTextInput({
 
   const handleTextChange = (newText) => {
     if (isPriceInput) {
-      // Only allow numbers and decimal point
-      const cleaned = newText.replace(/[^0-9.]/g, "");
-      // Ensure only one decimal point
+      // Remove the dollar sign if present
+      let cleaned = newText.replace(/^\$/, "");
+      // Remove any non-numeric characters except decimal point
+      cleaned = cleaned.replace(/[^0-9.]/g, "");
+      
+      // Special handling: if we already have 2 decimal places and user types a number
       const parts = cleaned.split(".");
-      if (parts.length > 2) {
-        return; // Don't update if more than one decimal point
+      if (parts.length === 2 && parts[1].length > 2) {
+        // User typed a new digit after 2 decimal places
+        // Shift everything: ABC.DE + F => ABCD.EF
+        const beforeDecimal = parts[0];
+        const afterDecimal = parts[1];
+        const newBeforeDecimal = beforeDecimal + afterDecimal[0];
+        const newAfterDecimal = afterDecimal.substring(1, 3);
+        cleaned = newBeforeDecimal + "." + newAfterDecimal;
       }
+      
+      // Handle multiple decimal points
+      if (parts.length > 2) {
+        cleaned = parts[0] + "." + parts.slice(1).join("");
+      }
+      
       setText(cleaned);
     } else {
       setText(newText);
@@ -75,10 +91,6 @@ export default function ModalTextInput({
   };
 
   const getDisplayValue = () => {
-    if (isPriceInput && text) {
-      const numValue = parseFloat(text);
-      return isNaN(numValue) ? text : `$${numValue.toFixed(2)}`;
-    }
     return text;
   };
 
@@ -109,17 +121,28 @@ export default function ModalTextInput({
             </TouchableOpacity>
           </View>
 
-          <TextInput
-            value={getDisplayValue()}
-            onChangeText={handleTextChange}
-            placeholder={placeholder}
-            style={[styles.textInput, multiline && styles.textInputMultiline]}
-            autoFocus
-            multiline={multiline}
-            keyboardType={keyboardType}
-            textAlignVertical={multiline ? "top" : "center"}
-            numberOfLines={multiline ? 4 : 1}
-          />
+          <View style={styles.inputContainer}>
+            {isPriceInput && (
+              <Text style={styles.dollarSign}>$</Text>
+            )}
+            <TextInput
+              value={text}
+              onChangeText={handleTextChange}
+              placeholder={isPriceInput ? "0.00" : placeholder}
+              style={[
+                styles.textInput, 
+                multiline && styles.textInputMultiline,
+                isPriceInput && styles.priceTextInput
+              ]}
+              autoFocus
+              multiline={multiline}
+              keyboardType={keyboardType}
+              textAlignVertical={multiline ? "top" : "center"}
+              numberOfLines={multiline ? 4 : 1}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
+            />
+          </View>
 
           <View style={styles.buttonContainer}>
             <TouchableOpacity
@@ -178,15 +201,31 @@ const styles = StyleSheet.create({
   closeButton: {
     padding: 4,
   },
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  dollarSign: {
+    position: "absolute",
+    left: 16,
+    fontSize: 16,
+    color: "#111827",
+    fontWeight: "500",
+    zIndex: 1,
+  },
   textInput: {
     borderWidth: 1,
     borderColor: "#e5e7eb",
     borderRadius: 12,
     padding: 16,
-    marginBottom: 20,
     fontSize: 16,
     backgroundColor: "#f9fafb",
     color: "#111827",
+    flex: 1,
+  },
+  priceTextInput: {
+    paddingLeft: 30, // Make room for dollar sign
   },
   textInputMultiline: {
     minHeight: 120,
