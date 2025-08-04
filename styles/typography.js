@@ -3,7 +3,7 @@ import { StyleSheet, PixelRatio } from "react-native";
 const baseFontSize = 16;
 const nameFontSize = Math.round(baseFontSize * PixelRatio.getFontScale());
 
-export default StyleSheet.create({
+export const typography = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: "bold",
@@ -64,4 +64,15 @@ export default StyleSheet.create({
     paddingVertical: 10,
     textAlign: "center",
   },
+  body: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: "#333",
+  },
+  buttonText: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
 });
+
+export default typography;

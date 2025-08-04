@@ -116,8 +116,7 @@ class DataManager {
     }
 
     try {
-      // Get first page to determine total pages
-      const firstResponse = await api.get('/outfits/?page=1&per_page=20');
+      const firstResponse = await api.get('/outfits/?page=1&per_page=10&include_items=true');
       const pagination = firstResponse.data.pagination;
       let allOutfits = firstResponse.data.outfits || [];
 
@@ -126,7 +125,7 @@ class DataManager {
         const additionalRequests = [];
         for (let page = 2; page <= Math.min(pagination.pages, 10); page++) { // Limit to 10 pages max
           additionalRequests.push(
-            api.get(`/outfits/?page=${page}&per_page=20`)
+            api.get(`/outfits/?page=${page}&per_page=10&include_items=true`)
           );
         }
 
@@ -153,7 +152,7 @@ class DataManager {
     }
 
     try {
-      const response = await api.get(`/outfits/?page=${page}&per_page=${per_page}`);
+      const response = await api.get(`/outfits/?page=${page}&per_page=${per_page}&include_items=true`);
       const data = {
         items: response.data.outfits || [],
         pagination: response.data.pagination || {}

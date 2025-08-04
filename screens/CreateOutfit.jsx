@@ -19,7 +19,7 @@ import TagsPreview from "../components/itemReview/TagsPreview";
 import WardrobeItemPicker from "../components/wardrobe/WardrobeItemPicker";
 import useCachedImage from "../hooks/useCachedImage";
 import { AuthContext } from "../auth/AuthContext";
-import api from "../api";
+import api, { eventsAPI } from "../api";
 import { useOutfits } from "../contexts/OutfitContext";
 import { useWardrobe } from "../contexts/WardrobeContext";
 import {
@@ -85,7 +85,7 @@ const CreateOutfit = () => {
 
   const navigation = useNavigation();
   const route = useRoute();
-  const { selectedItem } = route.params || {};
+  const { selectedItem, eventId, eventTitle } = route.params || {};
   const { user } = useContext(AuthContext);
   const { addOutfit } = useOutfits();
   const { getAllWardrobeItemsForSelection } = useWardrobe();
@@ -168,7 +168,19 @@ const CreateOutfit = () => {
         addOutfit(newOutfit);
       }
 
-      Alert.alert("Awesome!", "Your outfit has been saved to your wardrobe ✨");
+      // Link to event if eventId is provided
+      if (eventId && newOutfit?.id) {
+        try {
+          await eventsAPI.linkOutfitToEvent(eventId, newOutfit.id);
+          Alert.alert("Success!", `Outfit created and linked to "${eventTitle}" ✨`);
+        } catch (linkError) {
+          console.error("Error linking outfit to event:", linkError);
+          Alert.alert("Outfit Created!", "Outfit saved but couldn't link to event. You can link it manually later.");
+        }
+      } else {
+        Alert.alert("Awesome!", "Your outfit has been saved to your wardrobe ✨");
+      }
+
       navigation.navigate("Wardrobe", {
         screen: "WardrobeHome",
         params: { initialTab: "Outfits" },
@@ -194,7 +206,9 @@ const CreateOutfit = () => {
           >
             <Text style={styles.cancelButtonText}>Cancel</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>Create Outfit</Text>
+          <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit>
+            {eventTitle ? `Outfit for ${eventTitle}` : "Create Outfit"}
+          </Text>
           <TouchableOpacity
             style={[styles.saveButton, saving && styles.saveButtonDisabled]}
             onPress={handleCreateOutfit}

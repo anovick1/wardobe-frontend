@@ -15,9 +15,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { AuthContext } from "../auth/AuthContext";
 import { useOutfits } from "../contexts/OutfitContext";
 import { dataManager } from "../services/DataManager";
-import api, { wornOutfitAPI } from "../api";
+import api, { wornOutfitAPI, eventsAPI } from "../api";
 import { SafeAreaView } from "react-native-safe-area-context";
 import MonthView from "../components/planner/MonthView";
+import LinkOutfitToEventModal from "../components/planner/LinkOutfitToEventModal";
 import {
   startOfMonth,
   endOfMonth,
@@ -75,6 +76,7 @@ const OutfitDetail = () => {
   const [wornRecords, setWornRecords] = useState([]);
   const [loadingWornRecords, setLoadingWornRecords] = useState(false);
   const [copying, setCopying] = useState(false);
+  const [showLinkEventModal, setShowLinkEventModal] = useState(false);
 
   const fetchOutfitDetails = async () => {
     if (!user || !outfitId) return;
@@ -465,6 +467,44 @@ const OutfitDetail = () => {
             </ScrollView>
           </View>
 
+          {/* Linked Events Section */}
+          {outfit.linked_events && outfit.linked_events.length > 0 && (
+            <View style={styles.eventsSection}>
+              <Text style={styles.eventsSectionLabel}>Linked Events</Text>
+              <View style={styles.eventsContainer}>
+                {outfit.linked_events.map((event) => (
+                  <View key={event.id} style={styles.eventCard}>
+                    <View style={styles.eventHeader}>
+                      <Ionicons name="calendar-outline" size={16} color="#3b82f6" />
+                      <Text style={styles.eventTitle}>{event.title}</Text>
+                    </View>
+                    <View style={styles.eventDetails}>
+                      <Text style={styles.eventDateTime}>
+                        {new Date(event.datetime).toLocaleDateString("en-US", {
+                          weekday: "short",
+                          month: "short",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </Text>
+                      {event.location && (
+                        <Text style={styles.eventLocation} numberOfLines={1}>
+                          {event.location}
+                        </Text>
+                      )}
+                    </View>
+                    {event.status === "planned" && (
+                      <View style={styles.eventStatusBadge}>
+                        <Text style={styles.eventStatusText}>Planned</Text>
+                      </View>
+                    )}
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
           {/* Tags Section */}
           {outfit.tags && outfit.tags.length > 0 && (
             <View style={styles.tagsSection}>
@@ -478,6 +518,17 @@ const OutfitDetail = () => {
               </View>
             </View>
           )}
+
+          {/* Link to Event Button */}
+          <View style={styles.actionSection}>
+            <TouchableOpacity
+              style={styles.linkEventButton}
+              onPress={() => setShowLinkEventModal(true)}
+            >
+              <Ionicons name="calendar-outline" size={20} color="#3b82f6" />
+              <Text style={styles.linkEventButtonText}>Link to Event</Text>
+            </TouchableOpacity>
+          </View>
 
           {/* Worn Outfit Management */}
           <View style={styles.wornSection}>
@@ -698,6 +749,16 @@ const OutfitDetail = () => {
             <Text style={styles.deletingText}>Deleting outfit...</Text>
           </View>
         )}
+
+        {/* Link to Event Modal */}
+        <LinkOutfitToEventModal
+          visible={showLinkEventModal}
+          onClose={() => setShowLinkEventModal(false)}
+          outfitId={outfitId}
+          onEventLinked={() => {
+            fetchOutfitDetails();
+          }}
+        />
       </View>
     </SafeAreaView>
   );
@@ -935,6 +996,69 @@ const styles = StyleSheet.create({
     flex: 1,
     lineHeight: 18,
   },
+  eventsSection: {
+    backgroundColor: "#fff",
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 12,
+    paddingVertical: 16,
+  },
+  eventsSectionLabel: {
+    fontSize: 16,
+    fontWeight: "500",
+    marginBottom: 12,
+    paddingHorizontal: 16,
+  },
+  eventsContainer: {
+    paddingHorizontal: 16,
+  },
+  eventCard: {
+    backgroundColor: "#f8fafc",
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+  },
+  eventHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  eventTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#121416",
+    marginLeft: 8,
+    flex: 1,
+  },
+  eventDetails: {
+    marginLeft: 24,
+  },
+  eventDateTime: {
+    fontSize: 13,
+    color: "#6b7280",
+    marginBottom: 2,
+  },
+  eventLocation: {
+    fontSize: 13,
+    color: "#6b7280",
+    fontStyle: "italic",
+  },
+  eventStatusBadge: {
+    backgroundColor: "#dbeafe",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    alignSelf: "flex-start",
+    marginTop: 6,
+    marginLeft: 24,
+  },
+  eventStatusText: {
+    fontSize: 11,
+    color: "#3b82f6",
+    fontWeight: "500",
+  },
   tagsSection: {
     backgroundColor: "#fff",
     marginHorizontal: 16,
@@ -965,6 +1089,26 @@ const styles = StyleSheet.create({
     color: "#666",
   },
   // Worn outfit styles
+  actionSection: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+  },
+  linkEventButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    paddingVertical: 14,
+    borderWidth: 2,
+    borderColor: "#3b82f6",
+    gap: 8,
+  },
+  linkEventButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#3b82f6",
+  },
   wornSection: {
     backgroundColor: "#fff",
     marginHorizontal: 16,

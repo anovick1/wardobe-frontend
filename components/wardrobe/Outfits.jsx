@@ -25,7 +25,7 @@ import OutfitCard from "./OutfitCard";
 import { useOutfits } from "../../contexts/OutfitContext";
 import { useWeather } from "../../contexts/WeatherContext";
 import { useWardrobe } from "../../contexts/WardrobeContext";
-import api from "../../api";
+import api, { eventsAPI } from "../../api";
 import globalStyles from "../../styles/global";
 import { mapEventsForApi } from "../../utils/events";
 import {
@@ -39,6 +39,8 @@ const Outfits = forwardRef(({ filters = [], searchQuery = "" }, ref) => {
   const [prompt, setPrompt] = useState("");
   const [generating, setGenerating] = useState(false);
   const [upcomingEvents, setUpcomingEvents] = useState([]);
+  const [backendEvents, setBackendEvents] = useState([]);
+  const [allEvents, setAllEvents] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [eventDays, setEventDays] = useState(7); // Default to 7 days
@@ -190,10 +192,45 @@ const Outfits = forwardRef(({ filters = [], searchQuery = "" }, ref) => {
     }
   }, [modalVisible, eventDays]);
 
+  const fetchBackendEvents = async () => {
+    try {
+      const response = await eventsAPI.getEvents();
+      const events = response.events || [];
+      
+      // Filter events to next 7 days and format them
+      const today = new Date();
+      const endDate = new Date(today);
+      endDate.setDate(today.getDate() + eventDays);
+      
+      const upcomingBackendEvents = events
+        .filter(event => {
+          const eventDate = new Date(event.datetime);
+          return eventDate >= today && eventDate <= endDate;
+        })
+        .map(event => ({
+          id: event.id,
+          title: event.title || 'Untitled Event',
+          startDate: event.datetime,
+          endDate: event.datetime,
+          location: event.location,
+          isBackendEvent: true
+        }));
+      
+      setBackendEvents(upcomingBackendEvents);
+      return upcomingBackendEvents;
+    } catch (error) {
+      console.error("Error fetching backend events:", error);
+      return [];
+    }
+  };
+
   const fetchUpcomingEvents = async () => {
     try {
       setLoadingEvents(true);
       setShowEmptyEvents(false); // Hide empty state during loading
+      
+      // Fetch backend events first
+      const backendEventsData = await fetchBackendEvents();
 
       // Request both calendar and reminders permissions
       const { status } = await Calendar.requestCalendarPermissionsAsync();
@@ -232,24 +269,28 @@ const Outfits = forwardRef(({ filters = [], searchQuery = "" }, ref) => {
         endDate
       );
 
-      // Filter and sort events
-      const upcoming = allEvents
+      // Filter and sort calendar events
+      const upcomingCalendarEvents = allEvents
         .filter((event) => {
           const eventStart = new Date(event.startDate);
           return eventStart >= startDate;
         })
+        .sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+      
+      // Combine calendar and backend events
+      const combinedEvents = [...backendEventsData, ...upcomingCalendarEvents]
         .sort((a, b) => new Date(a.startDate) - new Date(b.startDate))
         .slice(0, 10); // Limit to 10 events
-
-      setUpcomingEvents(upcoming);
-      setShowEmptyEvents(upcoming.length === 0); // Show empty state only if no events found
+        
+      setUpcomingEvents(upcomingCalendarEvents);
+      setAllEvents(combinedEvents);
+      setShowEmptyEvents(combinedEvents.length === 0); // Show empty state only if no events found
     } catch (error) {
-      console.error("Error fetching events:", error);
-      // Only clear events if this is the first load (no existing events)
-      if (upcomingEvents.length === 0) {
-        setUpcomingEvents([]);
-        setShowEmptyEvents(true);
-      }
+      console.error("Error fetching calendar events:", error);
+      // Even if calendar fails, we still have backend events
+      setUpcomingEvents([]);
+      setAllEvents(backendEventsData);
+      setShowEmptyEvents(backendEventsData.length === 0);
     } finally {
       setLoadingEvents(false);
     }
@@ -491,7 +532,7 @@ const Outfits = forwardRef(({ filters = [], searchQuery = "" }, ref) => {
                   </TouchableOpacity>
 
                   {/* Event Options */}
-                  {upcomingEvents.slice(0, 5).map((event) => {
+                  {allEvents.slice(0, 5).map((event) => {
                     const eventDate = new Date(event.startDate);
                     const isToday =
                       eventDate.toDateString() === new Date().toDateString();
@@ -529,7 +570,9 @@ const Outfits = forwardRef(({ filters = [], searchQuery = "" }, ref) => {
                         onPress={() => setSelectedEvent(event)}
                       >
                         <View style={styles.eventOptionContent}>
-                          <Text style={styles.eventOptionIcon}>📅</Text>
+                          <Text style={styles.eventOptionIcon}>
+                            {event.isBackendEvent ? "🎯" : "📅"}
+                          </Text>
                           <View style={styles.eventDetails}>
                             <Text
                               style={[

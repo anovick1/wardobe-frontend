@@ -43,4 +43,51 @@ export const wornOutfitAPI = {
   }
 };
 
+// Events API functions
+export const eventsAPI = {
+  // Get all events
+  getEvents: async (params = {}) => {
+    const response = await api.get('/events/', { params });
+    return response.data;
+  },
+
+  // Get single event
+  getEvent: async (eventId) => {
+    const response = await api.get(`/events/${eventId}`);
+    return response.data;
+  },
+
+  // Create new event
+  createEvent: async (eventData) => {
+    const response = await api.post('/events/', eventData);
+    return response.data;
+  },
+
+  // Update event
+  updateEvent: async (eventId, eventData) => {
+    const response = await api.put(`/events/${eventId}`, eventData);
+    return response.data;
+  },
+
+  // Delete event
+  deleteEvent: async (eventId) => {
+    const response = await api.delete(`/events/${eventId}`);
+    return response.data;
+  },
+
+  // Link outfit to event
+  linkOutfitToEvent: async (eventId, outfitId) => {
+    const response = await api.post(`/events/${eventId}/outfits`, {
+      outfit_id: outfitId
+    });
+    return response.data;
+  },
+
+  // Unlink outfit from event
+  unlinkOutfitFromEvent: async (eventId, outfitId) => {
+    const response = await api.delete(`/events/${eventId}/outfits/${outfitId}`);
+    return response.data;
+  }
+};
+
 export default api;
