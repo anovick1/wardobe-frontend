@@ -17,10 +17,12 @@ import WeekView from "../components/planner/WeekView";
 import MonthView from "../components/planner/MonthView";
 import CreateEventModal from "../components/planner/CreateEventModal";
 import EventDetailModal from "../components/planner/EventDetailModal";
+import CreateTripModal from "../components/planner/CreateTripModal";
+import TripDetailModal from "../components/planner/TripDetailModal";
 import { useOutfits } from "../contexts/OutfitContext";
 import { format, startOfWeek, startOfMonth } from "date-fns";
 import * as Calendar from "expo-calendar";
-import { eventsAPI } from "../api";
+import { eventsAPI, tripsAPI } from "../api";
 import { useFocusEffect } from "@react-navigation/native";
 
 const CALENDAR_VIEWS = { WEEK: "week", MONTH: "month" };
@@ -44,6 +46,10 @@ export default function PlannerScreen() {
   const [showEventDetailModal, setShowEventDetailModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [backendEvents, setBackendEvents] = useState([]);
+  const [showCreateTripModal, setShowCreateTripModal] = useState(false);
+  const [showTripDetailModal, setShowTripDetailModal] = useState(false);
+  const [selectedTrip, setSelectedTrip] = useState(null);
+  const [trips, setTrips] = useState([]);
   const { outfits } = useOutfits();
 
   useEffect(() => {
@@ -52,14 +58,16 @@ export default function PlannerScreen() {
     // Use the already calculated isoDate
     setSelectedDate(isoDate);
     setViewDate(isoDate);
-    // Fetch backend events
-    fetchBackendEvents();
+    // Fetch backend events and trips
+    fetchBackendEvents();  
+    fetchTrips();
   }, []);
 
-  // Refresh backend events when screen comes into focus
+  // Refresh backend events and trips when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       fetchBackendEvents();
+      fetchTrips();
     }, [])
   );
 
@@ -76,6 +84,15 @@ export default function PlannerScreen() {
       setBackendEvents(response.events || []);
     } catch (error) {
       console.error("Error fetching backend events:", error);
+    }
+  };
+
+  const fetchTrips = async () => {
+    try {
+      const response = await tripsAPI.getTrips();
+      setTrips(response.trips || []);
+    } catch (error) {
+      console.error("Error fetching trips:", error);
     }
   };
 
@@ -265,8 +282,17 @@ export default function PlannerScreen() {
       return eventDate === selectedDate;
     });
     
+    // Filter trips for selected date (check if date is within trip range)
+    const dayTrips = trips.filter((trip) => {
+      const selectedDateObj = new Date(selectedDate);
+      const startDate = new Date(trip.start_date);
+      const endDate = new Date(trip.end_date);
+      return selectedDateObj >= startDate && selectedDateObj <= endDate;
+    });
+    
     const hasEvents = events.length > 0 || dayBackendEvents.length > 0;
-    const hasContent = worn.length > 0 || planned.length > 0 || hasEvents;
+    const hasTrips = dayTrips.length > 0;
+    const hasContent = worn.length > 0 || planned.length > 0 || hasEvents || hasTrips;
 
     if (!hasContent && !permissionGranted) {
       return (
@@ -422,9 +448,41 @@ export default function PlannerScreen() {
           </View>
         )}
 
+        {/* Active Trips */}
+        {hasTrips && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Icon name="flight" size={16} color="#8b5cf6" />
+              <Text style={styles.sectionTitle}>Active Trips</Text>
+            </View>
+            {dayTrips.map((trip) => (
+              <TouchableOpacity
+                key={trip.id}
+                style={styles.tripItem}
+                onPress={() => {
+                  setSelectedTrip(trip);
+                  setShowTripDetailModal(true);
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.tripTitle}>{trip.title}</Text>
+                <View style={styles.tripDetails}>
+                  <Text style={styles.tripLocation}>{trip.location}</Text>
+                  {trip.worn_outfits_count > 0 && (
+                    <Text style={styles.tripOutfitCount}>
+                      {trip.worn_outfits_count} outfit{trip.worn_outfits_count > 1 ? "s" : ""} worn
+                    </Text>
+                  )}
+                </View>
+                <Icon name="chevron-right" size={16} color="#9ca3af" style={styles.eventChevron} />
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
         {!hasContent && (
           <Text style={styles.emptyStateText}>
-            No outfits or events for this day
+            No outfits, events, or trips for this day
           </Text>
         )}
       </View>
@@ -519,13 +577,7 @@ export default function PlannerScreen() {
 
             <TouchableOpacity
               style={styles.createButton}
-              onPress={() => {
-                // navigation.navigate('CreateTrip');
-                Alert.alert(
-                  "Coming Soon",
-                  "Trip planning will be available soon!",
-                );
-              }}
+              onPress={() => setShowCreateTripModal(true)}
             >
               <Icon name="luggage" size={18} color="#8b5cf6" />
               <Text style={styles.createButtonText}>Trip</Text>
@@ -587,6 +639,28 @@ export default function PlannerScreen() {
           if (permissionGranted && selectedDate) {
             fetchEventsForSelectedDate(selectedDate);
           }
+        }}
+      />
+
+      {/* Create Trip Modal */}
+      <CreateTripModal
+        visible={showCreateTripModal}
+        onClose={() => setShowCreateTripModal(false)}
+        onTripCreated={(newTrip) => {
+          fetchTrips();
+        }}
+      />
+
+      {/* Trip Detail Modal */}
+      <TripDetailModal
+        visible={showTripDetailModal}
+        onClose={() => {
+          setShowTripDetailModal(false);
+          setSelectedTrip(null);
+        }}
+        trip={selectedTrip}
+        onTripUpdated={() => {
+          fetchTrips();
         }}
       />
     </SafeAreaView>
@@ -817,5 +891,34 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
     color: "#374151",
+  },
+  tripItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: "#f8f4ff",
+    borderRadius: 8,
+    marginBottom: 6,
+  },
+  tripTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#121416",
+  },
+  tripDetails: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
+    gap: 12,
+  },
+  tripLocation: {
+    fontSize: 12,
+    color: "#6b7280",
+    fontWeight: "500",
+  },
+  tripOutfitCount: {
+    fontSize: 11,
+    color: "#8b5cf6",
+    marginTop: 4,
+    fontWeight: "500",
   },
 });

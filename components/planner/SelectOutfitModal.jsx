@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/MaterialIcons";
-import { eventsAPI } from "../../api";
+import { eventsAPI, tripsAPI } from "../../api";
 import { dataManager } from "../../services/DataManager";
 import { useOutfits } from "../../contexts/OutfitContext";
 
@@ -21,6 +21,7 @@ export default function SelectOutfitModal({
   visible,
   onClose,
   event,
+  trip,
   onOutfitSelected,
 }) {
   const [filteredOutfits, setFilteredOutfits] = useState([]);
@@ -92,16 +93,23 @@ export default function SelectOutfitModal({
 
     setLinking(true);
     try {
-      const promises = Array.from(selectedOutfits).map((outfitId) =>
-        eventsAPI.linkOutfitToEvent(event.id, outfitId),
-      );
+      const promises = Array.from(selectedOutfits).map(async (outfitId) => {
+        if (event) {
+          return eventsAPI.linkOutfitToEvent(event.id, outfitId);
+        } else if (trip) {
+          return tripsAPI.linkOutfitToTrip(trip.id, outfitId);
+        } else {
+          throw new Error("No event or trip provided");
+        }
+      });
 
       await Promise.all(promises);
 
       const count = selectedOutfits.size;
+      const targetType = event ? "event" : "trip";
       Alert.alert(
         "Success",
-        `${count} outfit${count > 1 ? "s" : ""} linked to event successfully!`,
+        `${count} outfit${count > 1 ? "s" : ""} linked to ${targetType} successfully!`,
       );
 
       if (onOutfitSelected) {
@@ -109,10 +117,11 @@ export default function SelectOutfitModal({
       }
       onClose();
     } catch (error) {
-      console.error("Error linking outfits to event:", error);
+      const targetType = event ? "event" : "trip";
+      console.error(`Error linking outfits to ${targetType}:`, error);
       Alert.alert(
         "Error",
-        error.response?.data?.error || "Failed to link outfits to event",
+        error.response?.data?.error || `Failed to link outfits to ${targetType}`,
       );
     } finally {
       setLinking(false);
