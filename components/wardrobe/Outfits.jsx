@@ -25,7 +25,7 @@ import OutfitCard from "./OutfitCard";
 import { useOutfits } from "../../contexts/OutfitContext";
 import { useWeather } from "../../contexts/WeatherContext";
 import { useWardrobe } from "../../contexts/WardrobeContext";
-import api, { eventsAPI } from "../../api";
+import api, { eventsAPI, tripsAPI } from "../../api";
 import globalStyles from "../../styles/global";
 import { mapEventsForApi } from "../../utils/events";
 import {
@@ -194,10 +194,16 @@ const Outfits = forwardRef(({ filters = [], searchQuery = "" }, ref) => {
 
   const fetchBackendEvents = async () => {
     try {
-      const response = await eventsAPI.getEvents();
-      const events = response.events || [];
+      // Fetch both events and trips concurrently
+      const [eventsResponse, tripsResponse] = await Promise.all([
+        eventsAPI.getEvents(),
+        tripsAPI.getTrips()
+      ]);
       
-      // Filter events to next 7 days and format them
+      const events = eventsResponse.events || [];
+      const trips = tripsResponse.trips || [];
+      
+      // Filter events to next eventDays and format them
       const today = new Date();
       const endDate = new Date(today);
       endDate.setDate(today.getDate() + eventDays);
@@ -208,18 +214,39 @@ const Outfits = forwardRef(({ filters = [], searchQuery = "" }, ref) => {
           return eventDate >= today && eventDate <= endDate;
         })
         .map(event => ({
-          id: event.id,
+          id: `event_${event.id}`,
           title: event.title || 'Untitled Event',
           startDate: event.datetime,
           endDate: event.datetime,
           location: event.location,
-          isBackendEvent: true
+          isBackendEvent: true,
+          type: 'event'
         }));
       
-      setBackendEvents(upcomingBackendEvents);
-      return upcomingBackendEvents;
+      // Filter and format trips
+      const upcomingTrips = trips
+        .filter(trip => {
+          const tripStartDate = new Date(trip.start_date);
+          const tripEndDate = new Date(trip.end_date);
+          // Include trips that start within the range or are currently ongoing
+          return (tripStartDate <= endDate && tripEndDate >= today);
+        })
+        .map(trip => ({
+          id: `trip_${trip.id}`,
+          title: `🧳 ${trip.title}` || 'Untitled Trip',
+          startDate: trip.start_date,
+          endDate: trip.end_date,
+          location: trip.location_name || 'Unknown location',
+          isBackendEvent: true,
+          type: 'trip',
+          originalId: trip.id
+        }));
+      
+      const allBackendEvents = [...upcomingBackendEvents, ...upcomingTrips];
+      setBackendEvents(allBackendEvents);
+      return allBackendEvents;
     } catch (error) {
-      console.error("Error fetching backend events:", error);
+      console.error("Error fetching backend events and trips:", error);
       return [];
     }
   };
@@ -315,9 +342,20 @@ const Outfits = forwardRef(({ filters = [], searchQuery = "" }, ref) => {
         payload.lon = coordinates.lon;
       }
 
-      // Add selected event if chosen
+      // Add selected event/trip if chosen
       if (selectedEvent) {
         payload.selected_event = mapEventsForApi([selectedEvent])[0];
+        
+        // Add trip-specific information if it's a trip
+        if (selectedEvent.type === 'trip') {
+          payload.selected_trip = {
+            id: selectedEvent.originalId,
+            title: selectedEvent.title,
+            start_date: selectedEvent.startDate,
+            end_date: selectedEvent.endDate,
+            location: selectedEvent.location
+          };
+        }
       }
 
       const response = await api.post("/outfits/ai_generate_hybrid", payload);

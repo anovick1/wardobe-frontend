@@ -75,15 +75,6 @@ export default function LocationSelector({ selectedLocation, onLocationSelect, p
     }, 200);
   };
 
-  const renderLocationItem = ({ item }) => (
-    <TouchableOpacity
-      style={styles.suggestionItem}
-      onPress={() => handleSelect(item)}
-    >
-      <Icon name="place" size={16} color="#6b7280" style={styles.locationIcon} />
-      <Text style={styles.suggestionText}>{item.display_name}</Text>
-    </TouchableOpacity>
-  );
 
   return (
     <View style={styles.container}>
@@ -105,14 +96,23 @@ export default function LocationSelector({ selectedLocation, onLocationSelect, p
 
       {showSuggestions && (
         <View style={styles.suggestionsContainer}>
-          <FlatList
-            data={filtered}
-            keyExtractor={(item) => item.id}
-            renderItem={renderLocationItem}
+          <ScrollView
             style={styles.suggestionsList}
             keyboardShouldPersistTaps="handled"
             nestedScrollEnabled={true}
-          />
+            showsVerticalScrollIndicator={false}
+          >
+            {filtered.map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                style={styles.suggestionItem}
+                onPress={() => handleSelect(item)}
+              >
+                <Icon name="place" size={16} color="#6b7280" style={styles.locationIcon} />
+                <Text style={styles.suggestionText}>{item.display_name}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
       )}
     </View>

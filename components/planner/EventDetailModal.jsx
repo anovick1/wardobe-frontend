@@ -382,7 +382,7 @@ export default function EventDetailModal({
 
             {/* Outfit Actions */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Create Outfit for Event</Text>
+              <Text style={[styles.sectionTitle, styles.outfitManagementTitle]}>Outfit Management</Text>
 
               <View style={styles.actionButtons}>
                 {/* AI Generate Button */}
@@ -549,7 +549,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   section: {
-    marginBottom: 16,
+    marginBottom: 24,
   },
   sectionHeader: {
     flexDirection: "row",
@@ -561,6 +561,9 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600",
     color: "#121416",
+  },
+  outfitManagementTitle: {
+    marginBottom: 20,
   },
   outfitCount: {
     fontSize: 14,

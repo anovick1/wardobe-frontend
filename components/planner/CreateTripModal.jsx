@@ -136,6 +136,15 @@ export default function CreateTripModal({ visible, onClose, onTripCreated }) {
       onRequestClose={handleClose}
     >
       <SafeAreaView style={styles.container} edges={["top"]}>
+        {/* Full Screen Loading Overlay */}
+        {creating && (
+          <View style={styles.loadingOverlay}>
+            <View style={styles.loadingContent}>
+              <ActivityIndicator size="large" color="#007AFF" />
+              <Text style={styles.loadingText}>Creating trip and packing list...</Text>
+            </View>
+          </View>
+        )}
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
@@ -498,5 +507,34 @@ const styles = StyleSheet.create({
   datePicker: {
     backgroundColor: "#fff",
     width: "100%",
+  },
+  loadingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 1000,
+  },
+  loadingContent: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 24,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: "#374151",
+    marginTop: 12,
+    textAlign: "center",
+    fontWeight: "500",
   },
 });

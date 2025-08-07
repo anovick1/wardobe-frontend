@@ -61,6 +61,35 @@ class DataManager {
     }
   }
 
+  async getWardrobeItemById(itemId, forceRefresh = false) {
+    const cacheKey = `wardrobe_item_${itemId}`;
+    
+    if (!forceRefresh && dataCache.has(cacheKey)) {
+      return dataCache.get(cacheKey);
+    }
+
+    try {
+      // First try to find in cached wardrobe items
+      const allItems = await this.getAllWardrobeItemsForSelection();
+      const cachedItem = allItems.find(item => item.id === itemId);
+      
+      if (cachedItem) {
+        dataCache.set(cacheKey, cachedItem, 5 * 60 * 1000); // Cache for 5 minutes
+        return cachedItem;
+      }
+
+      // If not found in cache, fetch directly from API
+      const response = await api.get(`/wardrobe_items/${itemId}`);
+      const item = response.data;
+      
+      dataCache.set(cacheKey, item, 5 * 60 * 1000); // Cache for 5 minutes
+      return item;
+    } catch (error) {
+      console.error('Error fetching wardrobe item:', error);
+      throw error;
+    }
+  }
+
   async addWardrobeItem(itemData) {
     try {
       const response = await api.post('/wardrobe_items', itemData);

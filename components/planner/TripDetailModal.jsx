@@ -472,9 +472,9 @@ export default function TripDetailModal({
 
             {/* Outfit Actions */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Outfit Management</Text>
+              <Text style={[styles.sectionTitle, styles.outfitManagementTitle]}>Outfit Management</Text>
 
-              <View style={styles.actionButtonsGrid}>
+              <View style={styles.actionButtons}>
                 {/* AI Generate Button */}
                 <TouchableOpacity
                   style={[styles.actionButton, styles.aiButton]}
@@ -493,7 +493,7 @@ export default function TripDetailModal({
 
                 {/* Create New Button */}
                 <TouchableOpacity
-                  style={[styles.actionButton, styles.createButton]}
+                  style={[styles.actionButton, styles.manualButton]}
                   onPress={() => {
                     onClose();
                     navigation.navigate("Wardrobe", {
@@ -506,21 +506,22 @@ export default function TripDetailModal({
                     });
                   }}
                 >
-                  <Icon name="add" size={20} color="#fff" />
-                  <Text style={styles.actionButtonText}>Create New</Text>
+                  <Icon name="palette" size={20} color="#fff" />
+                  <Text style={styles.actionButtonText}>Create Outfit</Text>
                 </TouchableOpacity>
 
-                {/* Link Existing Button */}
-                <TouchableOpacity
-                  style={[styles.actionButton, styles.linkButton]}
-                  onPress={() => setShowSelectOutfitModal(true)}
-                >
-                  <Icon name="link" size={20} color="#3b82f6" />
-                  <Text style={[styles.actionButtonText, { color: "#3b82f6" }]}>
-                    Link Existing
-                  </Text>
-                </TouchableOpacity>
               </View>
+
+              {/* Link Existing Button */}
+              <TouchableOpacity
+                style={styles.linkExistingButton}
+                onPress={() => setShowSelectOutfitModal(true)}
+              >
+                <Icon name="link" size={18} color="#3b82f6" />
+                <Text style={styles.linkExistingButtonText}>
+                  Link Existing Outfit
+                </Text>
+              </TouchableOpacity>
             </View>
           </ScrollView>
         )}
@@ -568,7 +569,7 @@ export default function TripDetailModal({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8fafc",
+    backgroundColor: "#f5f5f5",
   },
   header: {
     flexDirection: "row",
@@ -627,14 +628,17 @@ const styles = StyleSheet.create({
   },
   tripInfoCard: {
     backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 24,
-    marginBottom: 20,
-    shadowColor: "#1f2937",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   tripHeader: {
     flexDirection: "row",
@@ -677,7 +681,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   section: {
-    marginBottom: 16,
+    marginBottom: 24,
   },
   sectionHeader: {
     flexDirection: "row",
@@ -690,6 +694,9 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#121416",
   },
+  outfitManagementTitle: {
+    marginBottom: 20,
+  },
   packingListCount: {
     fontSize: 14,
     color: "#6b7280",
@@ -700,15 +707,9 @@ const styles = StyleSheet.create({
   },
   emptyState: {
     alignItems: "center",
-    paddingVertical: 48,
+    paddingVertical: 40,
     backgroundColor: "#fff",
-    borderRadius: 16,
-    marginBottom: 20,
-    shadowColor: "#1f2937",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
+    borderRadius: 12,
   },
   emptyTitle: {
     fontSize: 16,
@@ -798,27 +799,29 @@ const styles = StyleSheet.create({
   outfitsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 12,
-    marginBottom: 16,
+    marginHorizontal: -6,
   },
   outfitCard: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 16,
     width: "48%",
-    shadowColor: "#1f2937",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: "#f1f5f9",
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 16,
+    margin: "1%",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   outfitImage: {
     width: "100%",
     height: 120,
-    borderRadius: 12,
-    marginBottom: 12,
+    borderRadius: 8,
+    backgroundColor: "#f8fafc",
+    marginBottom: 8,
   },
   placeholderImage: {
     backgroundColor: "#f3f4f6",
@@ -849,49 +852,55 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 8,
     right: 8,
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    backgroundColor: "#fff",
     borderRadius: 12,
     padding: 4,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 2,
   },
-  actionButtonsGrid: {
+  actionButtons: {
     flexDirection: "row",
-    flexWrap: "wrap",
     gap: 12,
+    marginBottom: 16,
   },
   actionButton: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 14,
-    paddingHorizontal: 18,
-    borderRadius: 16,
+    backgroundColor: "#007AFF",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
     gap: 8,
-    flex: 1,
-    minWidth: "30%",
-    shadowColor: "#1f2937",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
   },
   aiButton: {
-    backgroundColor: "#8b5cf6",
-    shadowColor: "#8b5cf6",
-    shadowOpacity: 0.15,
+    backgroundColor: "#007AFF",
   },
-  createButton: {
-    backgroundColor: "#10b981",
-    shadowColor: "#10b981",
-    shadowOpacity: 0.15,
+  manualButton: {
+    backgroundColor: "#007AFF",
   },
-  linkButton: {
-    backgroundColor: "#fff",
-    borderWidth: 1.5,
-    borderColor: "#3b82f6",
+  linkExistingButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#e0f2fe",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    gap: 8,
+  },
+  linkExistingButtonText: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#007AFF",
   },
   actionButtonText: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "500",
     color: "#fff",
   },
 });

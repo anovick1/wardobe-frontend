@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   TextInput,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/MaterialIcons";
@@ -78,19 +79,19 @@ export default function PackingListDetailModal({
         name: newItemName.trim(),
         category: newItemCategory.trim() || "General",
         quantity: 1,
-        is_packed: false
+        is_packed: false,
       };
 
       await packingListsAPI.addPackingListItem(packingList.id, itemData);
-      
+
       // Clear form
       setNewItemName("");
       setNewItemCategory("");
       setShowAddForm(false);
-      
+
       // Refresh the packing list
       await fetchPackingListDetails();
-      
+
       Alert.alert("Success", "Item added to packing list!");
     } catch (error) {
       console.error("Error adding item:", error);
@@ -112,11 +113,14 @@ export default function PackingListDetailModal({
           onPress: async () => {
             setDeletingItem(itemId);
             try {
-              await packingListsAPI.deletePackingListItem(packingList.id, itemId);
-              
+              await packingListsAPI.deletePackingListItem(
+                packingList.id,
+                itemId
+              );
+
               // Refresh the packing list details
               await fetchPackingListDetails();
-              
+
               Alert.alert("Success", "Item removed from packing list");
             } catch (error) {
               console.error("Error deleting packing list item:", error);
@@ -124,8 +128,8 @@ export default function PackingListDetailModal({
             } finally {
               setDeletingItem(null);
             }
-          }
-        }
+          },
+        },
       ]
     );
   };
@@ -156,12 +160,16 @@ export default function PackingListDetailModal({
 
   const getCategoryItems = (category) => {
     if (!packingListDetails?.items) return [];
-    return packingListDetails.items.filter((item) => item.category === category);
+    return packingListDetails.items.filter(
+      (item) => item.category === category
+    );
   };
 
   const getCategories = () => {
     if (!packingListDetails?.items) return [];
-    const categories = [...new Set(packingListDetails.items.map((item) => item.category))];
+    const categories = [
+      ...new Set(packingListDetails.items.map((item) => item.category)),
+    ];
     return categories.sort();
   };
 
@@ -190,7 +198,11 @@ export default function PackingListDetailModal({
             style={styles.addButton}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Icon name={showAddForm ? "close" : "add"} size={24} color="#3b82f6" />
+            <Icon
+              name={showAddForm ? "close" : "add"}
+              size={24}
+              color="#3b82f6"
+            />
           </TouchableOpacity>
         </View>
 
@@ -208,11 +220,7 @@ export default function PackingListDetailModal({
             <View style={styles.packingListHeader}>
               <View style={styles.titleContainer}>
                 <View style={styles.titleRow}>
-                  <Icon
-                    name="luggage"
-                    size={24}
-                    color="#3b82f6"
-                  />
+                  <Icon name="luggage" size={24} color="#3b82f6" />
                   <Text style={styles.packingListTitle}>
                     {packingListDetails?.title || packingList.title}
                   </Text>
@@ -230,7 +238,8 @@ export default function PackingListDetailModal({
                 <View style={styles.progressHeader}>
                   <Text style={styles.progressLabel}>Progress</Text>
                   <Text style={styles.progressText}>
-                    {getPackedCount()}/{getTotalCount()} items ({getProgressPercentage()}%)
+                    {getPackedCount()}/{getTotalCount()} items (
+                    {getProgressPercentage()}%)
                   </Text>
                 </View>
                 <View style={styles.progressBarContainer}>
@@ -248,7 +257,7 @@ export default function PackingListDetailModal({
             {showAddForm && (
               <View style={styles.addItemForm}>
                 <Text style={styles.formTitle}>Add New Item</Text>
-                
+
                 <View style={styles.formRow}>
                   <TextInput
                     style={styles.textInput}
@@ -299,7 +308,9 @@ export default function PackingListDetailModal({
             {/* Items by Category */}
             {getCategories().map((category) => {
               const categoryItems = getCategoryItems(category);
-              const packedItems = categoryItems.filter((item) => item.is_packed).length;
+              const packedItems = categoryItems.filter(
+                (item) => item.is_packed
+              ).length;
 
               return (
                 <View key={category} style={styles.categorySection}>
@@ -318,7 +329,9 @@ export default function PackingListDetailModal({
                           styles.itemCard,
                           item.is_packed && styles.itemCardPacked,
                         ]}
-                        onPress={() => toggleItemPacked(item.id, item.is_packed)}
+                        onPress={() =>
+                          toggleItemPacked(item.id, item.is_packed)
+                        }
                         disabled={updatingItem === item.id}
                       >
                         <View style={styles.itemContent}>
@@ -339,6 +352,82 @@ export default function PackingListDetailModal({
                             {item.notes && (
                               <Text style={styles.itemNotes}>{item.notes}</Text>
                             )}
+
+                            {/* Wardrobe Item Display */}
+                            {item.wardrobe_item && (
+                              <View style={styles.wardrobeItemContainer}>
+                                <View style={styles.wardrobeItemContent}>
+                                  <View style={styles.wardrobeItemInfo}>
+                                    <View style={styles.wardrobeItemHeader}>
+                                      <Icon
+                                        name="checkroom"
+                                        size={14}
+                                        color="#10b981"
+                                      />
+                                      <Text style={styles.wardrobeItemLabel}>
+                                        Your Item:
+                                      </Text>
+                                    </View>
+                                    <Text style={styles.wardrobeItemName}>
+                                      {item.wardrobe_item.name}
+                                    </Text>
+                                    {item.wardrobe_item.brand && (
+                                      <Text style={styles.wardrobeItemBrand}>
+                                        {item.wardrobe_item.brand}
+                                      </Text>
+                                    )}
+                                  </View>
+                                  {item.wardrobe_item.image_url && (
+                                    <Image
+                                      source={{
+                                        uri: item.wardrobe_item.image_url,
+                                      }}
+                                      style={styles.wardrobeItemImage}
+                                      resizeMode="contain"
+                                    />
+                                  )}
+                                </View>
+                              </View>
+                            )}
+
+                            {/* Suggested Wardrobe Item Display */}
+                            {item.suggested_wardrobe_item &&
+                              !item.wardrobe_item && (
+                                <View style={styles.suggestedItemContainer}>
+                                  <View style={styles.suggestedItemContent}>
+                                    <View style={styles.suggestedItemInfo}>
+                                      <View style={styles.suggestedItemHeader}>
+                                        <Icon
+                                          name="lightbulb"
+                                          size={14}
+                                          color="#f59e0b"
+                                        />
+                                        <Text style={styles.suggestedItemLabel}>
+                                          Suggested from wardrobe:
+                                        </Text>
+                                      </View>
+                                      <Text style={styles.suggestedItemName}>
+                                        {item.suggested_wardrobe_item.name}
+                                      </Text>
+                                      {item.suggested_wardrobe_item.brand && (
+                                        <Text style={styles.suggestedItemBrand}>
+                                          {item.suggested_wardrobe_item.brand}
+                                        </Text>
+                                      )}
+                                    </View>
+                                    {item.suggested_wardrobe_item.image_url && (
+                                      <Image
+                                        source={{
+                                          uri: item.suggested_wardrobe_item
+                                            .image_url,
+                                        }}
+                                        style={styles.suggestedItemImage}
+                                        resizeMode="contain"
+                                      />
+                                    )}
+                                  </View>
+                                </View>
+                              )}
                           </View>
 
                           <View style={styles.itemActions}>
@@ -356,15 +445,20 @@ export default function PackingListDetailModal({
                                 )}
                               </View>
                             )}
-                            
+
                             <TouchableOpacity
                               style={styles.deleteButton}
-                              onPress={() => handleDeleteItem(item.id, item.name)}
+                              onPress={() =>
+                                handleDeleteItem(item.id, item.name)
+                              }
                               disabled={deletingItem === item.id}
                               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                             >
                               {deletingItem === item.id ? (
-                                <ActivityIndicator size="small" color="#ef4444" />
+                                <ActivityIndicator
+                                  size="small"
+                                  color="#ef4444"
+                                />
                               ) : (
                                 <Icon name="delete" size={18} color="#ef4444" />
                               )}
@@ -685,5 +779,93 @@ const styles = StyleSheet.create({
     color: "#6b7280",
     textAlign: "center",
     paddingHorizontal: 40,
+  },
+  wardrobeItemContainer: {
+    marginTop: 8,
+    padding: 8,
+    backgroundColor: "#ecfdf5",
+    borderRadius: 6,
+    borderLeftWidth: 3,
+    borderLeftColor: "#10b981",
+  },
+  wardrobeItemContent: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  wardrobeItemInfo: {
+    flex: 1,
+  },
+  wardrobeItemHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  wardrobeItemLabel: {
+    fontSize: 12,
+    color: "#065f46",
+    fontWeight: "600",
+    marginLeft: 4,
+  },
+  wardrobeItemName: {
+    fontSize: 13,
+    color: "#064e3b",
+    fontWeight: "500",
+  },
+  wardrobeItemBrand: {
+    fontSize: 11,
+    color: "#059669",
+    marginTop: 2,
+  },
+  wardrobeItemImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 6,
+    marginLeft: 12,
+    backgroundColor: "#f3f4f6",
+    resizeMode: "contain",
+  },
+  suggestedItemContainer: {
+    marginTop: 8,
+    padding: 8,
+    backgroundColor: "#fef3c7",
+    borderRadius: 6,
+    borderLeftWidth: 3,
+    borderLeftColor: "#f59e0b",
+  },
+  suggestedItemContent: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  suggestedItemInfo: {
+    flex: 1,
+  },
+  suggestedItemHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  suggestedItemLabel: {
+    fontSize: 12,
+    color: "#92400e",
+    fontWeight: "600",
+    marginLeft: 4,
+  },
+  suggestedItemName: {
+    fontSize: 13,
+    color: "#78350f",
+    fontWeight: "500",
+  },
+  suggestedItemBrand: {
+    fontSize: 11,
+    color: "#d97706",
+    marginTop: 2,
+  },
+  suggestedItemImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 6,
+    marginLeft: 12,
+    backgroundColor: "#f3f4f6",
+    resizeMode: "contain",
   },
 });

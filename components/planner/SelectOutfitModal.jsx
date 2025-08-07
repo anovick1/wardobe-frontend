@@ -29,23 +29,27 @@ export default function SelectOutfitModal({
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [selectedOutfits, setSelectedOutfits] = useState(new Set());
   const [linking, setLinking] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [hasMoreData, setHasMoreData] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
 
   // Use the existing OutfitContext for efficient data loading
-  const { allOutfits, loadingOutfits, fetchAllOutfits } = useOutfits();
+  const { 
+    outfits, 
+    loadingOutfits, 
+    fetchOutfits, 
+    currentPage,
+    totalPages,
+    loadingMoreOutfits,
+    hasMoreOutfits,
+    loadMoreOutfits
+  } = useOutfits();
 
   useEffect(() => {
     if (visible) {
-      fetchAllOutfits(true);
+      fetchOutfits(1, true); // Start with page 1, force refresh
       setSearchQuery("");
       setDebouncedSearchQuery("");
       setSelectedOutfits(new Set());
-      setCurrentPage(1);
-      setHasMoreData(true);
     }
-  }, [visible, fetchAllOutfits]);
+  }, [visible, fetchOutfits]);
 
   // Debounce search query
   useEffect(() => {
@@ -58,19 +62,17 @@ export default function SelectOutfitModal({
 
   const filteredOutfitsData = useMemo(() => {
     if (debouncedSearchQuery.trim()) {
-      return allOutfits.filter((outfit) =>
+      return outfits.filter((outfit) =>
         (outfit.title || "Untitled")
           .toLowerCase()
           .includes(debouncedSearchQuery.toLowerCase()),
       );
     }
-    return allOutfits;
-  }, [debouncedSearchQuery, allOutfits]);
+    return outfits;
+  }, [debouncedSearchQuery, outfits]);
 
   useEffect(() => {
     setFilteredOutfits(filteredOutfitsData);
-    setCurrentPage(1);
-    setHasMoreData(true);
   }, [filteredOutfitsData]);
 
   const handleSelectOutfit = useCallback((outfitId) => {
@@ -174,30 +176,20 @@ export default function SelectOutfitModal({
   );
 
   const handleLoadMore = useCallback(() => {
-    if (
-      !loadingMore &&
-      hasMoreData &&
-      filteredOutfits.length >= 10 * currentPage
-    ) {
-      setLoadingMore(true);
-      setCurrentPage((prev) => prev + 1);
-      setTimeout(() => {
-        setLoadingMore(false);
-        if (filteredOutfits.length < 10 * (currentPage + 1)) {
-          setHasMoreData(false);
-        }
-      }, 100);
+    // Only load more if we're not currently loading and there are more outfits available
+    if (!loadingMoreOutfits && hasMoreOutfits && !debouncedSearchQuery.trim()) {
+      loadMoreOutfits();
     }
-  }, [loadingMore, hasMoreData, filteredOutfits.length, currentPage]);
+  }, [loadingMoreOutfits, hasMoreOutfits, loadMoreOutfits, debouncedSearchQuery]);
 
   const renderFooter = useCallback(() => {
-    if (!loadingMore) return null;
+    if (!loadingMoreOutfits) return null;
     return (
       <View style={styles.footerLoader}>
         <ActivityIndicator size="small" color="#3b82f6" />
       </View>
     );
-  }, [loadingMore]);
+  }, [loadingMoreOutfits]);
 
 
   return (
