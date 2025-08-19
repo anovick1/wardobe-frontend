@@ -16,6 +16,7 @@ import { AuthContext } from "../auth/AuthContext";
 import { useOutfits } from "../contexts/OutfitContext";
 import { dataManager } from "../services/DataManager";
 import api, { wornOutfitAPI, eventsAPI } from "../api";
+import { getUserOutfitDetail } from "../api/social";
 import { SafeAreaView } from "react-native-safe-area-context";
 import MonthView from "../components/planner/MonthView";
 import LinkOutfitToEventModal from "../components/planner/LinkOutfitToEventModal";
@@ -56,6 +57,8 @@ const OutfitDetail = () => {
     outfit: initialOutfit,
     outfitId: paramOutfitId,
     fromHome,
+    userId,
+    isOtherUser,
   } = routeParams;
   const [outfit, setOutfit] = useState(null);
   const outfitId = initialOutfit?.id || paramOutfitId;
@@ -82,8 +85,17 @@ const OutfitDetail = () => {
     if (!user || !outfitId) return;
     try {
       setLoading(true);
-      const response = await api.get(`/outfits/${outfitId}?include_items=true`);
-      setOutfit(response.data);
+      let response;
+      
+      if (isOtherUser && userId) {
+        // Viewing another user's outfit
+        response = await getUserOutfitDetail(userId, outfitId);
+        setOutfit(response);
+      } else {
+        // Viewing own outfit
+        response = await api.get(`/outfits/${outfitId}?include_items=true`);
+        setOutfit(response.data);
+      }
     } catch (error) {
       Alert.alert("Error", "Failed to load outfit details");
       console.error(error);
@@ -335,34 +347,36 @@ const OutfitDetail = () => {
             Outfit Details
           </Text>
           <View style={styles.headerActions} pointerEvents="box-none">
-            {outfit?.is_daily_outfit ? (
-              <TouchableOpacity
-                style={styles.copyButton}
-                onPress={handleCopyAndEdit}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                pointerEvents="auto"
-              >
-                <Ionicons name="copy" size={24} color="#007AFF" />
-              </TouchableOpacity>
-            ) : (
-              <>
+            {!isOtherUser && (
+              outfit?.is_daily_outfit ? (
                 <TouchableOpacity
-                  style={styles.editButton}
-                  onPress={() => navigation.navigate("EditOutfit", { outfit })}
+                  style={styles.copyButton}
+                  onPress={handleCopyAndEdit}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   pointerEvents="auto"
                 >
-                  <Ionicons name="pencil" size={24} color="#007AFF" />
+                  <Ionicons name="copy" size={24} color="#007AFF" />
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.deleteButton}
-                  onPress={handleDeleteOutfit}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  pointerEvents="auto"
-                >
-                  <Ionicons name="trash-outline" size={24} color="#ff3b30" />
-                </TouchableOpacity>
-              </>
+              ) : (
+                <>
+                  <TouchableOpacity
+                    style={styles.editButton}
+                    onPress={() => navigation.navigate("EditOutfit", { outfit })}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    pointerEvents="auto"
+                  >
+                    <Ionicons name="pencil" size={24} color="#007AFF" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.deleteButton}
+                    onPress={handleDeleteOutfit}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    pointerEvents="auto"
+                  >
+                    <Ionicons name="trash-outline" size={24} color="#ff3b30" />
+                  </TouchableOpacity>
+                </>
+              )
             )}
           </View>
         </View>
@@ -410,19 +424,13 @@ const OutfitDetail = () => {
             )}
           </View>
 
-          {/* AI Explanation (if available) */}
-          {outfit.explanation && (
+          {/* Notes - Show user notes if available, otherwise show AI explanation */}
+          {(outfit.notes || outfit.explanation) && (
             <View style={styles.explanationContainer}>
-              <Text style={styles.explanationLabel}>AI Stylist Notes</Text>
-              <Text style={styles.explanationText}>{outfit.explanation}</Text>
-            </View>
-          )}
-
-          {/* Notes */}
-          {outfit.notes && (
-            <View style={styles.notesContainer}>
-              <Text style={styles.notesLabel}>Notes</Text>
-              <Text style={styles.notesText}>{outfit.notes}</Text>
+              <Text style={styles.explanationLabel}>Notes</Text>
+              <Text style={styles.explanationText}>
+                {outfit.notes || outfit.explanation}
+              </Text>
             </View>
           )}
 
@@ -519,19 +527,22 @@ const OutfitDetail = () => {
             </View>
           )}
 
-          {/* Link to Event Button */}
-          <View style={styles.actionSection}>
-            <TouchableOpacity
-              style={styles.linkEventButton}
-              onPress={() => setShowLinkEventModal(true)}
-            >
-              <Ionicons name="calendar-outline" size={20} color="#3b82f6" />
-              <Text style={styles.linkEventButtonText}>Link to Event</Text>
-            </TouchableOpacity>
-          </View>
+          {/* Link to Event Button - Only show for own outfits */}
+          {!isOtherUser && (
+            <View style={styles.actionSection}>
+              <TouchableOpacity
+                style={styles.linkEventButton}
+                onPress={() => setShowLinkEventModal(true)}
+              >
+                <Ionicons name="calendar-outline" size={20} color="#3b82f6" />
+                <Text style={styles.linkEventButtonText}>Link to Event</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
-          {/* Worn Outfit Management */}
-          <View style={styles.wornSection}>
+          {/* Worn Outfit Management - Only show for own outfits */}
+          {!isOtherUser && (
+            <View style={styles.wornSection}>
             <View style={styles.wornSectionHeader}>
               <Text style={styles.wornSectionLabel}>Worn History</Text>
               <TouchableOpacity
@@ -621,6 +632,7 @@ const OutfitDetail = () => {
               </View>
             )}
           </View>
+          )}
 
           {/* Metadata */}
           <View style={styles.metadataContainer}>
@@ -896,14 +908,12 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 16,
     borderRadius: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: "#007AFF",
   },
   explanationLabel: {
     fontSize: 16,
     fontWeight: "500",
     marginBottom: 8,
-    color: "#007AFF",
+    color: "#333",
   },
   explanationText: {
     fontSize: 14,
