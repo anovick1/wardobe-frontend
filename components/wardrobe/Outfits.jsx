@@ -25,7 +25,7 @@ import OutfitCard from "./OutfitCard";
 import { useOutfits } from "../../contexts/OutfitContext";
 import { useWeather } from "../../contexts/WeatherContext";
 import { useWardrobe } from "../../contexts/WardrobeContext";
-import api from "../../api";
+import api, { eventsAPI, tripsAPI } from "../../api";
 import globalStyles from "../../styles/global";
 import { mapEventsForApi } from "../../utils/events";
 import {
@@ -39,6 +39,8 @@ const Outfits = forwardRef(({ filters = [], searchQuery = "" }, ref) => {
   const [prompt, setPrompt] = useState("");
   const [generating, setGenerating] = useState(false);
   const [upcomingEvents, setUpcomingEvents] = useState([]);
+  const [backendEvents, setBackendEvents] = useState([]);
+  const [allEvents, setAllEvents] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [eventDays, setEventDays] = useState(7); // Default to 7 days
@@ -190,10 +192,72 @@ const Outfits = forwardRef(({ filters = [], searchQuery = "" }, ref) => {
     }
   }, [modalVisible, eventDays]);
 
+  const fetchBackendEvents = async () => {
+    try {
+      // Fetch both events and trips concurrently
+      const [eventsResponse, tripsResponse] = await Promise.all([
+        eventsAPI.getEvents(),
+        tripsAPI.getTrips()
+      ]);
+      
+      const events = eventsResponse.events || [];
+      const trips = tripsResponse.trips || [];
+      
+      // Filter events to next eventDays and format them
+      const today = new Date();
+      const endDate = new Date(today);
+      endDate.setDate(today.getDate() + eventDays);
+      
+      const upcomingBackendEvents = events
+        .filter(event => {
+          const eventDate = new Date(event.datetime);
+          return eventDate >= today && eventDate <= endDate;
+        })
+        .map(event => ({
+          id: `event_${event.id}`,
+          title: event.title || 'Untitled Event',
+          startDate: event.datetime,
+          endDate: event.datetime,
+          location: event.location,
+          isBackendEvent: true,
+          type: 'event'
+        }));
+      
+      // Filter and format trips
+      const upcomingTrips = trips
+        .filter(trip => {
+          const tripStartDate = new Date(trip.start_date);
+          const tripEndDate = new Date(trip.end_date);
+          // Include trips that start within the range or are currently ongoing
+          return (tripStartDate <= endDate && tripEndDate >= today);
+        })
+        .map(trip => ({
+          id: `trip_${trip.id}`,
+          title: `🧳 ${trip.title}` || 'Untitled Trip',
+          startDate: trip.start_date,
+          endDate: trip.end_date,
+          location: trip.location_name || 'Unknown location',
+          isBackendEvent: true,
+          type: 'trip',
+          originalId: trip.id
+        }));
+      
+      const allBackendEvents = [...upcomingBackendEvents, ...upcomingTrips];
+      setBackendEvents(allBackendEvents);
+      return allBackendEvents;
+    } catch (error) {
+      console.error("Error fetching backend events and trips:", error);
+      return [];
+    }
+  };
+
   const fetchUpcomingEvents = async () => {
     try {
       setLoadingEvents(true);
       setShowEmptyEvents(false); // Hide empty state during loading
+      
+      // Fetch backend events first
+      const backendEventsData = await fetchBackendEvents();
 
       // Request both calendar and reminders permissions
       const { status } = await Calendar.requestCalendarPermissionsAsync();
@@ -232,24 +296,28 @@ const Outfits = forwardRef(({ filters = [], searchQuery = "" }, ref) => {
         endDate
       );
 
-      // Filter and sort events
-      const upcoming = allEvents
+      // Filter and sort calendar events
+      const upcomingCalendarEvents = allEvents
         .filter((event) => {
           const eventStart = new Date(event.startDate);
           return eventStart >= startDate;
         })
+        .sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+      
+      // Combine calendar and backend events
+      const combinedEvents = [...backendEventsData, ...upcomingCalendarEvents]
         .sort((a, b) => new Date(a.startDate) - new Date(b.startDate))
         .slice(0, 10); // Limit to 10 events
-
-      setUpcomingEvents(upcoming);
-      setShowEmptyEvents(upcoming.length === 0); // Show empty state only if no events found
+        
+      setUpcomingEvents(upcomingCalendarEvents);
+      setAllEvents(combinedEvents);
+      setShowEmptyEvents(combinedEvents.length === 0); // Show empty state only if no events found
     } catch (error) {
-      console.error("Error fetching events:", error);
-      // Only clear events if this is the first load (no existing events)
-      if (upcomingEvents.length === 0) {
-        setUpcomingEvents([]);
-        setShowEmptyEvents(true);
-      }
+      console.error("Error fetching calendar events:", error);
+      // Even if calendar fails, we still have backend events
+      setUpcomingEvents([]);
+      setAllEvents(backendEventsData);
+      setShowEmptyEvents(backendEventsData.length === 0);
     } finally {
       setLoadingEvents(false);
     }
@@ -274,9 +342,20 @@ const Outfits = forwardRef(({ filters = [], searchQuery = "" }, ref) => {
         payload.lon = coordinates.lon;
       }
 
-      // Add selected event if chosen
+      // Add selected event/trip if chosen
       if (selectedEvent) {
         payload.selected_event = mapEventsForApi([selectedEvent])[0];
+        
+        // Add trip-specific information if it's a trip
+        if (selectedEvent.type === 'trip') {
+          payload.selected_trip = {
+            id: selectedEvent.originalId,
+            title: selectedEvent.title,
+            start_date: selectedEvent.startDate,
+            end_date: selectedEvent.endDate,
+            location: selectedEvent.location
+          };
+        }
       }
 
       const response = await api.post("/outfits/ai_generate_hybrid", payload);
@@ -491,7 +570,7 @@ const Outfits = forwardRef(({ filters = [], searchQuery = "" }, ref) => {
                   </TouchableOpacity>
 
                   {/* Event Options */}
-                  {upcomingEvents.slice(0, 5).map((event) => {
+                  {allEvents.slice(0, 5).map((event) => {
                     const eventDate = new Date(event.startDate);
                     const isToday =
                       eventDate.toDateString() === new Date().toDateString();
@@ -529,7 +608,9 @@ const Outfits = forwardRef(({ filters = [], searchQuery = "" }, ref) => {
                         onPress={() => setSelectedEvent(event)}
                       >
                         <View style={styles.eventOptionContent}>
-                          <Text style={styles.eventOptionIcon}>📅</Text>
+                          <Text style={styles.eventOptionIcon}>
+                            {event.isBackendEvent ? "🎯" : "📅"}
+                          </Text>
                           <View style={styles.eventDetails}>
                             <Text
                               style={[

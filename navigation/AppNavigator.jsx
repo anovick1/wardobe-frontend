@@ -4,7 +4,7 @@ import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 
 import HomeScreen from "../screens/HomeScreen";
 import PlannerScreen from "../screens/PlannerScreen";
-import FeedScreen from "../screens/FeedScreen";
+import SearchScreen from "../screens/SearchScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import WardrobeStackNavigator from "./WardrobeStackNavigator"; // ✅ stack wrapper
 
@@ -27,8 +27,8 @@ export default function AppNavigator() {
             case "Planner":
               iconName = "calendar-month";
               break;
-            case "Feed":
-              iconName = "newspaper-variant-outline";
+            case "Search":
+              iconName = "magnify";
               break;
             case "Profile":
               iconName = "account-circle";
@@ -45,7 +45,7 @@ export default function AppNavigator() {
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Wardrobe" component={WardrobeStackNavigator} options={{ unmountOnBlur: true }} />
       <Tab.Screen name="Planner" component={PlannerScreen} />
-      <Tab.Screen name="Feed" component={FeedScreen} />
+      <Tab.Screen name="Search" component={SearchScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );

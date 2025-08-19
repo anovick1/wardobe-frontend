@@ -15,6 +15,7 @@ import {
   getWardrobeValidationMessage,
 } from "../utils/wardrobeValidation";
 import * as Calendar from "expo-calendar";
+import { eventsAPI } from "../api";
 
 export default function HomeScreen() {
   const { user } = useContext(AuthContext);
@@ -22,22 +23,53 @@ export default function HomeScreen() {
   const { wardrobeItems, loadingWardrobe } = useWardrobe();
   const [calendarPermission, setCalendarPermission] = useState(false);
   const [todaysEvents, setTodaysEvents] = useState([]);
+  const [backendEvents, setBackendEvents] = useState([]);
 
   // Check if user can create daily outfits
   const wardrobeValidation = canCreateDailyOutfit(wardrobeItems);
   const validationMessage = getWardrobeValidationMessage(wardrobeValidation);
+
+  // Combine calendar events and backend events for today
+  const combinedTodaysEvents = [...backendEvents, ...todaysEvents];
 
   // Daily outfit hook - only use if wardrobe is valid
   const { dailyOutfit, loading, generating, initialising, generateOutfit } =
     useDailyOutfit(
       wardrobeValidation.canCreate ? coordinates?.lat : null,
       wardrobeValidation.canCreate ? coordinates?.lon : null,
-      todaysEvents
+      combinedTodaysEvents
     );
 
   useEffect(() => {
     requestCalendarPermissions();
+    fetchBackendEvents();
   }, []);
+
+  const fetchBackendEvents = async () => {
+    try {
+      const response = await eventsAPI.getEvents();
+      const events = response.events || [];
+      
+      // Filter backend events for today
+      const today = new Date();
+      const todayBackendEvents = events.filter((event) => {
+        const eventDateTime = new Date(event.datetime);
+        const year = eventDateTime.getFullYear();
+        const month = eventDateTime.getMonth();
+        const day = eventDateTime.getDate();
+        
+        return (
+          year === today.getFullYear() &&
+          month === today.getMonth() &&
+          day === today.getDate()
+        );
+      });
+      
+      setBackendEvents(todayBackendEvents);
+    } catch (error) {
+      console.error("Error fetching backend events:", error);
+    }
+  };
 
   const requestCalendarPermissions = async () => {
     try {
@@ -148,7 +180,7 @@ export default function HomeScreen() {
             }
             onNewLook={generateOutfit}
             loading={generating}
-            events={todaysEvents}
+            events={combinedTodaysEvents}
             tags={dailyOutfit.tags || dailyOutfit.outfit?.tags || []}
             outfitData={dailyOutfit}
             modern

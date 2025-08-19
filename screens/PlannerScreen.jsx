@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -15,9 +15,15 @@ import globalStyles from "../styles/global";
 import typography from "../styles/typography";
 import WeekView from "../components/planner/WeekView";
 import MonthView from "../components/planner/MonthView";
+import CreateEventModal from "../components/planner/CreateEventModal";
+import EventDetailModal from "../components/planner/EventDetailModal";
+import CreateTripModal from "../components/planner/CreateTripModal";
+import TripDetailModal from "../components/planner/TripDetailModal";
 import { useOutfits } from "../contexts/OutfitContext";
 import { format, startOfWeek, startOfMonth } from "date-fns";
 import * as Calendar from "expo-calendar";
+import { eventsAPI, tripsAPI } from "../api";
+import { useFocusEffect } from "@react-navigation/native";
 
 const CALENDAR_VIEWS = { WEEK: "week", MONTH: "month" };
 
@@ -36,6 +42,14 @@ export default function PlannerScreen() {
   const [calendarView, setCalendarView] = useState("week");
   const [viewDate, setViewDate] = useState(null);
   const [plannedOutfits, setPlannedOutfits] = useState({});
+  const [showCreateEventModal, setShowCreateEventModal] = useState(false);
+  const [showEventDetailModal, setShowEventDetailModal] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [backendEvents, setBackendEvents] = useState([]);
+  const [showCreateTripModal, setShowCreateTripModal] = useState(false);
+  const [showTripDetailModal, setShowTripDetailModal] = useState(false);
+  const [selectedTrip, setSelectedTrip] = useState(null);
+  const [trips, setTrips] = useState([]);
   const { outfits } = useOutfits();
 
   useEffect(() => {
@@ -44,7 +58,18 @@ export default function PlannerScreen() {
     // Use the already calculated isoDate
     setSelectedDate(isoDate);
     setViewDate(isoDate);
+    // Fetch backend events and trips
+    fetchBackendEvents();  
+    fetchTrips();
   }, []);
+
+  // Refresh backend events and trips when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchBackendEvents();
+      fetchTrips();
+    }, [])
+  );
 
   useEffect(() => {
     // Fetch events when permission is granted and we have a selected date
@@ -52,6 +77,24 @@ export default function PlannerScreen() {
       fetchEventsForSelectedDate(selectedDate);
     }
   }, [permissionGranted, selectedDate]);
+
+  const fetchBackendEvents = async () => {
+    try {
+      const response = await eventsAPI.getEvents();
+      setBackendEvents(response.events || []);
+    } catch (error) {
+      console.error("Error fetching backend events:", error);
+    }
+  };
+
+  const fetchTrips = async () => {
+    try {
+      const response = await tripsAPI.getTrips();
+      setTrips(response.trips || []);
+    } catch (error) {
+      console.error("Error fetching trips:", error);
+    }
+  };
 
   const checkCalendarPermissions = async () => {
     try {
@@ -228,8 +271,28 @@ export default function PlannerScreen() {
 
   const renderDayDetail = () => {
     const { worn, planned } = getOutfitsForDate(selectedDate);
-    const hasEvents = events.length > 0;
-    const hasContent = worn.length > 0 || planned.length > 0 || hasEvents;
+    
+    // Filter backend events for selected date
+    const dayBackendEvents = backendEvents.filter((event) => {
+      const eventDateTime = new Date(event.datetime);
+      const year = eventDateTime.getFullYear();
+      const month = String(eventDateTime.getMonth() + 1).padStart(2, '0');
+      const day = String(eventDateTime.getDate()).padStart(2, '0');
+      const eventDate = `${year}-${month}-${day}`;
+      return eventDate === selectedDate;
+    });
+    
+    // Filter trips for selected date (check if date is within trip range)
+    const dayTrips = trips.filter((trip) => {
+      const selectedDateObj = new Date(selectedDate);
+      const startDate = new Date(trip.start_date);
+      const endDate = new Date(trip.end_date);
+      return selectedDateObj >= startDate && selectedDateObj <= endDate;
+    });
+    
+    const hasEvents = events.length > 0 || dayBackendEvents.length > 0;
+    const hasTrips = dayTrips.length > 0;
+    const hasContent = worn.length > 0 || planned.length > 0 || hasEvents || hasTrips;
 
     if (!hasContent && !permissionGranted) {
       return (
@@ -322,8 +385,50 @@ export default function PlannerScreen() {
           </View>
         )}
 
-        {/* Events */}
-        {hasEvents && (
+        {/* Backend Events */}
+        {dayBackendEvents.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Icon name="event" size={16} color="#3b82f6" />
+              <Text style={styles.sectionTitle}>Your Events</Text>
+            </View>
+            {dayBackendEvents.map((e) => (
+              <TouchableOpacity
+                key={e.id}
+                style={styles.eventItem}
+                onPress={() => {
+                  setSelectedEvent(e);
+                  setShowEventDetailModal(true);
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.eventTitle}>{e.title}</Text>
+                <View style={styles.eventDetails}>
+                  <Text style={styles.eventTime}>
+                    {new Date(e.datetime).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </Text>
+                  {e.location && (
+                    <Text style={styles.eventLocation} numberOfLines={1}>
+                      {e.location}
+                    </Text>
+                  )}
+                </View>
+                {e.scheduled_outfits_count > 0 && (
+                  <Text style={styles.eventOutfitCount}>
+                    {e.scheduled_outfits_count} outfit{e.scheduled_outfits_count > 1 ? "s" : ""} planned
+                  </Text>
+                )}
+                <Icon name="chevron-right" size={16} color="#9ca3af" style={styles.eventChevron} />
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        {/* Calendar Events */}
+        {events.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Icon name="event" size={16} color="#f59e0b" />
@@ -343,51 +448,47 @@ export default function PlannerScreen() {
           </View>
         )}
 
+        {/* Active Trips */}
+        {hasTrips && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Icon name="flight" size={16} color="#8b5cf6" />
+              <Text style={styles.sectionTitle}>Active Trips</Text>
+            </View>
+            {dayTrips.map((trip) => (
+              <TouchableOpacity
+                key={trip.id}
+                style={styles.tripItem}
+                onPress={() => {
+                  setSelectedTrip(trip);
+                  setShowTripDetailModal(true);
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.tripTitle}>{trip.title}</Text>
+                <View style={styles.tripDetails}>
+                  <Text style={styles.tripLocation}>{trip.location}</Text>
+                  {trip.worn_outfits_count > 0 && (
+                    <Text style={styles.tripOutfitCount}>
+                      {trip.worn_outfits_count} outfit{trip.worn_outfits_count > 1 ? "s" : ""} worn
+                    </Text>
+                  )}
+                </View>
+                <Icon name="chevron-right" size={16} color="#9ca3af" style={styles.eventChevron} />
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
         {!hasContent && (
           <Text style={styles.emptyStateText}>
-            No outfits or events for this day
+            No outfits, events, or trips for this day
           </Text>
         )}
       </View>
     );
   };
 
-  const renderFutureFeatures = () => (
-    <View style={styles.futureFeatures}>
-      <Text style={styles.featuresTitle}>Coming Soon</Text>
-      <View style={styles.featureCard}>
-        <View style={styles.featureHeader}>
-          <Icon name="group" size={20} color="#ec4899" />
-          <Text style={styles.featureTitle}>Shared Events</Text>
-        </View>
-        <Text style={styles.featureDescription}>
-          Collaborate with friends on outfit planning for shared events and
-          occasions
-        </Text>
-      </View>
-
-      <View style={styles.featureCard}>
-        <View style={styles.featureHeader}>
-          <Icon name="luggage" size={20} color="#06b6d4" />
-          <Text style={styles.featureTitle}>Smart Packing Lists</Text>
-        </View>
-        <Text style={styles.featureDescription}>
-          Auto-generate packing lists with weather-appropriate items and trip
-          essentials
-        </Text>
-      </View>
-
-      <View style={styles.featureCard}>
-        <View style={styles.featureHeader}>
-          <Icon name="shopping-bag" size={20} color="#10b981" />
-          <Text style={styles.featureTitle}>Outfit Completion</Text>
-        </View>
-        <Text style={styles.featureDescription}>
-          Smart suggestions for missing pieces to complete your planned outfits
-        </Text>
-      </View>
-    </View>
-  );
 
   const renderToggle = () => (
     <View style={styles.toggleRow}>
@@ -468,13 +569,7 @@ export default function PlannerScreen() {
           <View style={styles.createButtons}>
             <TouchableOpacity
               style={styles.createButton}
-              onPress={() => {
-                // navigation.navigate('CreateEvent');
-                Alert.alert(
-                  "Coming Soon",
-                  "Event creation will be available soon!",
-                );
-              }}
+              onPress={() => setShowCreateEventModal(true)}
             >
               <Icon name="add-circle" size={18} color="#3b82f6" />
               <Text style={styles.createButtonText}>Event</Text>
@@ -482,13 +577,7 @@ export default function PlannerScreen() {
 
             <TouchableOpacity
               style={styles.createButton}
-              onPress={() => {
-                // navigation.navigate('CreateTrip');
-                Alert.alert(
-                  "Coming Soon",
-                  "Trip planning will be available soon!",
-                );
-              }}
+              onPress={() => setShowCreateTripModal(true)}
             >
               <Icon name="luggage" size={18} color="#8b5cf6" />
               <Text style={styles.createButtonText}>Trip</Text>
@@ -523,10 +612,57 @@ export default function PlannerScreen() {
 
         {/* Day Detail Section */}
         {selectedDate && renderDayDetail()}
-
-        {/* Future Features Preview */}
-        {renderFutureFeatures()}
       </ScrollView>
+
+      {/* Create Event Modal */}
+      <CreateEventModal
+        visible={showCreateEventModal}
+        onClose={() => setShowCreateEventModal(false)}
+        onEventCreated={(newEvent) => {
+          fetchBackendEvents();
+          if (permissionGranted && selectedDate) {
+            fetchEventsForSelectedDate(selectedDate);
+          }
+        }}
+      />
+
+      {/* Event Detail Modal */}
+      <EventDetailModal
+        visible={showEventDetailModal}
+        onClose={() => {
+          setShowEventDetailModal(false);
+          setSelectedEvent(null);
+        }}
+        event={selectedEvent}
+        onEventUpdated={() => {
+          fetchBackendEvents();
+          if (permissionGranted && selectedDate) {
+            fetchEventsForSelectedDate(selectedDate);
+          }
+        }}
+      />
+
+      {/* Create Trip Modal */}
+      <CreateTripModal
+        visible={showCreateTripModal}
+        onClose={() => setShowCreateTripModal(false)}
+        onTripCreated={(newTrip) => {
+          fetchTrips();
+        }}
+      />
+
+      {/* Trip Detail Modal */}
+      <TripDetailModal
+        visible={showTripDetailModal}
+        onClose={() => {
+          setShowTripDetailModal(false);
+          setSelectedTrip(null);
+        }}
+        trip={selectedTrip}
+        onTripUpdated={() => {
+          fetchTrips();
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -670,25 +806,44 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   eventItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 8,
+    paddingVertical: 10,
     paddingHorizontal: 12,
-    backgroundColor: "#fef3c7",
+    backgroundColor: "#f1f5f9",
     borderRadius: 8,
     marginBottom: 6,
+  },
+  eventDetails: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
+    gap: 12,
   },
   eventTitle: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#92400e",
-    flex: 1,
+    color: "#121416",
   },
   eventTime: {
     fontSize: 12,
-    color: "#92400e",
+    color: "#6b7280",
     fontWeight: "500",
+  },
+  eventLocation: {
+    fontSize: 12,
+    color: "#6b7280",
+    flex: 1,
+  },
+  eventOutfitCount: {
+    fontSize: 11,
+    color: "#3b82f6",
+    marginTop: 4,
+    fontWeight: "500",
+  },
+  eventChevron: {
+    position: "absolute",
+    right: 12,
+    top: "50%",
+    marginTop: -8,
   },
   emptyStateText: {
     color: "#6a7681",
@@ -737,46 +892,33 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     color: "#374151",
   },
-  futureFeatures: {
-    width: "100%",
-    maxWidth: 420,
-    alignSelf: "center",
-    marginTop: 12,
+  tripItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: "#f8f4ff",
+    borderRadius: 8,
+    marginBottom: 6,
   },
-  featuresTitle: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#121416",
-    marginBottom: 16,
-    textAlign: "center",
-  },
-  featureCard: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: "#000",
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
-    borderWidth: 1,
-    borderColor: "#f1f5f9",
-  },
-  featureHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  featureTitle: {
-    fontSize: 16,
+  tripTitle: {
+    fontSize: 14,
     fontWeight: "600",
     color: "#121416",
-    marginLeft: 10,
   },
-  featureDescription: {
-    fontSize: 14,
-    color: "#6a7681",
-    lineHeight: 20,
+  tripDetails: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
+    gap: 12,
+  },
+  tripLocation: {
+    fontSize: 12,
+    color: "#6b7280",
+    fontWeight: "500",
+  },
+  tripOutfitCount: {
+    fontSize: 11,
+    color: "#8b5cf6",
+    marginTop: 4,
+    fontWeight: "500",
   },
 });

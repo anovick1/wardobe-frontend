@@ -61,6 +61,35 @@ class DataManager {
     }
   }
 
+  async getWardrobeItemById(itemId, forceRefresh = false) {
+    const cacheKey = `wardrobe_item_${itemId}`;
+    
+    if (!forceRefresh && dataCache.has(cacheKey)) {
+      return dataCache.get(cacheKey);
+    }
+
+    try {
+      // First try to find in cached wardrobe items
+      const allItems = await this.getAllWardrobeItemsForSelection();
+      const cachedItem = allItems.find(item => item.id === itemId);
+      
+      if (cachedItem) {
+        dataCache.set(cacheKey, cachedItem, 5 * 60 * 1000); // Cache for 5 minutes
+        return cachedItem;
+      }
+
+      // If not found in cache, fetch directly from API
+      const response = await api.get(`/wardrobe_items/${itemId}`);
+      const item = response.data;
+      
+      dataCache.set(cacheKey, item, 5 * 60 * 1000); // Cache for 5 minutes
+      return item;
+    } catch (error) {
+      console.error('Error fetching wardrobe item:', error);
+      throw error;
+    }
+  }
+
   async addWardrobeItem(itemData) {
     try {
       const response = await api.post('/wardrobe_items', itemData);
@@ -116,8 +145,7 @@ class DataManager {
     }
 
     try {
-      // Get first page to determine total pages
-      const firstResponse = await api.get('/outfits/?page=1&per_page=20');
+      const firstResponse = await api.get('/outfits/?page=1&per_page=10&include_items=true');
       const pagination = firstResponse.data.pagination;
       let allOutfits = firstResponse.data.outfits || [];
 
@@ -126,7 +154,7 @@ class DataManager {
         const additionalRequests = [];
         for (let page = 2; page <= Math.min(pagination.pages, 10); page++) { // Limit to 10 pages max
           additionalRequests.push(
-            api.get(`/outfits/?page=${page}&per_page=20`)
+            api.get(`/outfits/?page=${page}&per_page=10&include_items=true`)
           );
         }
 
@@ -153,7 +181,7 @@ class DataManager {
     }
 
     try {
-      const response = await api.get(`/outfits/?page=${page}&per_page=${per_page}`);
+      const response = await api.get(`/outfits/?page=${page}&per_page=${per_page}&include_items=true`);
       const data = {
         items: response.data.outfits || [],
         pagination: response.data.pagination || {}

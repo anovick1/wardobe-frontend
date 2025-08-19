@@ -1,4 +1,4 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import DropDownPicker from "react-native-dropdown-picker";
-import api from "../api";
+import api, { eventsAPI } from "../api";
 import { AuthContext } from "../auth/AuthContext";
 import { useWeather } from "../contexts/WeatherContext";
 
@@ -29,6 +29,8 @@ const GenerateOutfitScreen = () => {
   const [location, setLocation] = useState("");
   const [dailyRoutine, setDailyRoutine] = useState("");
   const [calendarEvents, setCalendarEvents] = useState([]);
+  const [backendEvents, setBackendEvents] = useState([]);
+  const [selectedEventId, setSelectedEventId] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
 
@@ -40,11 +42,37 @@ const GenerateOutfitScreen = () => {
     { label: "Daily Outfit", value: "daily" },
   ];
 
+  useEffect(() => {
+    const fetchBackendEvents = async () => {
+      try {
+        const response = await eventsAPI.getEvents();
+        setBackendEvents(response.events || []);
+      } catch (error) {
+        console.error("Failed to fetch backend events:", error);
+      }
+    };
+
+    if (user) {
+      fetchBackendEvents();
+    }
+  }, [user]);
+
   const handleDateChange = (event, selectedDate) => {
     const newDate = selectedDate || currentDate;
     setShowDatePicker(Platform.OS === "ios");
     setCurrentDate(newDate);
     setCalendarEvents([{ name: "Custom Event", date: newDate.toISOString() }]);
+  };
+
+  const handleSelectBackendEvent = (selectedEvent) => {
+    setSelectedEventId(selectedEvent.id);
+    setEvent(selectedEvent.title);
+    setLocation(selectedEvent.location || "");
+    setCalendarEvents([{ 
+      name: selectedEvent.title, 
+      date: selectedEvent.datetime,
+      location: selectedEvent.location 
+    }]);
   };
 
   const handleGenerateOutfit = async () => {
@@ -160,17 +188,57 @@ const GenerateOutfitScreen = () => {
         {focusType === "event" && (
           <View style={styles.section}>
             <Text style={styles.label}>Event Details</Text>
+            
+            {/* Backend Events */}
+            {backendEvents.length > 0 && (
+              <View style={styles.eventsContainer}>
+                <Text style={styles.eventsLabel}>Your Events</Text>
+                {backendEvents.map((backendEvent) => (
+                  <TouchableOpacity
+                    key={backendEvent.id}
+                    style={[
+                      styles.eventCard,
+                      selectedEventId === backendEvent.id && styles.eventCardSelected
+                    ]}
+                    onPress={() => handleSelectBackendEvent(backendEvent)}
+                  >
+                    <View style={styles.eventHeader}>
+                      <Ionicons name="calendar-outline" size={16} color="#3b82f6" />
+                      <Text style={styles.eventTitle}>{backendEvent.title}</Text>
+                    </View>
+                    <Text style={styles.eventDateTime}>
+                      {new Date(backendEvent.datetime).toLocaleDateString("en-US", {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </Text>
+                    {backendEvent.location && (
+                      <Text style={styles.eventLocation}>{backendEvent.location}</Text>
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {/* Manual Event Entry */}
+            <Text style={styles.orLabel}>Or create custom event:</Text>
             <TextInput
               style={styles.input}
               placeholder="e.g., Casual dinner, formal party, gym workout"
               value={event}
-              onChangeText={setEvent}
+              onChangeText={(text) => {
+                setEvent(text);
+                setSelectedEventId(null); // Clear selected backend event
+              }}
             />
             <TouchableOpacity
               onPress={() => setShowDatePicker(true)}
               style={styles.datePickerButton}
             >
-              <Text style={styles.datePickerButtonText}>Select Event Date</Text>
+              <Text style={styles.datePickerButtonText}>Select Custom Date</Text>
             </TouchableOpacity>
             {showDatePicker && (
               <DateTimePicker
@@ -181,7 +249,7 @@ const GenerateOutfitScreen = () => {
                 onChange={handleDateChange}
               />
             )}
-            {calendarEvents.length > 0 && (
+            {calendarEvents.length > 0 && !selectedEventId && (
               <Text style={styles.selectedDateText}>
                 Selected:{" "}
                 {new Date(calendarEvents[0].date).toLocaleDateString()}
@@ -288,6 +356,54 @@ const styles = StyleSheet.create({
   },
   generateButtonText: { color: "#fff", fontSize: 18, fontWeight: "bold" },
   generateButtonDisabled: { opacity: 0.5 },
+  eventsContainer: {
+    marginBottom: 16,
+  },
+  eventsLabel: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#121416",
+    marginBottom: 12,
+  },
+  eventCard: {
+    backgroundColor: "#f8fafc",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: "#e5e7eb",
+  },
+  eventCardSelected: {
+    borderColor: "#3b82f6",
+    backgroundColor: "#eff6ff",
+  },
+  eventHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  eventTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#121416",
+    marginLeft: 6,
+  },
+  eventDateTime: {
+    fontSize: 12,
+    color: "#6b7280",
+    marginBottom: 2,
+  },
+  eventLocation: {
+    fontSize: 12,
+    color: "#6b7280",
+  },
+  orLabel: {
+    fontSize: 14,
+    color: "#6b7280",
+    marginBottom: 8,
+    marginTop: 8,
+    textAlign: "center",
+  },
 });
 
 export default GenerateOutfitScreen;
