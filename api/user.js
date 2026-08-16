@@ -43,7 +43,7 @@ export const getCurrentUser = async () => {
 
 export const uploadProfilePhoto = async (imageUri) => {
   const idToken = await getIdToken(auth.currentUser);
-  
+
   const formData = new FormData();
   formData.append("photo", {
     uri: imageUri,
