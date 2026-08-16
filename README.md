@@ -55,6 +55,18 @@ FLASK_API_BASE_URL=http://192.168.x.x:5001
 
 > ⚠️ You must use your **local IP address** (check with `ipconfig getifaddr en0` on Mac), not `localhost` or `127.0.0.1`.
 
+#### ngrok with Docker on Mac
+
+If the API runs via `docker compose` in `wardrobe-backend`, the stack publishes Flask on **host port 5001** (`5001:5000` in `docker-compose.yml`). Tunnel **that** port, not 5000 (5000 is only inside the container).
+
+1. Start the backend with Docker.
+2. In another terminal: `ngrok http 5001`
+3. Copy the **HTTPS** forwarding URL (e.g. `https://….ngrok-free.app`).
+4. Set `FLASK_API_BASE_URL` in `.env` to that URL (no trailing slash).
+5. Restart the Expo / Metro dev server so `app.config.js` picks up the change.
+
+If ngrok points at the wrong port, the app may show errors (e.g. 403) and **Flask will log nothing**, because the request never reaches the container.
+
 ---
 
 ### 4. Start the backend (from wardrobe-backend repo)
@@ -118,6 +130,7 @@ wardrobe-frontend/
 
 ## 🐛 Troubleshooting
 
+- If the backend Docker logs show **no** HTTP requests but the app errors, confirm ngrok is tunneling **5001** (see **ngrok with Docker on Mac** above).
 - If nothing shows up, confirm `.env` is correctly set to your IP
 - Use this to debug:
 

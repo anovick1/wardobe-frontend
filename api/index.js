@@ -22,17 +22,17 @@ api.interceptors.request.use(async (config) => {
 export const wornOutfitAPI = {
   // Mark outfit as worn
   markAsWorn: async (outfitId, wornAt = new Date()) => {
-    const response = await api.post('/worn_outfits/', {
+    const response = await api.post("/worn_outfits/", {
       outfit_id: outfitId,
       worn_at: wornAt.toISOString(),
-      is_public: true
+      is_public: true,
     });
     return response.data;
   },
 
   // Get all worn outfits for user
   getWornOutfits: async () => {
-    const response = await api.get('/worn_outfits/');
+    const response = await api.get("/worn_outfits/");
     return response.data;
   },
 
@@ -40,14 +40,14 @@ export const wornOutfitAPI = {
   removeWornRecord: async (wornOutfitId) => {
     const response = await api.delete(`/worn_outfits/${wornOutfitId}`);
     return response.data;
-  }
+  },
 };
 
 // Events API functions
 export const eventsAPI = {
   // Get all events
   getEvents: async (params = {}) => {
-    const response = await api.get('/events/', { params });
+    const response = await api.get("/events/", { params });
     return response.data;
   },
 
@@ -59,7 +59,7 @@ export const eventsAPI = {
 
   // Create new event
   createEvent: async (eventData) => {
-    const response = await api.post('/events/', eventData);
+    const response = await api.post("/events/", eventData);
     return response.data;
   },
 
@@ -78,7 +78,7 @@ export const eventsAPI = {
   // Link outfit to event
   linkOutfitToEvent: async (eventId, outfitId) => {
     const response = await api.post(`/events/${eventId}/outfits`, {
-      outfit_id: outfitId
+      outfit_id: outfitId,
     });
     return response.data;
   },
@@ -87,14 +87,14 @@ export const eventsAPI = {
   unlinkOutfitFromEvent: async (eventId, outfitId) => {
     const response = await api.delete(`/events/${eventId}/outfits/${outfitId}`);
     return response.data;
-  }
+  },
 };
 
 // Trips API functions
 export const tripsAPI = {
   // Get all trips
   getTrips: async (params = {}) => {
-    const response = await api.get('/trips/', { params });
+    const response = await api.get("/trips/", { params });
     return response.data;
   },
 
@@ -106,7 +106,7 @@ export const tripsAPI = {
 
   // Create new trip
   createTrip: async (tripData) => {
-    const response = await api.post('/trips/', tripData);
+    const response = await api.post("/trips/", tripData);
     return response.data;
   },
 
@@ -126,7 +126,7 @@ export const tripsAPI = {
   linkOutfitToTrip: async (tripId, outfitId, tripDay = null) => {
     const response = await api.post(`/trips/${tripId}/outfits`, {
       outfit_id: outfitId,
-      trip_day: tripDay
+      trip_day: tripDay,
     });
     return response.data;
   },
@@ -135,14 +135,14 @@ export const tripsAPI = {
   unlinkOutfitFromTrip: async (tripId, outfitId) => {
     const response = await api.delete(`/trips/${tripId}/outfits/${outfitId}`);
     return response.data;
-  }
+  },
 };
 
 // Packing Lists API functions
 export const packingListsAPI = {
   // Get all packing lists
   getPackingLists: async (params = {}) => {
-    const response = await api.get('/packing_lists/', { params });
+    const response = await api.get("/packing_lists/", { params });
     return response.data;
   },
 
@@ -154,62 +154,74 @@ export const packingListsAPI = {
 
   // Create new packing list
   createPackingList: async (packingListData) => {
-    const response = await api.post('/packing_lists/', packingListData);
+    const response = await api.post("/packing_lists/", packingListData);
     return response.data;
   },
 
   // Create manual packing list
   createManualPackingList: async (packingListData) => {
-    const response = await api.post('/packing_lists/manual', packingListData);
+    const response = await api.post("/packing_lists/manual", packingListData);
     return response.data;
   },
 
   // Generate AI packing list
   generateAIPackingList: async (tripId) => {
-    const response = await api.post('/packing_lists/generate', {
-      trip_id: tripId
+    const response = await api.post("/packing_lists/generate", {
+      trip_id: tripId,
     });
     return response.data;
   },
 
   // Toggle item packed status
   toggleItemPacked: async (packingListId, itemId) => {
-    const response = await api.put(`/packing_lists/${packingListId}/items/${itemId}/toggle_packed`);
+    const response = await api.put(
+      `/packing_lists/${packingListId}/items/${itemId}/toggle_packed`,
+    );
     return response.data;
   },
 
   // Update packing list item
   updatePackingListItem: async (packingListId, itemId, itemData) => {
-    const response = await api.put(`/packing_lists/${packingListId}/items/${itemId}`, itemData);
+    const response = await api.put(
+      `/packing_lists/${packingListId}/items/${itemId}`,
+      itemData,
+    );
     return response.data;
   },
 
   // Add packing list item
   addPackingListItem: async (packingListId, itemData) => {
-    const response = await api.post(`/packing_lists/${packingListId}/items`, itemData);
+    const response = await api.post(
+      `/packing_lists/${packingListId}/items`,
+      itemData,
+    );
     return response.data;
   },
 
   // Delete packing list item
   deletePackingListItem: async (packingListId, itemId) => {
-    const response = await api.delete(`/packing_lists/${packingListId}/items/${itemId}`);
+    const response = await api.delete(
+      `/packing_lists/${packingListId}/items/${itemId}`,
+    );
     return response.data;
-  }
+  },
 };
 
 // Locations API functions
 export const locationsAPI = {
   // Search locations
   searchLocations: async (query) => {
-    const response = await api.get('/locations/search', { params: { q: query } });
+    const response = await api.get("/locations/search", {
+      params: { q: query },
+    });
     return response.data;
   },
 
   // Get popular locations
   getPopularLocations: async () => {
-    const response = await api.get('/locations/');
+    const response = await api.get("/locations/");
     return response.data;
-  }
+  },
 };
 
 export default api;
