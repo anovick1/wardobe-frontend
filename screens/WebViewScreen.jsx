@@ -25,6 +25,7 @@ import WebViewSection from "../components/webview/WebViewSection";
 import EnhancedCropModal from "../components/common/EnhancedCropModal";
 import PendingUploadsBar from "../components/webview/PendingUploadsBar";
 import { useUnsavedChangesWarning } from "../hooks/useUnsavedChangesWarning";
+import { useUploadStatusPolling } from "../hooks/useUploadStatusPolling";
 import * as FileSystem from "expo-file-system";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import UploadDrawer from "../components/webview/UploadDrawer";
@@ -69,13 +70,49 @@ const WebViewScreen = ({}) => {
     : NAV_BAR_HEIGHT + PENDING_BAR_COLLAPSED_HEIGHT + insets.bottom;
 
   const [showUploadDrawer, setShowUploadDrawer] = useState(false);
+  const cleanupTimeoutsRef = useRef([]);
 
   useEffect(() => {
     isMounted.current = true;
+    const cleanupTimeouts = cleanupTimeoutsRef.current;
     return () => {
       isMounted.current = false;
+      cleanupTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
+      cleanupTimeouts.length = 0;
     };
   }, []);
+
+  const { startPolling, stopPolling, stopAllPolling } = useUploadStatusPolling({
+    onCompleted: (completedItemId, status) => {
+      setProcessedUploads((prev) =>
+        prev.map((upload) =>
+          upload.itemId === completedItemId
+            ? { ...upload, status: "completed", item: status }
+            : upload,
+        ),
+      );
+    },
+    onFailed: (failedItemId, { reason, status }) => {
+      const errorMessage =
+        reason === "timeout"
+          ? "Still processing — check back later"
+          : reason === "not_found"
+            ? "Item no longer exists"
+            : "Processing failed";
+      setProcessedUploads((prev) =>
+        prev.map((upload) =>
+          upload.itemId === failedItemId
+            ? {
+                ...upload,
+                status: "failed",
+                item: status ?? upload.item,
+                errorMessage,
+              }
+            : upload,
+        ),
+      );
+    },
+  });
 
   useLayoutEffect(() => {
     const parent = navigation.getParent();
@@ -240,48 +277,8 @@ const WebViewScreen = ({}) => {
         );
       }
 
-      // Poll for status
-      const checkStatus = async () => {
-        const itemResponse = await api.get(
-          `/wardrobe_items/${item_id}/status`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          },
-        );
-        return itemResponse.data;
-      };
-
-      // Poll every 500ms until complete or failed
-      const pollStatus = async () => {
-        const status = await checkStatus();
-        if (status.status === "completed") {
-          // Update the processed upload status
-          setProcessedUploads((prev) =>
-            prev.map((upload) =>
-              upload.itemId === item_id
-                ? { ...upload, status: "completed", item: status }
-                : upload,
-            ),
-          );
-          // Don't navigate - stay on web page
-        } else if (status.status === "failed") {
-          // Update the processed upload status
-          setProcessedUploads((prev) =>
-            prev.map((upload) =>
-              upload.itemId === item_id
-                ? { ...upload, status: "failed", item: status }
-                : upload,
-            ),
-          );
-          // Don't navigate - stay on web page
-        } else {
-          // Still processing, wait and try again
-          setTimeout(pollStatus, 500);
-        }
-      };
-
-      // Start polling
-      pollStatus();
+      // Poll for status with backoff, cancellation, and a time budget
+      startPolling(item_id);
     } catch (err) {
       console.error("Image processing failed:", err);
       
@@ -313,7 +310,7 @@ const WebViewScreen = ({}) => {
       
       // For clothing errors, animate away automatically after alert
       if (isClothingError) {
-        setTimeout(() => {
+        const timeoutId = setTimeout(() => {
           setProcessedUploads((prevUploads) => {
             const failedUpload = prevUploads.find(u => u.itemId === item_id);
             if (failedUpload && failedUpload.animatedValue) {
@@ -323,12 +320,15 @@ const WebViewScreen = ({}) => {
                 useNativeDriver: true,
               }).start(() => {
                 // Remove the item after animation completes
-                setProcessedUploads((current) => current.filter(u => u.itemId !== item_id));
+                if (isMounted.current) {
+                  setProcessedUploads((current) => current.filter(u => u.itemId !== item_id));
+                }
               });
             }
             return prevUploads;
           });
         }, 1000); // Wait 1 second after alert, then animate away
+        cleanupTimeoutsRef.current.push(timeoutId);
       }
     } finally {
       setIsProcessing(false);
@@ -337,6 +337,7 @@ const WebViewScreen = ({}) => {
 
   // Delete all processed uploads from backend and clear state
   const deleteAllProcessedUploads = async () => {
+    stopAllPolling();
     try {
       await Promise.all(
         processedUploads.map(async (upload) => {
@@ -369,6 +370,7 @@ const WebViewScreen = ({}) => {
           onPress: async () => {
             const upload = processedUploads.find((u) => u.id === uploadId);
             if (upload && upload.itemId) {
+              stopPolling(upload.itemId);
               try {
                 await api.delete(`/wardrobe_items/${upload.itemId}`);
               } catch (err) {
