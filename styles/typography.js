@@ -1,77 +1,70 @@
-import { StyleSheet, PixelRatio } from "react-native";
+import { StyleSheet } from "react-native";
+import { colors, typography as tokens } from "./tokens";
 
-const baseFontSize = 16;
-const nameFontSize = Math.round(baseFontSize * PixelRatio.getFontScale());
+const { fontFamily, fontSize, fontWeight } = tokens;
 
 export const typography = StyleSheet.create({
   title: {
-    fontSize: 28,
-    fontWeight: "bold",
+    ...tokens.screenTitle,
     marginBottom: 20,
   },
   name: {
-    color: "#121416",
-    fontWeight: "bold",
-    fontSize: 15,
+    ...tokens.itemName,
     marginTop: 0,
     marginBottom: 2,
     textAlign: "left",
-    lineHeight: 18,
     flexShrink: 1,
   },
   category: {
-    fontSize: 14,
-    color: "#777",
+    fontFamily: fontFamily.body,
+    fontSize: fontSize.footnote,
+    color: colors.inkSecondary,
+    lineHeight: 18,
     marginTop: 4,
   },
   brand: {
-    color: "#6a7681",
-    fontSize: 12,
-    fontWeight: "500",
+    ...tokens.brand,
     marginBottom: 0,
     textAlign: "left",
-    lineHeight: 15,
   },
   price: {
-    color: "#6a7681",
-    fontSize: 12,
-    fontWeight: "500",
+    ...tokens.price,
     marginBottom: 0,
     textAlign: "left",
-    lineHeight: 15,
   },
   description: {
-    color: "#6a7681",
-    fontSize: 11,
+    ...tokens.caption,
     marginTop: 2,
     marginBottom: 0,
     textAlign: "left",
-    lineHeight: 14,
   },
   modalOption: {
-    fontSize: 18,
-    fontWeight: "500",
-    color: "#121416",
+    fontFamily: fontFamily.body,
+    fontSize: fontSize.title3,
+    fontWeight: fontWeight.medium,
+    lineHeight: 26,
+    color: colors.ink,
     letterSpacing: 0.1,
     paddingVertical: 10,
     textAlign: "center",
   },
   modalOptionCancel: {
-    fontSize: 18,
-    fontWeight: "500",
-    color: "#888",
+    fontFamily: fontFamily.body,
+    fontSize: fontSize.title3,
+    fontWeight: fontWeight.medium,
+    lineHeight: 26,
+    color: colors.inkSecondary,
     letterSpacing: 0.1,
     paddingVertical: 10,
     textAlign: "center",
   },
-  body: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: "#333",
-  },
+  body: tokens.bodyText,
   buttonText: {
-    fontSize: 16,
-    fontWeight: "600",
+    fontFamily: fontFamily.body,
+    fontSize: fontSize.callout,
+    fontWeight: fontWeight.semibold,
+    lineHeight: 22,
+    color: colors.ink,
   },
 });
 
