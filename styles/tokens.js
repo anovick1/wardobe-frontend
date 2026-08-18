@@ -5,6 +5,7 @@ export const colors = {
   surface: "#FFFFFF",
   surfaceSunken: "#ECE1CD",
   surfaceRaised: "#FFFFFF",
+  surfaceTranslucent: "rgba(255, 255, 255, 0.9)",
 
   ink: "#2B2620",
   inkSecondary: "#756C5D",
@@ -23,7 +24,7 @@ export const colors = {
   successSubtle: "#E5E8DE",
   danger: "#A33B2A",
   dangerSubtle: "#F3DED9",
-  warning: "#8A6A2B",
+  warning: "#7F6228",
   warningSubtle: "#F2E7CE",
 
   tagWork: { bg: "#F0DFD8", fg: "#9A4530" },

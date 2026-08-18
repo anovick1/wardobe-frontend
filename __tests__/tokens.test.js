@@ -3,6 +3,9 @@ import { colors as legacyColors } from "../styles/colors";
 import { tagColorStyle } from "../utils/tagStyles";
 
 const HEX = /^#[0-9A-F]{6}$/;
+const RGBA = /^rgba\((\d{1,3}), (\d{1,3}), (\d{1,3}), (0|1|0\.\d+)\)$/;
+
+const ALPHA_KEYS = ["surfaceTranslucent"];
 
 const TAG_KEYS = [
   "tagWork",
@@ -13,6 +16,8 @@ const TAG_KEYS = [
   "tagWinter",
   "tagDefault",
 ];
+
+const STATUS_KEYS = ["success", "danger", "warning"];
 
 const LEGACY_KEYS = [
   "background",
@@ -38,6 +43,9 @@ const flatColorEntries = () =>
       ? [[key, value]]
       : Object.entries(value).map(([sub, hex]) => [`${key}.${sub}`, hex]),
   );
+
+const flatOpaqueColorEntries = () =>
+  flatColorEntries().filter(([key]) => !ALPHA_KEYS.includes(key));
 
 const channelLuminance = (channel) =>
   channel <= 0.03928
@@ -80,9 +88,29 @@ describe("contrastRatio", () => {
 });
 
 describe("colors", () => {
-  it("expresses every token as an uppercase 6-digit hex", () => {
-    flatColorEntries().forEach(([key, value]) => {
+  it("expresses every opaque token as an uppercase 6-digit hex", () => {
+    flatOpaqueColorEntries().forEach(([key, value]) => {
       expect(`${key}: ${value}`).toMatch(new RegExp(`^${key}: #[0-9A-F]{6}$`));
+    });
+  });
+
+  it("covers every token with either the hex or the rgba format", () => {
+    const unclassified = flatColorEntries().filter(
+      ([, value]) => !HEX.test(value) && !RGBA.test(value),
+    );
+    expect(unclassified).toEqual([]);
+  });
+
+  it("expresses the alpha tokens as rgba with a fractional alpha", () => {
+    ALPHA_KEYS.forEach((key) => {
+      const match = RGBA.exec(colors[key]);
+      expect({ key, matched: match !== null }).toEqual({ key, matched: true });
+      const [, r, g, b, alpha] = match;
+      [r, g, b].forEach((channel) => {
+        expect(Number(channel)).toBeLessThanOrEqual(255);
+      });
+      expect(Number(alpha)).toBeGreaterThan(0);
+      expect(Number(alpha)).toBeLessThan(1);
     });
   });
 
@@ -139,6 +167,24 @@ describe("colors contrast", () => {
     expect(
       contrastRatio(colors.onAccent, colors.accentPressed),
     ).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("meets 4.5:1 for every status colour on the app background", () => {
+    STATUS_KEYS.forEach((key) => {
+      expect({
+        key,
+        ratio: contrastRatio(colors[key], colors.paper) >= 4.5,
+      }).toEqual({ key, ratio: true });
+    });
+  });
+
+  it("meets 4.5:1 for every status colour on its own subtle fill", () => {
+    STATUS_KEYS.forEach((key) => {
+      expect({
+        key,
+        ratio: contrastRatio(colors[key], colors[`${key}Subtle`]) >= 4.5,
+      }).toEqual({ key, ratio: true });
+    });
   });
 
   it("meets 4.5:1 for every tag foreground on its own background", () => {

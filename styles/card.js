@@ -14,6 +14,11 @@ export default StyleSheet.create({
     overflow: "hidden",
     flexDirection: "column",
     width: "100%",
+  },
+  // iOS clips a layer shadow to a view with overflow: "hidden", so the card's
+  // elevation has to sit on a wrapper view rather than on `card` itself.
+  cardElevation: {
+    borderRadius: radius.xl,
     ...shadow.md,
   },
   infoSection: {
@@ -63,7 +68,7 @@ export default StyleSheet.create({
     minHeight: 180,
   },
   modalSheetCentered: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceTranslucent,
     padding: spacing.xxl,
     borderRadius: radius.xxl,
   },
