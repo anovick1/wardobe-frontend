@@ -12,10 +12,12 @@ __tests__/
 ├── LoginScreen.test.js
 ├── WardrobeScreen.test.js
 ├── FeedScreen.test.js
-└── WardrobeItemDetail.test.js
+├── WardrobeItemDetail.test.js
+├── uploadPolling.test.js
+├── WebViewScreenUploadPolling.test.js
+└── MultiUploadScreenTimeouts.test.js
 
 __mocks__/
-├── hooks/
 └── firebase/
 ```
 
@@ -28,13 +30,15 @@ __mocks__/
 - `WardrobeScreen.test.js`: Tests for the main wardrobe view
 - `FeedScreen.test.js`: Tests for the social feed functionality
 - `WardrobeItemDetail.test.js`: Tests for individual wardrobe item details
+- `uploadPolling.test.js`: Tests for the `useUploadStatusPolling` hook (backoff, terminal statuses, cancellation, time budget)
+- `WebViewScreenUploadPolling.test.js`: Tests for upload status polling as wired into the web view capture flow
+- `MultiUploadScreenTimeouts.test.js`: Tests that the multi upload screen clears its deferred timeouts on unmount
 
 ## Mock Files
 
 The `__mocks__` directory contains mock implementations for external dependencies:
 
-- `hooks/`: Mock implementations of custom hooks
-- `firebase/`: Mock implementations of Firebase services
+- `firebase/`: Mock implementations of Firebase services, applied automatically to every suite
 
 ## Running Tests
 
@@ -91,12 +95,11 @@ When writing new tests, follow these guidelines:
 
 ### Mocking Firebase
 
-```javascript
-jest.mock("firebase/auth", () => ({
-  getAuth: jest.fn(),
-  signInWithEmailAndPassword: jest.fn(),
-}));
-```
+`firebase/auth` is already mocked repo wide by `__mocks__/firebase/auth.js`, which Jest applies
+automatically. Prefer extending that shared mock over declaring a local one: a partial
+`jest.mock("firebase/auth", ...)` factory shadows the shared mock, and any suite whose imports reach
+`firebase.js` then fails at import time on the exports the factory left out (`initializeAuth`,
+`getReactNativePersistence`, `onAuthStateChanged`, `signInWithCredential`).
 
 ### Mocking Custom Hooks
 
