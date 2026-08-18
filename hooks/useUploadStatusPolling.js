@@ -6,6 +6,7 @@ export const POLLING_DEFAULTS = {
   backoffFactor: 1.5,
   maxDelayMs: 10000,
   maxTotalMs: 120000,
+  requestTimeoutMs: 15000,
 };
 
 /**
@@ -21,6 +22,7 @@ export const POLLING_DEFAULTS = {
 export function useUploadStatusPolling({ onCompleted, onFailed } = {}) {
   const timeoutsRef = useRef(new Map());
   const activeItemsRef = useRef(new Set());
+  const generationsRef = useRef(new Map());
   const isMountedRef = useRef(true);
   const callbacksRef = useRef({ onCompleted, onFailed });
   callbacksRef.current = { onCompleted, onFailed };
@@ -32,6 +34,7 @@ export function useUploadStatusPolling({ onCompleted, onFailed } = {}) {
       timeoutsRef.current.forEach((timeoutId) => clearTimeout(timeoutId));
       timeoutsRef.current.clear();
       activeItemsRef.current.clear();
+      generationsRef.current.clear();
     };
   }, []);
 
@@ -52,40 +55,56 @@ export function useUploadStatusPolling({ onCompleted, onFailed } = {}) {
 
   const startPolling = useCallback(
     (itemId) => {
-      const { initialDelayMs, backoffFactor, maxDelayMs, maxTotalMs } =
-        POLLING_DEFAULTS;
+      const {
+        initialDelayMs,
+        backoffFactor,
+        maxDelayMs,
+        maxTotalMs,
+        requestTimeoutMs,
+      } = POLLING_DEFAULTS;
       stopPolling(itemId);
       activeItemsRef.current.add(itemId);
 
+      const generation = (generationsRef.current.get(itemId) ?? 0) + 1;
+      generationsRef.current.set(itemId, generation);
+
       let nextDelay = initialDelayMs;
-      let elapsed = 0;
+      const deadline = Date.now() + maxTotalMs;
 
       const isActive = () =>
-        isMountedRef.current && activeItemsRef.current.has(itemId);
+        isMountedRef.current &&
+        activeItemsRef.current.has(itemId) &&
+        generationsRef.current.get(itemId) === generation;
 
       const finish = (report) => {
         stopPolling(itemId);
         report();
       };
 
+      const giveUp = () => {
+        finish(() =>
+          callbacksRef.current.onFailed?.(itemId, { reason: "timeout" }),
+        );
+      };
+
       const scheduleNext = (delayMs) => {
         if (!isActive()) return;
-        if (elapsed >= maxTotalMs) {
-          finish(() =>
-            callbacksRef.current.onFailed?.(itemId, { reason: "timeout" }),
-          );
+        if (Date.now() >= deadline) {
+          giveUp();
           return;
         }
         const timeoutId = setTimeout(poll, delayMs);
         timeoutsRef.current.set(itemId, timeoutId);
-        elapsed += delayMs;
       };
 
       const poll = async () => {
+        if (!isActive()) return;
         timeoutsRef.current.delete(itemId);
         let status;
         try {
-          const response = await api.get(`/wardrobe_items/${itemId}/status`);
+          const response = await api.get(`/wardrobe_items/${itemId}/status`, {
+            timeout: requestTimeoutMs,
+          });
           status = response.data;
         } catch (err) {
           if (!isActive()) return;
