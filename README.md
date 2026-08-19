@@ -97,7 +97,8 @@ wardrobe-frontend/
 ├── api/                    # Axios instance
 ├── assets/                 # Images, icons
 ├── screens/                # App screens (e.g., HomeScreen)
-├── styles/                 # Modular styles (global, card, typography)
+├── styles/                 # Design tokens and modular styles (see styles/README.md)
+│   ├── tokens.js           # Terrace design tokens — single source of truth
 │   ├── global.js
 │   ├── typography.js
 │   └── card.js
