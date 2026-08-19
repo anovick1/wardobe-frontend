@@ -1,19 +1,25 @@
+// DEPRECATED compatibility shim. The pre-Terrace key names are kept only so the
+// files still importing them keep rendering; each one now resolves to its
+// nearest Terrace token. New code must import from ./tokens instead — these
+// keys will be removed once the screen sweep retires the last importer.
+import { colors as terrace } from "./tokens";
+
 export const colors = {
-  background: "#F5F5F5",
-  primary: "#1e90ff",
-  text: "#333",
-  textSecondary: "#666",
-  card: "#fff",
-  surface: "#fff",
-  white: "#fff",
-  success: "#4CAF50",
-  error: "#F44336",
-  gray100: "#f5f5f5",
-  gray200: "#e5e5e5",
-  gray300: "#d4d4d4",
-  gray400: "#a3a3a3",
-  gray500: "#737373",
-  gray600: "#525252"
+  background: terrace.paper,
+  primary: terrace.accent,
+  text: terrace.ink,
+  textSecondary: terrace.inkSecondary,
+  card: terrace.surface,
+  surface: terrace.surface,
+  white: terrace.surface,
+  success: terrace.success,
+  error: terrace.danger,
+  gray100: terrace.paper,
+  gray200: terrace.surfaceSunken,
+  gray300: terrace.borderStrong,
+  gray400: terrace.inkMuted,
+  gray500: terrace.inkSecondary,
+  gray600: terrace.ink,
 };
 
 export default colors;

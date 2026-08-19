@@ -27,8 +27,8 @@ This is a full-stack wardrobe management application with:
 ### Component and Styling Best Practices
 
 - **Before creating new components**: Always check existing components in `wardrobe-frontend/components/` to see if similar functionality already exists
-- **Check existing styles**: Review `wardrobe-frontend/styles/` directory for existing styling utilities (colors.js, typography.js, global.js, card.js)
-- **Reuse existing styles**: Use established color schemes, typography, and card styles from the styles folder
+- **Check existing styles**: `wardrobe-frontend/styles/tokens.js` is the single source of truth for colors, spacing, radii, typography and shadows; `typography.js`, `global.js` and `card.js` are built from it, and `colors.js` is a deprecated shim kept only for un-swept importers. See `wardrobe-frontend/styles/README.md` for the token groups, the never-hardcode-a-hex rule, and how to add a token
+- **Reuse existing styles**: Use the tokens and the established typography and card styles rather than inline values
 - **Break components into smaller pieces**: If a component will be reused or is getting complex, break it into smaller, focused components
 - **Component organization**:
   - Put reusable components in `components/common/`

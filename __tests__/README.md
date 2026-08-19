@@ -12,7 +12,8 @@ __tests__/
 ├── LoginScreen.test.js
 ├── WardrobeScreen.test.js
 ├── FeedScreen.test.js
-└── WardrobeItemDetail.test.js
+├── WardrobeItemDetail.test.js
+└── tokens.test.js
 
 __mocks__/
 ├── hooks/
@@ -28,6 +29,7 @@ __mocks__/
 - `WardrobeScreen.test.js`: Tests for the main wardrobe view
 - `FeedScreen.test.js`: Tests for the social feed functionality
 - `WardrobeItemDetail.test.js`: Tests for individual wardrobe item details
+- `tokens.test.js`: Tests for the Terrace design tokens in `styles/` — hex validity, contrast ratios, scale ordering and the legacy `colors.js` shim (see `styles/README.md`)
 
 ## Mock Files
 
