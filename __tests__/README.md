@@ -13,9 +13,7 @@ __tests__/
 ├── WardrobeScreen.test.js
 ├── FeedScreen.test.js
 ├── WardrobeItemDetail.test.js
-├── uploadPolling.test.js
-├── WebViewScreenUploadPolling.test.js
-└── MultiUploadScreenTimeouts.test.js
+└── tokens.test.js
 
 __mocks__/
 └── firebase/
@@ -30,9 +28,7 @@ __mocks__/
 - `WardrobeScreen.test.js`: Tests for the main wardrobe view
 - `FeedScreen.test.js`: Tests for the social feed functionality
 - `WardrobeItemDetail.test.js`: Tests for individual wardrobe item details
-- `uploadPolling.test.js`: Tests for the `useUploadStatusPolling` hook (backoff, terminal statuses, cancellation, time budget)
-- `WebViewScreenUploadPolling.test.js`: Tests for upload status polling as wired into the web view capture flow
-- `MultiUploadScreenTimeouts.test.js`: Tests that the multi upload screen clears its deferred timeouts on unmount
+- `tokens.test.js`: Tests for the Terrace design tokens in `styles/` — hex validity, contrast ratios, scale ordering and the legacy `colors.js` shim (see `styles/README.md`)
 
 ## Mock Files
 
