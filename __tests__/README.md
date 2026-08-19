@@ -16,7 +16,6 @@ __tests__/
 └── tokens.test.js
 
 __mocks__/
-├── hooks/
 └── firebase/
 ```
 
@@ -35,8 +34,7 @@ __mocks__/
 
 The `__mocks__` directory contains mock implementations for external dependencies:
 
-- `hooks/`: Mock implementations of custom hooks
-- `firebase/`: Mock implementations of Firebase services
+- `firebase/`: Mock implementations of Firebase services, applied automatically to every suite
 
 ## Running Tests
 
@@ -93,12 +91,11 @@ When writing new tests, follow these guidelines:
 
 ### Mocking Firebase
 
-```javascript
-jest.mock("firebase/auth", () => ({
-  getAuth: jest.fn(),
-  signInWithEmailAndPassword: jest.fn(),
-}));
-```
+`firebase/auth` is already mocked repo wide by `__mocks__/firebase/auth.js`, which Jest applies
+automatically. Prefer extending that shared mock over declaring a local one: a partial
+`jest.mock("firebase/auth", ...)` factory shadows the shared mock, and any suite whose imports reach
+`firebase.js` then fails at import time on the exports the factory left out (`initializeAuth`,
+`getReactNativePersistence`, `onAuthStateChanged`, `signInWithCredential`).
 
 ### Mocking Custom Hooks
 

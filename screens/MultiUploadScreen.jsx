@@ -59,6 +59,16 @@ export default function MultiUploadScreen({ route, navigation }) {
   // Use a ref to ensure this only runs once for the initial images
   const hasInitialUploadRun = useRef(false);
 
+  // Track fire-and-forget timeouts so they are cleared on unmount
+  const cleanupTimeoutsRef = useRef([]);
+  useEffect(() => {
+    const cleanupTimeouts = cleanupTimeoutsRef.current;
+    return () => {
+      cleanupTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
+      cleanupTimeouts.length = 0;
+    };
+  }, []);
+
   // Ensure tab bar is restored when this screen is focused
   useFocusEffect(
     React.useCallback(() => {
@@ -278,7 +288,7 @@ export default function MultiUploadScreen({ route, navigation }) {
                 );
                 
                 // Animate the item away after a short delay
-                setTimeout(() => {
+                const timeoutId = setTimeout(() => {
                   const itemToRemove = newStatus[matchIndex];
                   if (itemToRemove && itemToRemove.animatedValue) {
                     Animated.timing(itemToRemove.animatedValue, {
@@ -292,6 +302,7 @@ export default function MultiUploadScreen({ route, navigation }) {
                     });
                   }
                 }, 1500); // Wait 1.5 seconds before starting animation
+                cleanupTimeoutsRef.current.push(timeoutId);
               }
               
               return newStatus;
@@ -497,7 +508,7 @@ export default function MultiUploadScreen({ route, navigation }) {
         setImages((prev) => prev.filter((_, i) => i !== index));
 
         // Check if all items are now processed and set navigation flag if empty
-        setTimeout(() => {
+        const timeoutId = setTimeout(() => {
           setUploadStatus((currentStatus) => {
             if (currentStatus.length === 0) {
               setShouldNavigateToWardrobe(true);
@@ -505,6 +516,7 @@ export default function MultiUploadScreen({ route, navigation }) {
             return currentStatus;
           });
         }, 100);
+        cleanupTimeoutsRef.current.push(timeoutId);
       },
     });
   };
