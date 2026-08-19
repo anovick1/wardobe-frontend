@@ -1,6 +1,8 @@
 import { colors, spacing, radius, typography, shadow } from "../styles/tokens";
 import { colors as legacyColors } from "../styles/colors";
 import { tagColorStyle } from "../utils/tagStyles";
+import { typography as sheetTypography } from "../styles/typography";
+import cardStyles from "../styles/card";
 
 const HEX = /^#[0-9A-F]{6}$/;
 const RGBA = /^rgba\((\d{1,3}), (\d{1,3}), (\d{1,3}), (0|1|0\.\d+)\)$/;
@@ -195,6 +197,62 @@ describe("colors contrast", () => {
         ratio: contrastRatio(fg, bg) >= 4.5,
       }).toEqual({ key, ratio: true });
     });
+  });
+
+  it("meets 4.5:1 for the chip label colour on every tag background", () => {
+    TAG_KEYS.forEach((key) => {
+      expect({
+        key,
+        ratio: contrastRatio(cardStyles.tagText.color, colors[key].bg) >= 4.5,
+      }).toEqual({ key, ratio: true });
+    });
+  });
+});
+
+describe("typography.title alias", () => {
+  it("leaves leading automatic so resized call sites are not boxed", () => {
+    expect(sheetTypography.title.lineHeight).toBeUndefined();
+    expect({ ...sheetTypography.title, fontSize: 18 }).toEqual(
+      expect.not.objectContaining({ lineHeight: expect.anything() }),
+    );
+  });
+
+  it("still carries the screen title face, size, weight and ink", () => {
+    expect(sheetTypography.title).toEqual({
+      fontFamily: typography.screenTitle.fontFamily,
+      fontSize: typography.screenTitle.fontSize,
+      fontWeight: typography.screenTitle.fontWeight,
+      color: typography.screenTitle.color,
+      marginBottom: expect.any(Number),
+    });
+  });
+
+  it("keeps the composed screenTitle style leaded for full-size use", () => {
+    expect(typography.screenTitle.lineHeight).toBeGreaterThan(
+      typography.screenTitle.fontSize,
+    );
+  });
+});
+
+describe("card elevation style", () => {
+  it("keeps the clipping surface and its shadow on separate styles", () => {
+    expect(cardStyles.card.overflow).toEqual("hidden");
+    expect(cardStyles.card.shadowOpacity).toBeUndefined();
+    expect(cardStyles.card.elevation).toBeUndefined();
+    expect(cardStyles.cardElevation.overflow).toBeUndefined();
+    expect(cardStyles.cardElevation.shadowOpacity).toEqual(
+      shadow.md.shadowOpacity,
+    );
+  });
+
+  it("gives the elevation wrapper its own opaque rounded rect to cast from", () => {
+    expect(cardStyles.cardElevation.backgroundColor).toEqual(
+      cardStyles.card.backgroundColor,
+    );
+    expect(cardStyles.cardElevation.borderRadius).toEqual(
+      cardStyles.card.borderRadius,
+    );
+    expect(HEX.test(cardStyles.cardElevation.backgroundColor)).toEqual(true);
   });
 });
 

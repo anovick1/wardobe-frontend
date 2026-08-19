@@ -43,6 +43,21 @@ with no overflow, for a wrapper view placed around the card. Wrapping
 sweep's job — this branch only owns the token and style layer, so those cards
 currently render flat.
 
+`cardElevation` repeats the card's `backgroundColor` and `borderRadius` on
+purpose. A wrapper with a transparent background has no shape of its own, so
+the shadow would be traced from whatever the children happen to composite to
+rather than from the wrapper's rounded rect.
+
+## `typography.title` omits `lineHeight` on purpose
+
+Call sites spread the `title` alias and then override `fontSize`
+(`BoardDetailsScreen` renders it at 18 and at 24). A fixed leading does not
+scale with those overrides — it would box 18pt text in a 36pt line — so the
+alias copies the face, size, weight and ink from `tokens.screenTitle` but
+leaves leading automatic. Do not add `lineHeight` back to it. The composed
+`tokens.screenTitle` style keeps its `lineHeight` for callers that use it whole
+at full size; `__tests__/tokens.test.js` asserts both halves of that split.
+
 ## Adding a token
 
 1. Add it to the right group in `tokens.js`, next to its siblings.
@@ -52,8 +67,14 @@ currently render flat.
    new pair to the assertion list. The suite currently enforces 4.5:1 for:
    `ink` and `inkSecondary` on `paper`; `ink` on `surface` and `surfaceSunken`;
    `onAccent` on `accent` and `accentPressed`; each of `success`, `danger` and
-   `warning` on both `paper` and its own `*Subtle` fill; and all seven tag
-   `fg`-on-`bg` pairs.
+   `warning` on both `paper` and its own `*Subtle` fill; all seven tag
+   `fg`-on-`bg` pairs; and `card.js`'s chip label colour on all seven tag
+   backgrounds.
+
+   That last set is the one chips actually render today: `tagColorStyle` returns
+   only `{ backgroundColor }`, and `card.js` paints every chip label with
+   `tagDefault.fg`. The per-tag `fg` tokens are reserved for a later sweep that
+   will wire them through, and are asserted now so they are safe when it does.
 
    Two deliberate gaps, neither of them asserted:
 

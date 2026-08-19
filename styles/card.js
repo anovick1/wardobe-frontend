@@ -18,6 +18,7 @@ export default StyleSheet.create({
   // iOS clips a layer shadow to a view with overflow: "hidden", so the card's
   // elevation has to sit on a wrapper view rather than on `card` itself.
   cardElevation: {
+    backgroundColor: colors.surfaceRaised,
     borderRadius: radius.xl,
     ...shadow.md,
   },

@@ -1,11 +1,16 @@
 import { StyleSheet } from "react-native";
 import { colors, typography as tokens } from "./tokens";
 
-const { fontFamily, fontSize, fontWeight } = tokens;
+const { fontFamily, fontSize, fontWeight, screenTitle } = tokens;
 
 export const typography = StyleSheet.create({
+  // Deliberately omits screenTitle's lineHeight: call sites spread this alias
+  // and override fontSize, and a fixed leading would not scale with them.
   title: {
-    ...tokens.screenTitle,
+    fontFamily: screenTitle.fontFamily,
+    fontSize: screenTitle.fontSize,
+    fontWeight: screenTitle.fontWeight,
+    color: screenTitle.color,
     marginBottom: 20,
   },
   name: {
